@@ -1,7 +1,4 @@
 import React from 'react';
-import { css } from '@emotion/css';
-import { GrafanaTheme2 } from '@grafana/data';
-import { useStyles2 } from '@grafana/ui';
 import { prefixRoute } from '../utils/utils.routing';
 import { ROUTES } from '../constants';
 import { testIds } from '../components/testIds';
@@ -23,7 +20,6 @@ type rootTracesResponse = {
 };
 
 function TraceOverview() {
-  const _s = useStyles2(getStyles);
   const result = useSuspenseQuery<simpleTrace[]>({
     queryKey: ['traces'],
     queryFn: () =>
@@ -58,9 +54,3 @@ function TraceOverview() {
 }
 
 export default TraceOverview;
-
-const getStyles = (theme: GrafanaTheme2) => ({
-  marginTop: css`
-    margin-top: ${theme.spacing(2)};
-  `,
-});

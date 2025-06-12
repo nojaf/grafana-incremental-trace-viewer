@@ -88,7 +88,7 @@ func (a *App) handleTraces(w http.ResponseWriter, req *http.Request) {
 	log.Printf("OpenSearch returned %d hits (total: %d)", len(osResponse.Hits.Hits), osResponse.Hits.Total.Value)
 
 	// Transform to simplified response format
-	var traces []SimpleTrace
+	traces := make([]SimpleTrace, 0)
 	for _, hit := range osResponse.Hits.Hits {
 		trace := SimpleTrace{
 			TraceID:   hit.Source.TraceID,

@@ -134,3 +134,16 @@ Below you can find source code for existing app plugins and other related docume
 - [Basic app plugin example](https://github.com/grafana/grafana-plugin-examples/tree/master/examples/app-basic#readme)
 - [`plugin.json` documentation](https://grafana.com/developers/plugin-tools/reference/plugin-jsonplugin-json)
 - [Sign a plugin](https://grafana.com/developers/plugin-tools/publish-a-plugin/sign-a-plugin)
+
+## Seed data
+
+When running `bun run server` Docker compose will also spin up a OpenSearch instance.
+Run
+
+```shell
+bun run scripts/create-depth-trace.js
+bun run scripts/create-large-trace.js
+```
+
+To create some sample trace data.
+Feel free to tweak these scripts to your local needs.
