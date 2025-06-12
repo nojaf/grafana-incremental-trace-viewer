@@ -4,7 +4,10 @@ go 1.24.1
 
 toolchain go1.24.2
 
-require github.com/grafana/grafana-plugin-sdk-go v0.277.1
+require (
+	github.com/grafana/grafana-plugin-sdk-go v0.277.1
+	github.com/opensearch-project/opensearch-go v1.1.0
+)
 
 require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
