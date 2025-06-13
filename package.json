@@ -64,7 +64,8 @@
     "webpack-cli": "^5.1.4",
     "webpack-livereload-plugin": "^3.0.2",
     "webpack-subresource-integrity": "^5.1.0",
-    "webpack-virtual-modules": "^0.6.2"
+    "webpack-virtual-modules": "^0.6.2",
+    "@types/bun": "latest"
   },
   "engines": {
     "node": ">=22"
@@ -81,5 +82,6 @@
     "rxjs": "7.8.1",
     "@tanstack/react-query": "^5.80.5",
     "@tanstack/react-virtual": "^3.13.10"
-  }
+  },
+  "private": true
 }
