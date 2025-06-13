@@ -138,7 +138,13 @@ Below you can find source code for existing app plugins and other related docume
 ## Seed data
 
 When running `bun run server` Docker compose will also spin up a OpenSearch instance.
-Run
+
+Initially run the index setup script:
+```shell
+bun run scripts/setup-opensearch.js
+```
+
+then run
 
 ```shell
 bun run scripts/create-depth-trace.js
@@ -147,3 +153,12 @@ bun run scripts/create-large-trace.js
 
 To create some sample trace data.
 Feel free to tweak these scripts to your local needs.
+
+## Install OpenSearch plugin
+
+- Login in as `admin`, pw `admin`
+- Install OpenSearch plugin, http://localhost:3000/plugins
+- Add new data source:
+  - URL: http://opensearch:9200
+  - View index name at http://localhost:9200/_cat/indices?v , is most likely going to be `ss4o_traces-default-namespace`
+
