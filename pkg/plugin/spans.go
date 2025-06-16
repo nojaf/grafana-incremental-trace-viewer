@@ -27,12 +27,12 @@ func queryChildrenSpans(client *opensearch.Client, traceID, parentSpanID string,
 				"filter": [
 					{
 						"term": {
-							"parentSpanId.keyword": "%s"
+							"parentSpanId": "%s"
 						}
 					},
 					{
 						"term": {
-							"traceId.keyword": "%s"
+							"traceId": "%s"
 						}
 					}
 				]

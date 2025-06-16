@@ -40,14 +40,14 @@ func querySpanByID(client *opensearch.Client, traceID string, spanId string, lev
     "size": 0,
     "query": {
       "term": {
-        "traceId.keyword": %q
+        "traceId": %q
       }
     },
     "aggs": {
       "children": {
         "filter": {
           "term": {
-            "parentSpanId.keyword": %q
+            "parentSpanId": %q
           }
         },
         "aggs": {
@@ -63,7 +63,7 @@ func querySpanByID(client *opensearch.Client, traceID string, spanId string, lev
       "span": {
         "filter": {
           "term": {
-            "spanId.keyword": %q
+            "spanId": %q
           }
         },
         "aggs": {
@@ -164,6 +164,7 @@ func initialLoadPreOrder(
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("Found node for: traceId: %q, spanId: %q", traceId, rootSpanId)
 	result := []SpanNode{node}
 	for _, childID := range childSpanIDs {
 		children, err := initialLoadPreOrder(client, traceId, childID, childrenLimit, maxDepth, currentDepth+1)
