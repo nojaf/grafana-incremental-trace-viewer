@@ -8,12 +8,17 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/opensearch-project/opensearch-go"
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
 )
+
+type InitialTraceDetailRequest struct {
+	Depth         int `json:"depth"`
+	ChildrenLimit int `json:"childrenLimit"`
+	OpenSearchRequest
+}
 
 // Trace details response structures
 type SpanNode struct {
@@ -182,6 +187,7 @@ The root span is included in the result when the ?level = 0
 */
 func (a *App) handleInitialTraceDetail(w http.ResponseWriter, req *http.Request) {
 	log.Println("Processing trace details request (flat list)")
+
 	traceID := req.PathValue("traceId")
 	rootSpanID := req.PathValue("spanId")
 	if traceID == "" || rootSpanID == "" {
@@ -189,26 +195,26 @@ func (a *App) handleInitialTraceDetail(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
+	var requestData InitialTraceDetailRequest
+	if err := json.NewDecoder(req.Body).Decode(&requestData); err != nil {
+		log.Printf("Failed to decode request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	// Defaults
 	childrenLimit := 3
 	depth := 5
 
-	// Parse optional query parameters
-	// ?childrenLimit=3&depth=5
-	q := req.URL.Query()
-	if cl := q.Get("childrenLimit"); cl != "" {
-		if v, err := strconv.Atoi(cl); err == nil && v > 0 {
-			childrenLimit = v
-		}
+	// Parse optional parameters
+	if requestData.ChildrenLimit > 0 {
+		childrenLimit = requestData.ChildrenLimit
+	}
+	if requestData.Depth > 0 {
+		depth = requestData.Depth
 	}
 
-	if d := q.Get("depth"); d != "" {
-		if v, err := strconv.Atoi(d); err == nil && v > 0 {
-			depth = v
-		}
-	}
-
-	client, err := getOpenSearchClient()
+	client, err := getOpenSearchClient(requestData.Url)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

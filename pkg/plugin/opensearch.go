@@ -81,12 +81,10 @@ type TopHitsHits struct {
 	Hits []Hit `json:"hits"`
 }
 
-func getOpenSearchClient() (*opensearch.Client, error) {
+func getOpenSearchClient(url string) (*opensearch.Client, error) {
 	client, err := opensearch.NewClient(opensearch.Config{
 		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
-		Addresses: []string{"http://opensearch:9200"},
-		Username:  "admin",
-		Password:  "FooBar#123",
+		Addresses: []string{url},
 	})
 	if err != nil {
 		return nil, err

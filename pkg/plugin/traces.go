@@ -25,11 +25,23 @@ type RootTracesResponse struct {
 	Traces []SimpleTrace `json:"traces"`
 }
 
+type OpenSearchRequest struct {
+	Url       string `json:"url"`
+	Database  string `json:"database"`
+	TimeField string `json:"timeField"`
+}
+
 func (a *App) handleTraces(w http.ResponseWriter, req *http.Request) {
 	log.Println("Processing root traces request")
 
-	client, err := getOpenSearchClient()
+	var request OpenSearchRequest
+	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
+		log.Printf("Failed to decode request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
+	client, err := getOpenSearchClient(request.Url)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

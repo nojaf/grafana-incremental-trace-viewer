@@ -6,10 +6,10 @@ import { lastValueFrom } from 'rxjs';
 import { PluginPage, getBackendSrv } from '@grafana/runtime';
 import { Combobox } from '@grafana/ui';
 import { Link } from 'react-router-dom';
-import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import plugin from '../plugin.json';
 
-type datasource = {
+export type datasource = {
   id: number;
   uid: string;
   name: string;
@@ -35,6 +35,7 @@ type rootTracesResponse = {
 };
 
 function TraceOverview() {
+  const queryClient = useQueryClient();
   const datasources = useSuspenseQuery<datasource[]>({
     queryKey: ['datasources'],
     queryFn: () =>
@@ -50,9 +51,9 @@ function TraceOverview() {
   const [selectedSource, setSelectedSource] = useState<number | null>(null);
 
   const result = useQuery<simpleTrace[]>({
-    queryKey: ['traces', selectedSource],
+    queryKey: ['datasource', selectedSource, 'traces'],
     queryFn: async ({ queryKey }) => {
-      const [, sourceId] = queryKey;
+      const sourceId = queryKey[1];
 
       if (sourceId === null) {
         return [];
@@ -88,24 +89,35 @@ function TraceOverview() {
     <PluginPage>
       <div data-testid={testIds.pageOne.container}>
         This is the trace overview page. We would need to add filters here ourselves.
-        <Combobox
-          options={options}
-          onChange={(o) => {
-            console.log(o);
-            setSelectedSource(v.value);
-          }}
-        />
-        {/* <ul>
-          {result.data.map((r) => {
-            return (
-              <Link key={r.spanId} to={prefixRoute(`${ROUTES.TraceDetails}/${r.traceId}/${r.spanId}`)}>
-                <li>
-                  {r.name} ({r.spanId})
-                </li>
-              </Link>
-            );
-          })}
-        </ul> */}
+        <div style={{ padding: '2rem 0' }}>
+          <Combobox
+            options={options}
+            placeholder="Select a datasource"
+            onChange={(o) => {
+              const datasource = datasources.data.find((d) => d.id === o.value);
+              if (datasource) {
+                queryClient.setQueryData<datasource[]>(['datasource', o.value], datasources.data, {});
+                setSelectedSource(o.value);
+              }
+            }}
+          />
+        </div>
+        {result.isSuccess && result.data.length > 0 && (
+          <ul style={{ padding: '2rem' }}>
+            {result.data.map((r) => {
+              return (
+                <Link
+                  key={r.spanId}
+                  to={prefixRoute(`${selectedSource}/${ROUTES.TraceDetails}/${r.traceId}/${r.spanId}`)}
+                >
+                  <li>
+                    {r.name} ({r.spanId})
+                  </li>
+                </Link>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </PluginPage>
   );

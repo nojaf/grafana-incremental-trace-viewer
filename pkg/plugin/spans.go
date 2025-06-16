@@ -6,12 +6,20 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/opensearch-project/opensearch-go"
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
 )
+
+type AdditionalSpansRequest struct {
+	ChildrenLimit int `json:"childrenLimit"`
+	Depth         int `json:"depth"`
+	Level         int `json:"level"`
+	Skip          int `json:"skip"`
+	Take          int `json:"take"`
+	OpenSearchRequest
+}
 
 /*
 Query children spans for a parent span.
@@ -84,38 +92,30 @@ func (a *App) handleAdditionalSpans(w http.ResponseWriter, req *http.Request) {
 	depth := 3
 	level := 1
 
-	q := req.URL.Query()
-	if s := q.Get("skip"); s != "" {
-		if v, err := strconv.Atoi(s); err == nil && v > 0 {
-			skip = v
-		}
+	var requestData AdditionalSpansRequest
+	if err := json.NewDecoder(req.Body).Decode(&requestData); err != nil {
+		log.Printf("Failed to decode request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	if t := q.Get("take"); t != "" {
-		if v, err := strconv.Atoi(t); err == nil && v > 0 {
-			take = v
-		}
+	if requestData.Skip > 0 {
+		skip = requestData.Skip
+	}
+	if requestData.Take > 0 {
+		take = requestData.Take
+	}
+	if requestData.ChildrenLimit > 0 {
+		childrenLimit = requestData.ChildrenLimit
+	}
+	if requestData.Depth > 0 {
+		depth = requestData.Depth
+	}
+	if requestData.Level > 0 {
+		level = requestData.Level
 	}
 
-	if c := q.Get("childrenLimit"); c != "" {
-		if v, err := strconv.Atoi(c); err == nil && v > 0 {
-			childrenLimit = v
-		}
-	}
-
-	if d := q.Get("depth"); d != "" {
-		if v, err := strconv.Atoi(d); err == nil && v > 0 {
-			depth = v
-		}
-	}
-
-	if l := q.Get("level"); l != "" {
-		if v, err := strconv.Atoi(l); err == nil && v > 0 {
-			level = v
-		}
-	}
-
-	client, err := getOpenSearchClient()
+	client, err := getOpenSearchClient(requestData.Url)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
