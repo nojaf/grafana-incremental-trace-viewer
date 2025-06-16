@@ -11,16 +11,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Node.js environment
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      - uses: oven-sh/setup-bun@v2
         with:
-          node-version: '22'
-          cache: 'yarn'
+          bun-version: latest
 
       - name: Install dependencies
-        run: yarn install --immutable --prefer-offline
+        run: bun install --frozen-lockfile
 
       - name: Build plugin
-        run: yarn run build
+        run: bun run build
       - name: Compatibility check
-        run: npx --yes @grafana/levitate@latest is-compatible --path $(find ./src -type f \( -name "module.ts" -o -name "module.tsx" \)) --target @grafana/data,@grafana/ui,@grafana/runtime
+        run: bunx --yes @grafana/levitate@latest is-compatible --path $(find ./src -type f \( -name "module.ts" -o -name "module.tsx" \)) --target @grafana/data,@grafana/ui,@grafana/runtime
