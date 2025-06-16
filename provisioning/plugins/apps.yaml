@@ -1,0 +1,11 @@
+apiVersion: 1
+
+apps:
+  - type: 'gresearch-grafanaincrementaltraceviewer-app'
+    org_id: 1
+    org_name: 'G-Research'
+    disabled: false
+    jsonData:
+      apiUrl: http://default-url.com
+    secureJsonData:
+      apiKey: secret-key

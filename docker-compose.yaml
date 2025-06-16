@@ -1,0 +1,32 @@
+services:
+  grafana:
+    extends:
+      file: .config/docker-compose-base.yaml
+      service: grafana
+
+  opensearch:
+    image: opensearchproject/opensearch:3
+    container_name: opensearch
+    ports:
+      - '9200:9200'
+    environment:
+      - discovery.type=single-node
+      - plugins.security.disabled=true
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=FooBar#123
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest # Use the contrib image for more exporters/receivers
+    container_name: otel-collector
+    command: ['--config=/etc/otelcol-contrib/config.yaml']
+    volumes:
+      - ./collector-config.yaml:/etc/otelcol-contrib/config.yaml # Mount your collector configuration
+    ports:
+      - '4317:4317' # OTLP receiver for traces and metrics from your applications
+      - '4318:4318'
+      - '55679:55679'
+      - '9464:9464'
+    depends_on:
+      - opensearch
+
+networks:
+  default:

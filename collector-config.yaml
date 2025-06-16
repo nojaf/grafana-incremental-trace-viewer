@@ -1,0 +1,28 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318 # Added for completeness, if you use HTTP OTLP
+
+exporters:
+  opensearch:
+    http:
+      endpoint: 'http://opensearch:9200'
+
+service:
+  telemetry:
+    logs:
+      level: debug
+  pipelines:
+    traces:
+      receivers: [otlp]
+      # Add otlp/tempo to the exporters list
+      exporters: [opensearch]
+    # metrics:
+    #   receivers: [otlp]
+    #   exporters: [prometheus]
+    logs:
+      receivers: [otlp]
+      exporters: [opensearch]
