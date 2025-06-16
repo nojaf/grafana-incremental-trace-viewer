@@ -219,7 +219,7 @@ jobs:
       #     retention-days: 5
 
   publish-report:
-    if: ${{ always() && !cancelled() }}
+    if: false # ${{ always() && !cancelled() }}
     permissions:
       contents: write
       id-token: write
