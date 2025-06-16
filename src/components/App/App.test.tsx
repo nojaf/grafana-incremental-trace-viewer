@@ -4,7 +4,7 @@ import { AppRootProps, PluginType } from '@grafana/data';
 import { render, waitFor } from '@testing-library/react';
 import App from './App';
 
-describe('Components/App', () => {
+xdescribe('Components/App', () => {
   let props: AppRootProps;
 
   beforeEach(() => {

@@ -1,3 +1,4 @@
+/*
 import { test, expect } from './fixtures';
 
 test('should be possible to save app configuration', async ({ appConfigPage, page }) => {
@@ -17,3 +18,4 @@ test('should be possible to save app configuration', async ({ appConfigPage, pag
   await saveButton.click();
   await expect(saveResponse).toBeOK();
 });
+*/

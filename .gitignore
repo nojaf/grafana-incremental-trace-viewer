@@ -40,3 +40,6 @@ ci/
 .idea
 
 .eslintcache
+
+# Local history plugin
+.history/
