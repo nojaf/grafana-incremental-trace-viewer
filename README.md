@@ -157,6 +157,9 @@ Feel free to tweak these scripts to your local needs.
 
 ## Install OpenSearch plugin
 
+This should already have been done when launch the `grafana` docker service.
+If not:
+
 - Login in as `admin`, pw `admin`
 - Install OpenSearch plugin, http://localhost:3000/plugins
 - Add new data source:
