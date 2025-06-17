@@ -6,18 +6,26 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/opensearch-project/opensearch-go"
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
 )
 
+type AdditionalSpansRequest struct {
+	ChildrenLimit int `json:"childrenLimit"`
+	Depth         int `json:"depth"`
+	Level         int `json:"level"`
+	Skip          int `json:"skip"`
+	Take          int `json:"take"`
+	OpenSearchRequest
+}
+
 /*
 Query children spans for a parent span.
 The incoming level is the level of the children spans.
 */
-func queryChildrenSpans(client *opensearch.Client, traceID, parentSpanID string, skip, take int) ([]string, error) {
+func queryChildrenSpans(client *opensearch.Client, index string, timeField string, traceID, parentSpanID string, skip, take int) ([]string, error) {
 	log.Printf("Querying children spans for traceId: %s, parentSpanID: %s, skip: %d, take: %d", traceID, parentSpanID, skip, take)
 	content := strings.NewReader(fmt.Sprintf(`{
 		"size": %d,
@@ -39,15 +47,15 @@ func queryChildrenSpans(client *opensearch.Client, traceID, parentSpanID string,
 			}
 		},
 		"sort": [
-			{ "startTime": { "order": "asc" } }
+			{ %q: { "order": "asc" } }
 		],
 		"_source": [
 			"spanId"
 		]
-	}`, take, skip, parentSpanID, traceID))
+	}`, take, skip, parentSpanID, traceID, timeField))
 
 	search := opensearchapi.SearchRequest{
-		Index: []string{"ss4o_traces-default-namespace"},
+		Index: []string{index},
 		Body:  content,
 	}
 
@@ -84,45 +92,37 @@ func (a *App) handleAdditionalSpans(w http.ResponseWriter, req *http.Request) {
 	depth := 3
 	level := 1
 
-	q := req.URL.Query()
-	if s := q.Get("skip"); s != "" {
-		if v, err := strconv.Atoi(s); err == nil && v > 0 {
-			skip = v
-		}
+	var requestData AdditionalSpansRequest
+	if err := json.NewDecoder(req.Body).Decode(&requestData); err != nil {
+		log.Printf("Failed to decode request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
 	}
 
-	if t := q.Get("take"); t != "" {
-		if v, err := strconv.Atoi(t); err == nil && v > 0 {
-			take = v
-		}
+	if requestData.Skip > 0 {
+		skip = requestData.Skip
+	}
+	if requestData.Take > 0 {
+		take = requestData.Take
+	}
+	if requestData.ChildrenLimit > 0 {
+		childrenLimit = requestData.ChildrenLimit
+	}
+	if requestData.Depth > 0 {
+		depth = requestData.Depth
+	}
+	if requestData.Level > 0 {
+		level = requestData.Level
 	}
 
-	if c := q.Get("childrenLimit"); c != "" {
-		if v, err := strconv.Atoi(c); err == nil && v > 0 {
-			childrenLimit = v
-		}
-	}
-
-	if d := q.Get("depth"); d != "" {
-		if v, err := strconv.Atoi(d); err == nil && v > 0 {
-			depth = v
-		}
-	}
-
-	if l := q.Get("level"); l != "" {
-		if v, err := strconv.Atoi(l); err == nil && v > 0 {
-			level = v
-		}
-	}
-
-	client, err := getOpenSearchClient()
+	client, err := getOpenSearchClient(requestData.Url)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	childrenIds, err := queryChildrenSpans(client, traceID, spanID, skip, take)
+	childrenIds, err := queryChildrenSpans(client, requestData.Database, requestData.TimeField, traceID, spanID, skip, take)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -132,7 +132,7 @@ func (a *App) handleAdditionalSpans(w http.ResponseWriter, req *http.Request) {
 	for _, childId := range childrenIds {
 		log.Printf("Querying child span: %s", childId)
 		// TODO: take is reused from the top level take, maybe we should use a different take for subsequent levels
-		spansForChild, err := initialLoadPreOrder(client, traceID, childId, childrenLimit, level+1+depth, level+1)
+		spansForChild, err := initialLoadPreOrder(client, requestData.Database, requestData.TimeField, traceID, childId, childrenLimit, level+1+depth, level+1)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return

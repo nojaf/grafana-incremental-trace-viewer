@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import plugin from '../plugin.json';
 import { lastValueFrom } from 'rxjs';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import type { datasource } from './TraceOverview';
 
 type TraceId = string;
 type SpanId = string;
@@ -83,23 +84,51 @@ const Span = (props: SpanNodeProps) => {
 };
 
 function TraceDetail() {
-  const { traceId, spanId: rootSpanId } = useParams<{ traceId: string; spanId: string }>();
+  const {
+    traceId,
+    spanId: rootSpanId,
+    datasourceId,
+  } = useParams<{ traceId: string; spanId: string; datasourceId: string }>();
   const queryClient = useQueryClient();
   const parentRef = React.useRef(null);
+  const queryKey = ['datasource', datasourceId, 'trace', traceId, 'spans', rootSpanId];
 
   const result = useQuery<SpanNode[]>(
     {
-      queryKey: ['trace', traceId, rootSpanId],
+      queryKey,
       staleTime: 5000,
-      queryFn: () =>
-        new Promise(async (resolve, _) => {
-          const responses = getBackendSrv().fetch<SpanNode[]>({
-            url: `/api/plugins/${plugin.id}/resources/trace/${traceId}/span/${rootSpanId}`, // ?depth=3&childrenLimit=3
-          });
-          const response = await lastValueFrom(responses);
-          console.log(response.data);
-          resolve(response.data);
-        }),
+      queryFn: async () => {
+        const backendSrv = getBackendSrv();
+
+        // If the user came from the overview page, the datasource is already in the query client.
+        let datasource = queryClient.getQueryData<datasource>(['datasource', datasourceId]);
+        // If not, gets it from the API.
+        if (datasource === undefined) {
+          datasource = await lastValueFrom(
+            backendSrv.fetch<datasource>({ url: `/api/datasources/${datasourceId}` })
+          ).then((res) => res.data);
+          queryClient.setQueryData<datasource>(['datasource', datasourceId], datasource);
+        }
+        // If the datasource is still undefined, throw an error.
+        if (datasource === undefined) {
+          throw new Error(`Datasource not found for ${datasourceId}`);
+        }
+
+        const responses = getBackendSrv().fetch<SpanNode[]>({
+          url: `/api/plugins/${plugin.id}/resources/trace/${traceId}/span/${rootSpanId}`,
+          method: 'POST',
+          data: {
+            url: datasource.url,
+            database: datasource.jsonData.database,
+            timeField: datasource.jsonData.timeField,
+            depth: 3,
+            childrenLimit: 5,
+          },
+        });
+        const response = await lastValueFrom(responses);
+        console.log(response.data);
+        return response.data;
+      },
     },
     queryClient
   );
@@ -117,11 +146,24 @@ function TraceDetail() {
       return;
     }
     new Promise(async () => {
+      const datasource = queryClient.getQueryData<datasource>(['datasource', datasourceId]);
+      if (!datasource) {
+        throw new Error(`Datasource not found for ${datasourceId}`);
+      }
+
       const responses = getBackendSrv().fetch<SpanNode[]>({
-        url: `/api/plugins/${
-          plugin.id
-        }/resources/trace/${traceId}/span/${spanId}/children?childrenLimit=${3}&depth=${3}&level=${currentLevel}&skip=${skip}&take=${10}`,
-        method: 'GET',
+        url: `/api/plugins/${plugin.id}/resources/trace/${traceId}/span/${spanId}/children`,
+        method: 'POST',
+        data: {
+          url: datasource.url,
+          database: datasource.jsonData.database,
+          timeField: datasource.jsonData.timeField,
+          childrenLimit: 3,
+          depth: 3,
+          level: currentLevel,
+          skip: skip,
+          take: 10,
+        },
       });
       const response = await lastValueFrom(responses);
 
@@ -141,7 +183,7 @@ function TraceDetail() {
 
       const newlyAddedChildren = response.data.filter(({ level }: SpanNode) => currentLevel + 1 === level).length;
 
-      queryClient.setQueryData<SpanNode[]>(['trace', traceId, rootSpanId], (oldData) => {
+      queryClient.setQueryData<SpanNode[]>(queryKey, (oldData) => {
         if (!oldData) {
           console.log('oldData is undefined, returning response.data.spans');
           return response.data;

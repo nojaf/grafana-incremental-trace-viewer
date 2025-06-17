@@ -3,9 +3,9 @@ package main
 import (
 	"os"
 
+	"github.com/g-research/grafana-incremental-trace-viewer/pkg/plugin"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/app"
 	"github.com/grafana/grafana-plugin-sdk-go/backend/log"
-	"github.com/g-research/grafana-incremental-trace-viewer/pkg/plugin"
 )
 
 func main() {

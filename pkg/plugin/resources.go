@@ -42,7 +42,7 @@ func (a *App) registerRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/ping", a.handlePing)
 	mux.HandleFunc("/echo", a.handleEcho)
 
-	mux.HandleFunc("/traces", a.handleTraces)
-	mux.HandleFunc("/trace/{traceId}/span/{spanId}", a.handleInitialTraceDetail)
-	mux.HandleFunc("/trace/{traceId}/span/{spanId}/children", a.handleAdditionalSpans)
+	mux.HandleFunc("POST /traces", a.handleTraces)
+	mux.HandleFunc("POST /trace/{traceId}/span/{spanId}", a.handleInitialTraceDetail)
+	mux.HandleFunc("POST /trace/{traceId}/span/{spanId}/children", a.handleAdditionalSpans)
 }
