@@ -39,7 +39,7 @@ This will include the total children count.
 And the child span ids limited by take.
 The level is the level of the returned span.
 */
-func querySpanByID(client *opensearch.Client, traceID string, spanId string, level, take int) (SpanNode, []string, error) {
+func querySpanByID(client *opensearch.Client, index string, timeField string, traceID string, spanId string, level, take int) (SpanNode, []string, error) {
 	log.Printf("Querying span by id: %s, traceId: %s", spanId, traceID)
 	content := strings.NewReader(fmt.Sprintf(`{
     "size": 0,
@@ -59,7 +59,7 @@ func querySpanByID(client *opensearch.Client, traceID string, spanId string, lev
           "span_docs": {
             "top_hits": {
               "size": %d,
-              "sort": [{ "startTime": { "order": "asc" } }],
+              "sort": [{ %q: { "order": "asc" } }],
               "_source": ["spanId"]
             }
           }
@@ -80,10 +80,10 @@ func querySpanByID(client *opensearch.Client, traceID string, spanId string, lev
         }
       }
     }
-  }`, traceID, spanId, take, spanId))
+  }`, traceID, spanId, take, timeField, spanId))
 
 	search := opensearchapi.SearchRequest{
-		Index: []string{"ss4o_traces-default-namespace"},
+		Index: []string{index},
 		Body:  content,
 	}
 
@@ -158,6 +158,8 @@ func querySpanByID(client *opensearch.Client, traceID string, spanId string, lev
 /** TODO: this might give a stackoverflow, fix when required */
 func initialLoadPreOrder(
 	client *opensearch.Client,
+	index string,
+	timeField string,
 	traceId, rootSpanId string,
 	childrenLimit, maxDepth int,
 	currentDepth int,
@@ -165,14 +167,14 @@ func initialLoadPreOrder(
 	if currentDepth > maxDepth {
 		return nil, nil
 	}
-	node, childSpanIDs, err := querySpanByID(client, traceId, rootSpanId, currentDepth, childrenLimit)
+	node, childSpanIDs, err := querySpanByID(client, index, timeField, traceId, rootSpanId, currentDepth, childrenLimit)
 	if err != nil {
 		return nil, err
 	}
 	log.Printf("Found node for: traceId: %q, spanId: %q", traceId, rootSpanId)
 	result := []SpanNode{node}
 	for _, childID := range childSpanIDs {
-		children, err := initialLoadPreOrder(client, traceId, childID, childrenLimit, maxDepth, currentDepth+1)
+		children, err := initialLoadPreOrder(client, index, timeField, traceId, childID, childrenLimit, maxDepth, currentDepth+1)
 		if err != nil {
 			return nil, err
 		}
@@ -221,7 +223,7 @@ func (a *App) handleInitialTraceDetail(w http.ResponseWriter, req *http.Request)
 		return
 	}
 
-	spans, err := initialLoadPreOrder(client, traceID, rootSpanID, childrenLimit, depth, 1)
+	spans, err := initialLoadPreOrder(client, requestData.Database, requestData.TimeField, traceID, rootSpanID, childrenLimit, depth, 1)
 	if err != nil {
 		log.Printf("Failed to collect descendants with stack: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

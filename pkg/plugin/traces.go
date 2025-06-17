@@ -52,7 +52,7 @@ func (a *App) handleTraces(w http.ResponseWriter, req *http.Request) {
 	maxSize := 100
 	content := strings.NewReader(fmt.Sprintf(`{
     "size": %d,
-    "sort": [{ "@timestamp": "desc" }],
+    "sort": [{ %q: "desc" }],
     "query": {
       "bool": {
         "should": [
@@ -71,12 +71,12 @@ func (a *App) handleTraces(w http.ResponseWriter, req *http.Request) {
       "traceId",
       "name",
       "parentSpanId",
-      "@timestamp"
+      %q
     ]
-  }`, maxSize))
+  }`, maxSize, request.TimeField, request.TimeField))
 
 	search := opensearchapi.SearchRequest{
-		Index: []string{"ss4o_traces-default-namespace"},
+		Index: []string{request.Database},
 		Body:  content,
 	}
 

@@ -25,7 +25,7 @@ type AdditionalSpansRequest struct {
 Query children spans for a parent span.
 The incoming level is the level of the children spans.
 */
-func queryChildrenSpans(client *opensearch.Client, traceID, parentSpanID string, skip, take int) ([]string, error) {
+func queryChildrenSpans(client *opensearch.Client, index string, timeField string, traceID, parentSpanID string, skip, take int) ([]string, error) {
 	log.Printf("Querying children spans for traceId: %s, parentSpanID: %s, skip: %d, take: %d", traceID, parentSpanID, skip, take)
 	content := strings.NewReader(fmt.Sprintf(`{
 		"size": %d,
@@ -47,15 +47,15 @@ func queryChildrenSpans(client *opensearch.Client, traceID, parentSpanID string,
 			}
 		},
 		"sort": [
-			{ "startTime": { "order": "asc" } }
+			{ %q: { "order": "asc" } }
 		],
 		"_source": [
 			"spanId"
 		]
-	}`, take, skip, parentSpanID, traceID))
+	}`, take, skip, parentSpanID, traceID, timeField))
 
 	search := opensearchapi.SearchRequest{
-		Index: []string{"ss4o_traces-default-namespace"},
+		Index: []string{index},
 		Body:  content,
 	}
 
@@ -122,7 +122,7 @@ func (a *App) handleAdditionalSpans(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	childrenIds, err := queryChildrenSpans(client, traceID, spanID, skip, take)
+	childrenIds, err := queryChildrenSpans(client, requestData.Database, requestData.TimeField, traceID, spanID, skip, take)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -132,7 +132,7 @@ func (a *App) handleAdditionalSpans(w http.ResponseWriter, req *http.Request) {
 	for _, childId := range childrenIds {
 		log.Printf("Querying child span: %s", childId)
 		// TODO: take is reused from the top level take, maybe we should use a different take for subsequent levels
-		spansForChild, err := initialLoadPreOrder(client, traceID, childId, childrenLimit, level+1+depth, level+1)
+		spansForChild, err := initialLoadPreOrder(client, requestData.Database, requestData.TimeField, traceID, childId, childrenLimit, level+1+depth, level+1)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
