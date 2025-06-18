@@ -50,8 +50,8 @@ type TraceSource struct {
 	Timestamp    time.Time `json:"@timestamp"`
 	Name         string    `json:"name"`
 	ParentSpanID string    `json:"parentSpanId"`
-	StartTime    string    `json:"startTime"`
-	EndTime      string    `json:"endTime"`
+	StartTime    time.Time `json:"startTime"`
+	EndTime      time.Time `json:"endTime"`
 }
 
 // OpenSearch aggregation response structures

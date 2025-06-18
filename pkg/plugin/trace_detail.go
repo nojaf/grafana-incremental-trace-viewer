@@ -14,25 +14,6 @@ import (
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
 )
 
-type InitialTraceDetailRequest struct {
-	Depth         int `json:"depth"`
-	ChildrenLimit int `json:"childrenLimit"`
-	OpenSearchRequest
-}
-
-// Trace details response structures
-type SpanNode struct {
-	TraceID              string `json:"traceId"`
-	SpanID               string `json:"spanId"`
-	Name                 string `json:"name"`
-	StartTime            string `json:"startTime"`
-	EndTime              string `json:"endTime"`
-	ParentSpanID         string `json:"parentSpanId"`
-	Level                int    `json:"level"`
-	CurrentChildrenCount int    `json:"currentChildrenCount"`
-	TotalChildrenCount   int    `json:"totalChildrenCount"`
-}
-
 /*
 Query a single span with full details by id.
 This will include the total children count.
@@ -187,17 +168,10 @@ func initialLoadPreOrder(
 Returns a flat list of spans for a trace id and span id
 The root span is included in the result when the ?level = 0
 */
-func (a *App) handleInitialTraceDetail(w http.ResponseWriter, req *http.Request) {
-	log.Println("Processing trace details request (flat list)")
+func (siw *ServerInterfaceImpl) GetInitialTraceDetail(w http.ResponseWriter, req *http.Request, traceID string, spanID string) {
+	log.Printf("Processing trace details request (flat list) for traceId: %s, spanId: %s\n", traceID, spanID)
 
-	traceID := req.PathValue("traceId")
-	rootSpanID := req.PathValue("spanId")
-	if traceID == "" || rootSpanID == "" {
-		http.Error(w, "traceId and spanId are required", http.StatusBadRequest)
-		return
-	}
-
-	var requestData InitialTraceDetailRequest
+	var requestData GetInitialTraceDetailRequest
 	if err := json.NewDecoder(req.Body).Decode(&requestData); err != nil {
 		log.Printf("Failed to decode request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -209,21 +183,21 @@ func (a *App) handleInitialTraceDetail(w http.ResponseWriter, req *http.Request)
 	depth := 5
 
 	// Parse optional parameters
-	if requestData.ChildrenLimit > 0 {
-		childrenLimit = requestData.ChildrenLimit
+	if requestData.ChildrenLimit != nil && *requestData.ChildrenLimit > 0 {
+		childrenLimit = *requestData.ChildrenLimit
 	}
-	if requestData.Depth > 0 {
-		depth = requestData.Depth
+	if requestData.Depth != nil && *requestData.Depth > 0 {
+		depth = *requestData.Depth
 	}
 
-	client, err := getOpenSearchClient(requestData.Url)
+	client, err := getOpenSearchClient(requestData.URL)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	spans, err := initialLoadPreOrder(client, requestData.Database, requestData.TimeField, traceID, rootSpanID, childrenLimit, depth, 1)
+	spans, err := initialLoadPreOrder(client, requestData.Database, requestData.TimeField, traceID, spanID, childrenLimit, depth, 1)
 	if err != nil {
 		log.Printf("Failed to collect descendants with stack: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

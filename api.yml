@@ -1,0 +1,197 @@
+openapi: 3.0.0
+info:
+  title: OpenSearch Traces API
+  version: 0.1.0
+servers:
+  - url: http://localhost:3000
+    description: Local server
+paths:
+  /traces:
+    post:
+      summary: Get traces from a given datasource
+      operationId: getTraces
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetTracesRequest'
+      responses:
+        200:
+          description: A list of traces
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Traces'
+  /trace/{traceId}/span/{spanId}:
+    post:
+      summary: Get the root span from a given trace
+      operationId: getInitialTraceDetail
+      parameters:
+        - name: traceId
+          schema:
+            type: string
+          in: path
+        - name: spanId
+          schema:
+            type: string
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetInitialTraceDetailRequest'
+      responses:
+        200:
+          description: A list of spans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SpanNode'
+  /trace/{traceId}/span/{spanId}/children:
+    post:
+      summary: Get additional spans for a given span id
+      operationId: getAdditionalSpans
+      parameters:
+        - name: traceId
+          schema:
+            type: string
+          in: path
+        - name: spanId
+          schema:
+            type: string
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GetAdditionalSpansRequest'
+      responses:
+        200:
+          description: A list of spans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SpanNode'
+components:
+  schemas:
+    GetTracesRequest:
+      type: object
+      properties:
+        url:
+          type: string
+        database:
+          type: string
+        timeField:
+          type: string
+      required:
+        - url
+        - database
+        - timeField
+    Traces:
+      type: object
+      properties:
+        traces:
+          type: array
+          items:
+            $ref: '#/components/schemas/Trace'
+      required:
+        - traces
+    Trace:
+      type: object
+      properties:
+        traceId:
+          type: string
+        spanId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        name:
+          type: string
+      required:
+        - traceId
+        - spanId
+        - timestamp
+        - name
+    GetInitialTraceDetailRequest:
+      type: object
+      properties:
+        url:
+          type: string
+        database:
+          type: string
+        timeField:
+          type: string
+        depth:
+          type: integer
+        childrenLimit:
+          type: integer
+      required:
+        - url
+        - database
+        - timeField
+    SpanNode:
+      type: object
+      properties:
+        traceId:
+          type: string
+        spanId:
+          type: string
+        name:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        endTime:
+          type: string
+          format: date-time
+        parentSpanId:
+          type: string
+        level:
+          type: integer
+        currentChildrenCount:
+          type: integer
+        totalChildrenCount:
+          type: integer
+      required:
+        - traceId
+        - spanId
+        - name
+        - startTime
+        - endTime
+        - parentSpanId
+        - level
+        - currentChildrenCount
+        - totalChildrenCount
+    GetAdditionalSpansRequest:
+      type: object
+      properties:
+        url:
+          type: string
+        database:
+          type: string
+        timeField:
+          type: string
+        depth:
+          type: integer
+        childrenLimit:
+          type: integer
+        level:
+          type: integer
+        skip:
+          type: integer
+        take:
+          type: integer
+      required:
+        - url
+        - database
+        - timeField
+        - depth
+        - childrenLimit
+        - level
+        - skip
+        - take

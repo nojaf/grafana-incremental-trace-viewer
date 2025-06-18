@@ -7,41 +7,21 @@ import (
 	"log"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
 )
 
-// Simplified trace structure for API response
-type SimpleTrace struct {
-	TraceID   string    `json:"traceId"`
-	SpanID    string    `json:"spanId"`
-	Timestamp time.Time `json:"@timestamp"`
-	Name      string    `json:"name"`
-}
-
-// Response structure for root traces endpoint
-type RootTracesResponse struct {
-	Traces []SimpleTrace `json:"traces"`
-}
-
-type OpenSearchRequest struct {
-	Url       string `json:"url"`
-	Database  string `json:"database"`
-	TimeField string `json:"timeField"`
-}
-
-func (a *App) handleTraces(w http.ResponseWriter, req *http.Request) {
+func (siw *ServerInterfaceImpl) GetTraces(w http.ResponseWriter, req *http.Request) {
 	log.Println("Processing root traces request")
 
-	var request OpenSearchRequest
+	var request GetTracesRequest
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
 		log.Printf("Failed to decode request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	client, err := getOpenSearchClient(request.Url)
+	client, err := getOpenSearchClient(request.URL)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -100,9 +80,9 @@ func (a *App) handleTraces(w http.ResponseWriter, req *http.Request) {
 	log.Printf("OpenSearch returned %d hits (total: %d)", len(osResponse.Hits.Hits), osResponse.Hits.Total.Value)
 
 	// Transform to simplified response format
-	traces := make([]SimpleTrace, 0)
+	traces := make([]Trace, 0)
 	for _, hit := range osResponse.Hits.Hits {
-		trace := SimpleTrace{
+		trace := Trace{
 			TraceID:   hit.Source.TraceID,
 			SpanID:    hit.Source.SpanID,
 			Timestamp: hit.Source.Timestamp,
@@ -111,7 +91,7 @@ func (a *App) handleTraces(w http.ResponseWriter, req *http.Request) {
 		traces = append(traces, trace)
 	}
 
-	response := RootTracesResponse{
+	response := Traces{
 		Traces: traces,
 	}
 

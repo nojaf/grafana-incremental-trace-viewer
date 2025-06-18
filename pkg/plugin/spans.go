@@ -12,15 +12,6 @@ import (
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
 )
 
-type AdditionalSpansRequest struct {
-	ChildrenLimit int `json:"childrenLimit"`
-	Depth         int `json:"depth"`
-	Level         int `json:"level"`
-	Skip          int `json:"skip"`
-	Take          int `json:"take"`
-	OpenSearchRequest
-}
-
 /*
 Query children spans for a parent span.
 The incoming level is the level of the children spans.
@@ -78,21 +69,14 @@ func queryChildrenSpans(client *opensearch.Client, index string, timeField strin
 	return childrenIds, nil
 }
 
-func (a *App) handleAdditionalSpans(w http.ResponseWriter, req *http.Request) {
-	traceID := req.PathValue("traceId")
-	spanID := req.PathValue("spanId")
-	if traceID == "" || spanID == "" {
-		http.Error(w, "traceId and spanId are required", http.StatusBadRequest)
-		return
-	}
-
+func (siw *ServerInterfaceImpl) GetAdditionalSpans(w http.ResponseWriter, req *http.Request, traceID string, spanID string) {
 	skip := 0
 	take := 10
 	childrenLimit := 3
 	depth := 3
 	level := 1
 
-	var requestData AdditionalSpansRequest
+	var requestData GetAdditionalSpansRequest
 	if err := json.NewDecoder(req.Body).Decode(&requestData); err != nil {
 		log.Printf("Failed to decode request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -115,7 +99,7 @@ func (a *App) handleAdditionalSpans(w http.ResponseWriter, req *http.Request) {
 		level = requestData.Level
 	}
 
-	client, err := getOpenSearchClient(requestData.Url)
+	client, err := getOpenSearchClient(requestData.URL)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)

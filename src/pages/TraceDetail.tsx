@@ -6,27 +6,17 @@ import { useStyles2, Button } from '@grafana/ui';
 import { testIds } from '../components/testIds';
 import { getBackendSrv, PluginPage } from '@grafana/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import plugin from '../plugin.json';
 import { lastValueFrom } from 'rxjs';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { type components } from '../schema.gen';
 import type { datasource } from './TraceOverview';
+import { BASE_URL } from '../constants';
 
-type TraceId = string;
-type SpanId = string;
 type ISODateString = string;
 
-interface SpanNode {
-  // The number of children that have been loaded so far
-  currentChildrenCount: number;
-  traceId: TraceId;
-  spanId: SpanId;
-  name: string;
-  startTime: ISODateString;
-  endTime: ISODateString;
-  parentSpanId: SpanId;
-  level: number;
-  totalChildrenCount: number;
-}
+type SpanNode = components['schemas']['SpanNode'];
+type GetInitialTraceDetailRequest = components['schemas']['GetInitialTraceDetailRequest'];
+type GetAdditionalSpansRequest = components['schemas']['GetAdditionalSpansRequest'];
 
 type SpanNodeProps = SpanNode & {
   index: number;
@@ -115,7 +105,7 @@ function TraceDetail() {
         }
 
         const responses = getBackendSrv().fetch<SpanNode[]>({
-          url: `/api/plugins/${plugin.id}/resources/trace/${traceId}/span/${rootSpanId}`,
+          url: `${BASE_URL}/trace/${traceId}/span/${rootSpanId}`,
           method: 'POST',
           data: {
             url: datasource.url,
@@ -123,7 +113,7 @@ function TraceDetail() {
             timeField: datasource.jsonData.timeField,
             depth: 3,
             childrenLimit: 5,
-          },
+          } satisfies GetInitialTraceDetailRequest,
         });
         const response = await lastValueFrom(responses);
         console.log(response.data);
@@ -152,7 +142,7 @@ function TraceDetail() {
       }
 
       const responses = getBackendSrv().fetch<SpanNode[]>({
-        url: `/api/plugins/${plugin.id}/resources/trace/${traceId}/span/${spanId}/children`,
+        url: `${BASE_URL}/trace/${traceId}/span/${spanId}/children`,
         method: 'POST',
         data: {
           url: datasource.url,
@@ -163,7 +153,7 @@ function TraceDetail() {
           level: currentLevel,
           skip: skip,
           take: 10,
-        },
+        } satisfies GetAdditionalSpansRequest,
       });
       const response = await lastValueFrom(responses);
 

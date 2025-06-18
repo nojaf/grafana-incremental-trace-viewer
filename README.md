@@ -165,3 +165,12 @@ If not:
 - Add new data source:
   - URL: http://opensearch:9200
   - View index name at http://localhost:9200/\_cat/indices?v , is most likely going to be `ss4o_traces-default-namespace`
+
+## Open API
+
+We are using a contract first approach for the Go resource endpoints.
+[api.yml](./api.yml) is the source of truth, and you can generate client & server code via:
+
+```shell
+bun run generate-api
+```

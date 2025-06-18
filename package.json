@@ -13,7 +13,10 @@
     "server": "docker compose up --build",
     "sign": "bunx --yes @grafana/sign-plugin@latest",
     "fmt": "prettier --write --list-different .",
-    "fmt:check": "prettier --check ."
+    "fmt:check": "prettier --check . && go fmt ./pkg/...",
+    "generate-api:go": "go tool oapi-codegen --config pkg/plugin/apiconfig.yml ./api.yml > pkg/plugin/api.gen.go",
+    "generate-api:ts": "openapi-typescript ./api.yml -o src/schema.gen.ts --make-paths-enum",
+    "generate-api": "bun run generate-api:go && bun run generate-api:ts"
   },
   "author": "G research",
   "license": "Apache-2.0",
@@ -32,6 +35,7 @@
     "@swc/jest": "^0.2.26",
     "@testing-library/jest-dom": "6.1.4",
     "@testing-library/react": "14.0.0",
+    "@types/bun": "latest",
     "@types/jest": "^29.5.0",
     "@types/node": "^20.8.7",
     "@types/testing-library__jest-dom": "5.14.8",
@@ -52,6 +56,7 @@
     "imports-loader": "^5.0.0",
     "jest": "^29.5.0",
     "jest-environment-jsdom": "^29.5.0",
+    "openapi-typescript": "^7.8.0",
     "prettier": "^2.8.7",
     "replace-in-file-webpack-plugin": "^1.0.6",
     "sass": "1.63.2",
@@ -66,8 +71,7 @@
     "webpack-cli": "^5.1.4",
     "webpack-livereload-plugin": "^3.0.2",
     "webpack-subresource-integrity": "^5.1.0",
-    "webpack-virtual-modules": "^0.6.2",
-    "@types/bun": "latest"
+    "webpack-virtual-modules": "^0.6.2"
   },
   "engines": {
     "node": ">=22"

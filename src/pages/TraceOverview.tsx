@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { prefixRoute } from '../utils/utils.routing';
-import { ROUTES } from '../constants';
+import { BASE_URL, ROUTES } from '../constants';
 import { testIds } from '../components/testIds';
 import { lastValueFrom } from 'rxjs';
 import { PluginPage, getBackendSrv } from '@grafana/runtime';
 import { Combobox } from '@grafana/ui';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import plugin from '../plugin.json';
+import { type components, ApiPaths } from '../schema.gen';
 
 export type datasource = {
   id: number;
@@ -23,16 +23,9 @@ export type datasource = {
   url: string;
 };
 
-type simpleTrace = {
-  traceId: string;
-  spanId: string;
-  timestamp: string;
-  name: string;
-};
-
-type rootTracesResponse = {
-  traces: simpleTrace[];
-};
+type simpleTrace = components['schemas']['Trace'];
+type rootTracesResponse = components['schemas']['Traces'];
+type getTracesRequest = components['schemas']['GetTracesRequest'];
 
 function TraceOverview() {
   const queryClient = useQueryClient();
@@ -64,13 +57,13 @@ function TraceOverview() {
         throw new Error(`Datasource with id ${sourceId} not found`);
       }
       const response = getBackendSrv().fetch<rootTracesResponse>({
-        url: `/api/plugins/${plugin.id}/resources/traces`,
+        url: `${BASE_URL}/${ApiPaths.getTraces}`,
         method: 'POST',
         data: {
           url: datasource.url,
           database: datasource.jsonData.database,
           timeField: datasource.jsonData.timeField,
-        },
+        } satisfies getTracesRequest,
       });
       const value = await lastValueFrom(response);
       return value.data.traces;
