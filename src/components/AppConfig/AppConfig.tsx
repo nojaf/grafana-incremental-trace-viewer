@@ -1,9 +1,8 @@
 import React, { ChangeEvent, useState } from 'react';
 import { lastValueFrom } from 'rxjs';
-import { css } from '@emotion/css';
-import { AppPluginMeta, GrafanaTheme2, PluginConfigPageProps, PluginMeta } from '@grafana/data';
+import { AppPluginMeta, PluginConfigPageProps, PluginMeta } from '@grafana/data';
 import { getBackendSrv } from '@grafana/runtime';
-import { Button, Field, FieldSet, Input, SecretInput, useStyles2 } from '@grafana/ui';
+import { Button, Field, FieldSet, Input, SecretInput } from '@grafana/ui';
 import { testIds } from '../testIds';
 
 type AppPluginSettings = {
@@ -22,7 +21,6 @@ type State = {
 export interface AppConfigProps extends PluginConfigPageProps<AppPluginMeta<AppPluginSettings>> {}
 
 const AppConfig = ({ plugin }: AppConfigProps) => {
-  const s = useStyles2(getStyles);
   const { enabled, pinned, jsonData, secureJsonFields } = plugin.meta;
   const [state, setState] = useState<State>({
     apiUrl: jsonData?.apiUrl || '',
@@ -84,7 +82,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           />
         </Field>
 
-        <Field label="API Url" description="" className={s.marginTop}>
+        <Field label="API Url" description="" className="mt-6">
           <Input
             width={60}
             name="apiUrl"
@@ -96,7 +94,7 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
           />
         </Field>
 
-        <div className={s.marginTop}>
+        <div className="mt-6">
           <Button type="submit" data-testid={testIds.appConfig.submit} disabled={isSubmitDisabled}>
             Save API settings
           </Button>
@@ -107,15 +105,6 @@ const AppConfig = ({ plugin }: AppConfigProps) => {
 };
 
 export default AppConfig;
-
-const getStyles = (theme: GrafanaTheme2) => ({
-  colorWeak: css`
-    color: ${theme.colors.text.secondary};
-  `,
-  marginTop: css`
-    margin-top: ${theme.spacing(3)};
-  `,
-});
 
 const updatePluginAndReload = async (pluginId: string, data: Partial<PluginMeta<AppPluginSettings>>) => {
   try {

@@ -82,7 +82,7 @@ function TraceOverview() {
     <PluginPage>
       <div data-testid={testIds.pageOne.container}>
         This is the trace overview page. We would need to add filters here ourselves.
-        <div style={{ padding: '2rem 0' }}>
+        <div className="py-8">
           <Combobox
             options={options}
             placeholder="Select a datasource"
@@ -96,7 +96,7 @@ function TraceOverview() {
           />
         </div>
         {result.isSuccess && result.data.length > 0 && (
-          <ul style={{ padding: '2rem' }}>
+          <ul className="p-4">
             {result.data.map((r) => {
               return (
                 <Link

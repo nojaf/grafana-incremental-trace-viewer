@@ -1,8 +1,6 @@
 import React from 'react';
-import { css } from '@emotion/css';
 import { useParams } from 'react-router-dom';
-import { GrafanaTheme2 } from '@grafana/data';
-import { useStyles2, Button } from '@grafana/ui';
+import { Button } from '@grafana/ui';
 import { testIds } from '../components/testIds';
 import { getBackendSrv, PluginPage } from '@grafana/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -36,27 +34,29 @@ function getMillisecondsDifferenceNative(startTime: ISODateString, endTime: ISOD
 }
 
 const Span = (props: SpanNodeProps) => {
-  const s = useStyles2(getStyles);
-
   return (
-    <div className={s.spanContainer} style={{ '--indent-level': props.level } as React.CSSProperties}>
-      <div className={s.spanInfo}>
-        <div className={s.spanField}>
-          <strong>Name:</strong> {props.name}
+    <div
+      className="border-l-2 border-gray-200 pl-4 transition-colors duration-200 hover:bg-gray-700 h-full"
+      style={{ marginLeft: `calc(1rem * var(--indent-level, ${props.level}))` } as React.CSSProperties}
+    >
+      <div className="flex items-center gap-4 px-4 py-2 border border-gray-200 h-full">
+        <div className="text-sm">
+          <strong className="mr-2">Name:</strong> {props.name}
         </div>
-        <div className={s.spanField}>
-          <strong>ID:</strong> {props.spanId}
+        <div className="text-sm">
+          <strong className="mr-2">ID:</strong> {props.spanId}
         </div>
-        <div className={s.spanField}>
-          <strong>Duration:</strong> {getMillisecondsDifferenceNative(props.startTime, props.endTime)}ms
+        <div className="text-sm">
+          <strong className="mr-2">Duration:</strong> {getMillisecondsDifferenceNative(props.startTime, props.endTime)}
+          ms
         </div>
-        <div className={s.spanField}>
+        <div className="text-sm">
           <span>
             current children:
             {props.currentChildrenCount}
           </span>
         </div>
-        <div className={s.spanField}>
+        <div className="text-sm">
           <span>total children: {props.totalChildrenCount}</span>
         </div>
         {props.currentChildrenCount < props.totalChildrenCount && (
@@ -235,9 +235,9 @@ function TraceDetail() {
           <div
             style={{
               height: `${rowVirtualizer.getTotalSize()}px`,
-              width: '100%',
               position: 'relative',
             }}
+            className="w-full relative"
           >
             {/* Only the visible items in the virtualizer, manually positioned to be in view */}
             {rowVirtualizer.getVirtualItems().map((virtualItem) => {
@@ -245,11 +245,8 @@ function TraceDetail() {
               return (
                 <div
                   key={virtualItem.key}
+                  className="absolute top-0 left-0 bottom-0 right-0 w-full my-0"
                   style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
                     height: `${virtualItem.size}px`,
                     transform: `translateY(${virtualItem.start}px)`,
                   }}
@@ -267,38 +264,3 @@ function TraceDetail() {
 }
 
 export default TraceDetail;
-
-const getStyles = (theme: GrafanaTheme2) => ({
-  spanContainer: css`
-    border-left: 2px solid ${theme.colors.border.weak};
-    padding-left: ${theme.spacing(1)};
-    margin-bottom: ${theme.spacing(1)};
-    margin-left: calc(${theme.spacing(2)} * var(--indent-level, 0));
-    transition: background-color 0.2s ease;
-
-    &:hover {
-      background-color: ${theme.colors.background.secondary};
-    }
-  `,
-  spanInfo: css`
-    display: flex;
-    align-content: center;
-    gap: ${theme.spacing(1)};
-    padding: ${theme.spacing(1)};
-    background-color: ${theme.colors.background.primary};
-    border: 1px solid ${theme.colors.border.weak};
-    border-radius: ${theme.shape.borderRadius()};
-  `,
-  spanField: css`
-    font-size: ${theme.typography.size.sm};
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    strong {
-      color: ${theme.colors.text.primary};
-      margin-right: ${theme.spacing(1)};
-    }
-  `,
-});
