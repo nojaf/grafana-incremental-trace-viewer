@@ -55,11 +55,28 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  '/trace/{traceId}/span/{spanId}/attributes': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Get the attributes for a given span id */
+    post: operations['getSpanAttributes'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
-    GetTracesRequest: {
+    DatasourceInfo: {
       url: string;
       database: string;
       timeField: string;
@@ -93,6 +110,7 @@ export interface components {
       level: number;
       currentChildrenCount: number;
       totalChildrenCount: number;
+      attributes: Record<string, never>;
     };
     GetAdditionalSpansRequest: {
       url: string;
@@ -104,6 +122,7 @@ export interface components {
       skip: number;
       take: number;
     };
+    SpanAttributes: Record<string, never>;
   };
   responses: never;
   parameters: never;
@@ -122,7 +141,7 @@ export interface operations {
     };
     requestBody?: {
       content: {
-        'application/json': components['schemas']['GetTracesRequest'];
+        'application/json': components['schemas']['DatasourceInfo'];
       };
     };
     responses: {
@@ -191,9 +210,37 @@ export interface operations {
       };
     };
   };
+  getSpanAttributes: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        traceId: string;
+        spanId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['DatasourceInfo'];
+      };
+    };
+    responses: {
+      /** @description Span attributes */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SpanAttributes'];
+        };
+      };
+    };
+  };
 }
 export enum ApiPaths {
   getTraces = '/traces',
   getInitialTraceDetail = '/trace/{traceId}/span/{spanId}',
   getAdditionalSpans = '/trace/{traceId}/span/{spanId}/children',
+  getSpanAttributes = '/trace/{traceId}/span/{spanId}/attributes',
 }

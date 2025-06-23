@@ -13,6 +13,13 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
+// DatasourceInfo defines model for DatasourceInfo.
+type DatasourceInfo struct {
+	Database  string `json:"database"`
+	TimeField string `json:"timeField"`
+	URL       string `json:"url"`
+}
+
 // GetAdditionalSpansRequest defines model for GetAdditionalSpansRequest.
 type GetAdditionalSpansRequest struct {
 	ChildrenLimit int    `json:"childrenLimit"`
@@ -34,24 +41,21 @@ type GetInitialTraceDetailRequest struct {
 	URL           string `json:"url"`
 }
 
-// GetTracesRequest defines model for GetTracesRequest.
-type GetTracesRequest struct {
-	Database  string `json:"database"`
-	TimeField string `json:"timeField"`
-	URL       string `json:"url"`
-}
+// SpanAttributes defines model for SpanAttributes.
+type SpanAttributes = map[string]interface{}
 
 // SpanNode defines model for SpanNode.
 type SpanNode struct {
-	CurrentChildrenCount int       `json:"currentChildrenCount"`
-	EndTime              time.Time `json:"endTime"`
-	Level                int       `json:"level"`
-	Name                 string    `json:"name"`
-	ParentSpanID         string    `json:"parentSpanId"`
-	SpanID               string    `json:"spanId"`
-	StartTime            time.Time `json:"startTime"`
-	TotalChildrenCount   int       `json:"totalChildrenCount"`
-	TraceID              string    `json:"traceId"`
+	Attributes           map[string]interface{} `json:"attributes"`
+	CurrentChildrenCount int                    `json:"currentChildrenCount"`
+	EndTime              time.Time              `json:"endTime"`
+	Level                int                    `json:"level"`
+	Name                 string                 `json:"name"`
+	ParentSpanID         string                 `json:"parentSpanId"`
+	SpanID               string                 `json:"spanId"`
+	StartTime            time.Time              `json:"startTime"`
+	TotalChildrenCount   int                    `json:"totalChildrenCount"`
+	TraceID              string                 `json:"traceId"`
 }
 
 // Trace defines model for Trace.
@@ -70,17 +74,23 @@ type Traces struct {
 // GetInitialTraceDetailJSONRequestBody defines body for GetInitialTraceDetail for application/json ContentType.
 type GetInitialTraceDetailJSONRequestBody = GetInitialTraceDetailRequest
 
+// GetSpanAttributesJSONRequestBody defines body for GetSpanAttributes for application/json ContentType.
+type GetSpanAttributesJSONRequestBody = DatasourceInfo
+
 // GetAdditionalSpansJSONRequestBody defines body for GetAdditionalSpans for application/json ContentType.
 type GetAdditionalSpansJSONRequestBody = GetAdditionalSpansRequest
 
 // GetTracesJSONRequestBody defines body for GetTraces for application/json ContentType.
-type GetTracesJSONRequestBody = GetTracesRequest
+type GetTracesJSONRequestBody = DatasourceInfo
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get the root span from a given trace
 	// (POST /trace/{traceId}/span/{spanId})
 	GetInitialTraceDetail(w http.ResponseWriter, r *http.Request, traceID string, spanID string)
+	// Get the attributes for a given span id
+	// (POST /trace/{traceId}/span/{spanId}/attributes)
+	GetSpanAttributes(w http.ResponseWriter, r *http.Request, traceID string, spanID string)
 	// Get additional spans for a given span id
 	// (POST /trace/{traceId}/span/{spanId}/children)
 	GetAdditionalSpans(w http.ResponseWriter, r *http.Request, traceID string, spanID string)
@@ -123,6 +133,40 @@ func (siw *ServerInterfaceWrapper) GetInitialTraceDetail(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetInitialTraceDetail(w, r, traceID, spanID)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetSpanAttributes operation middleware
+func (siw *ServerInterfaceWrapper) GetSpanAttributes(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "traceId" -------------
+	var traceID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "traceId", r.PathValue("traceId"), &traceID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: false})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "traceId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "spanId" -------------
+	var spanID string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "spanId", r.PathValue("spanId"), &spanID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: false})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "spanId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetSpanAttributes(w, r, traceID, spanID)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -301,6 +345,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc("POST "+options.BaseURL+"/trace/{traceId}/span/{spanId}", wrapper.GetInitialTraceDetail)
+	m.HandleFunc("POST "+options.BaseURL+"/trace/{traceId}/span/{spanId}/attributes", wrapper.GetSpanAttributes)
 	m.HandleFunc("POST "+options.BaseURL+"/trace/{traceId}/span/{spanId}/children", wrapper.GetAdditionalSpans)
 	m.HandleFunc("POST "+options.BaseURL+"/traces", wrapper.GetTraces)
 

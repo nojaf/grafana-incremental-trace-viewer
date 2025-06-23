@@ -45,13 +45,14 @@ type Hit struct {
 // TraceSource represents the minimal span data as returned from OpenSearch.
 // It is used for traversal and data transfer, before enriching to SpanNode for API responses.
 type TraceSource struct {
-	TraceID      string    `json:"traceId"`
-	SpanID       string    `json:"spanId"`
-	Timestamp    time.Time `json:"@timestamp"`
-	Name         string    `json:"name"`
-	ParentSpanID string    `json:"parentSpanId"`
-	StartTime    time.Time `json:"startTime"`
-	EndTime      time.Time `json:"endTime"`
+	TraceID      string                 `json:"traceId"`
+	SpanID       string                 `json:"spanId"`
+	Timestamp    time.Time              `json:"@timestamp"`
+	Name         string                 `json:"name"`
+	ParentSpanID string                 `json:"parentSpanId"`
+	StartTime    time.Time              `json:"startTime"`
+	EndTime      time.Time              `json:"endTime"`
+	Attributes   map[string]interface{} `json:"attributes"`
 }
 
 // OpenSearch aggregation response structures

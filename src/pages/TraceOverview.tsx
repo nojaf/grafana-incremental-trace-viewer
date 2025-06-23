@@ -25,7 +25,7 @@ export type datasource = {
 
 type simpleTrace = components['schemas']['Trace'];
 type rootTracesResponse = components['schemas']['Traces'];
-type getTracesRequest = components['schemas']['GetTracesRequest'];
+type datasourceInfo = components['schemas']['DatasourceInfo'];
 
 function TraceOverview() {
   const queryClient = useQueryClient();
@@ -63,7 +63,7 @@ function TraceOverview() {
           url: datasource.url,
           database: datasource.jsonData.database,
           timeField: datasource.jsonData.timeField,
-        } satisfies getTracesRequest,
+        } satisfies datasourceInfo,
       });
       const value = await lastValueFrom(response);
       return value.data.traces;

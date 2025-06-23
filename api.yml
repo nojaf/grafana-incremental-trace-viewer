@@ -14,7 +14,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GetTracesRequest'
+              $ref: '#/components/schemas/DatasourceInfo'
       responses:
         200:
           description: A list of traces
@@ -76,9 +76,34 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/SpanNode'
+  /trace/{traceId}/span/{spanId}/attributes:
+    post:
+      summary: Get the attributes for a given span id
+      operationId: getSpanAttributes
+      parameters:
+        - name: traceId
+          schema:
+            type: string
+          in: path
+        - name: spanId
+          schema:
+            type: string
+          in: path
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DatasourceInfo'
+      responses:
+        200:
+          description: Span attributes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SpanAttributes'
 components:
   schemas:
-    GetTracesRequest:
+    DatasourceInfo:
       type: object
       properties:
         url:
@@ -157,6 +182,8 @@ components:
           type: integer
         totalChildrenCount:
           type: integer
+        attributes:
+          type: object
       required:
         - traceId
         - spanId
@@ -167,6 +194,7 @@ components:
         - level
         - currentChildrenCount
         - totalChildrenCount
+        - attributes
     GetAdditionalSpansRequest:
       type: object
       properties:
@@ -195,3 +223,5 @@ components:
         - level
         - skip
         - take
+    SpanAttributes:
+      type: object

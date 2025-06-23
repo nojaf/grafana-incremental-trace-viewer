@@ -133,6 +133,7 @@ func querySpanByID(client *opensearch.Client, index string, timeField string, tr
 		CurrentChildrenCount: len(childSpanIDs),
 		TotalChildrenCount:   osResponse.Aggregations.Children.DocCount,
 		Level:                level,
+		Attributes:           hit.Source.Attributes,
 	}, childSpanIDs, nil
 }
 

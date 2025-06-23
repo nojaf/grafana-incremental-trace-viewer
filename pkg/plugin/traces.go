@@ -14,7 +14,7 @@ import (
 func (siw *ServerInterfaceImpl) GetTraces(w http.ResponseWriter, req *http.Request) {
 	log.Println("Processing root traces request")
 
-	var request GetTracesRequest
+	var request DatasourceInfo
 	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
 		log.Printf("Failed to decode request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
