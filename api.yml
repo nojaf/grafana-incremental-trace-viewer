@@ -14,7 +14,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GetTracesRequest'
+              $ref: '#/components/schemas/DataSourceInfo'
       responses:
         200:
           description: A list of traces
@@ -76,10 +76,42 @@ paths:
                 type: array
                 items:
                   $ref: '#/components/schemas/SpanNode'
+  /api/search:
+    post:
+      summary: Search for traces
+      operationId: search
+      parameters:
+        - name: q
+          schema:
+            type: string
+          in: query
+        - name: start
+          schema:
+            type: integer # unix epoch seconds
+          in: query
+        - name: end
+          schema:
+            type: integer # unix epoch seconds
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataSourceInfo'
+      responses:
+        200:
+          description: A list of traces
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
 components:
   schemas:
-    GetTracesRequest:
+    DataSourceInfo:
       type: object
+      description: |
+        Information about the datasource to use for the search.
+        This has the OpenSearch specific fields to connect to the datasource.
+        It will later have the exactly Tempo API information.
       properties:
         url:
           type: string
@@ -91,6 +123,334 @@ components:
         - url
         - database
         - timeField
+    SearchResponse:
+      type: object
+      properties:
+        traces:
+          type: array
+          items:
+            $ref: '#/components/schemas/Trace'
+      required:
+        - traces
+    TempoV1Response:
+      type: object
+      properties:
+        traces:
+          type: array
+          items:
+            $ref: '#/components/schemas/TempoTrace'
+      required:
+        - traces
+    TempoTrace:
+      type: object
+      properties:
+        traceId:
+          type: string
+        rootServiceName:
+          type: string
+        rootTraceName:
+          type: string
+        startTime:
+          type: string
+          format: date-time
+        duration:
+          type: integer # TimeSpan in dotnet
+        spanSet:
+          type: array
+          items:
+            $ref: '#/components/schemas/TempoSpanSet'
+      required:
+        - traceId
+        - rootServiceName
+        - rootTraceName
+        - startTime
+        - duration
+        - spanSet
+    TempoSpanSet:
+      type: object
+      properties:
+        spans:
+          type: array
+          items:
+            $ref: '#/components/schemas/TempoSpan'
+        matched:
+          type: integer
+      required:
+        - spans
+        - matched
+    TempoSpan:
+      type: object
+      properties:
+        spanId:
+          type: string
+        name:
+          type: string
+    # From https://github.com/open-telemetry/opentelemetry-proto/blob/main/opentelemetry/proto/trace/v1/trace.proto
+    Span:
+      type: object
+      description: A Span represents a single operation within a trace.
+      properties:
+        traceId:
+          type: string
+          format: byte
+          description: A unique identifier for a trace. All spans from the same trace share the same `trace_id`.
+        spanId:
+          type: string
+          format: byte
+          description: A unique identifier for a span within a trace, assigned when the span is created.
+        parentSpanId:
+          type: string
+          format: byte
+          description: The `span_id` of this span's parent span. If this is a root span, this field must be empty.
+        traceState:
+          type: string
+          description: |
+            The W3C TraceFlags and Tracestate HTTP request header fields.
+            See https://www.w3.org/TR/trace-context/#tracestate-header
+        name:
+          type: string
+          description: A description of the operation or activity.
+        kind:
+          type: string
+          enum:
+            - SPAN_KIND_UNSPECIFIED
+            - SPAN_KIND_INTERNAL
+            - SPAN_KIND_SERVER
+            - SPAN_KIND_CLIENT
+            - SPAN_KIND_PRODUCER
+            - SPAN_KIND_CONSUMER
+          description: |
+            Distinguishes between client and server, producer and consumer, etc.
+            See https://opentelemetry.io/docs/specs/otel/trace/api/#spankind
+        startTimeUnixNano:
+          type: string
+          format: int64
+          description: The start timestamp of the span.
+        endTimeUnixNano:
+          type: string
+          format: int64
+          description: The end timestamp of the span.
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyValue'
+          description: A list of 0 or more key-value pairs.
+        droppedAttributesCount:
+          type: integer
+          format: int32
+          description: The number of attributes that were dropped.
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpanEvent'
+          description: A list of 0 or more Events that happened during the span's lifetime.
+        droppedEventsCount:
+          type: integer
+          format: int32
+          description: The number of events that were dropped.
+        links:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpanLink'
+          description: Links to other Spans in the same or different traces.
+        droppedLinksCount:
+          type: integer
+          format: int32
+          description: The number of links that were dropped.
+        status:
+          $ref: '#/components/schemas/Status'
+          description: The status of the span.
+    Status:
+      type: object
+      description: The Status of a Span.
+      properties:
+        message:
+          type: string
+          description: A short description of the status.
+        code:
+          type: string
+          enum:
+            - STATUS_CODE_UNSET
+            - STATUS_CODE_OK
+            - STATUS_CODE_ERROR
+          description: The status code.
+    SpanEvent:
+      type: object
+      description: An event that happened during a Span's lifetime.
+      properties:
+        timeUnixNano:
+          type: string
+          format: int64
+          description: The time the event occurred.
+        name:
+          type: string
+          description: The name of the event.
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyValue'
+        droppedAttributesCount:
+          type: integer
+          format: int32
+          description: The number of attributes that were dropped.
+    SpanLink:
+      type: object
+      description: A link to another Span.
+      properties:
+        traceId:
+          type: string
+          format: byte
+          description: The `trace_id` of the linked span.
+        spanId:
+          type: string
+          format: byte
+          description: The `span_id` of the linked span.
+        traceState:
+          type: string
+          description: |
+            The W3C TraceFlags and Tracestate HTTP request header fields.
+            See https://www.w3.org/TR/trace-context/#tracestate-header
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyValue'
+        droppedAttributesCount:
+          type: integer
+          format: int32
+          description: The number of attributes that were dropped.
+    KeyValue:
+      type: object
+      description: KeyValue is a key-value pair for attributes.
+      properties:
+        key:
+          type: string
+          description: The attribute key.
+        value:
+          $ref: '#/components/schemas/AnyValue'
+          description: The attribute value.
+    AnyValue:
+      type: object
+      description: AnyValue is used to represent any type of attribute value.
+      oneOf:
+        - properties:
+            stringValue:
+              type: string
+          description: A string value.
+        - properties:
+            boolValue:
+              type: boolean
+          description: A boolean value.
+        - properties:
+            intValue:
+              type: string
+              format: int64
+          description: An integer value.
+        - properties:
+            doubleValue:
+              type: number
+              format: double
+          description: A double value.
+        - properties:
+            arrayValue:
+              $ref: '#/components/schemas/ArrayValue'
+          description: An array of AnyValue.
+        - properties:
+            kvlistValue:
+              $ref: '#/components/schemas/KeyValueList'
+          description: A list of KeyValue pairs.
+        - properties:
+            bytesValue:
+              type: string
+              format: byte
+          description: A bytes value.
+    ArrayValue:
+      type: object
+      description: ArrayValue is a list of AnyValue messages.
+      properties:
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnyValue'
+    KeyValueList:
+      type: object
+      description: KeyValueList is a list of KeyValue messages.
+      properties:
+        values:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyValue'
+    ResourceSpans:
+      type: object
+      description: |
+        A collection of Spans produced by a single resource.
+        For example, spans from a single host, or an application running on that host.
+      properties:
+        resource:
+          $ref: '#/components/schemas/Resource'
+          description: The resource for the spans in this message.
+        scopeSpans:
+          type: array
+          items:
+            $ref: '#/components/schemas/ScopeSpans'
+          description: A list of spans that originate from an instrumentation scope.
+        schemaUrl:
+          type: string
+          description: |
+            This schema_url applies to the Resource and all spans in the resource_spans array.
+            See https://opentelemetry.io/docs/specs/otel/overview/#schema-url
+    ScopeSpans:
+      type: object
+      description: |
+        A collection of Spans produced by an InstrumentationScope.
+      properties:
+        scope:
+          $ref: '#/components/schemas/InstrumentationScope'
+          description: The instrumentation scope for the spans in this message.
+        spans:
+          type: array
+          items:
+            $ref: '#/components/schemas/Span'
+          description: A list of spans that originate from an instrumentation scope.
+        schemaUrl:
+          type: string
+          description: |
+            This schema_url applies to all spans in the scope_spans array.
+            See https://opentelemetry.io/docs/specs/otel/overview/#schema-url
+    Resource:
+      type: object
+      description: Resource describes a source of a set of Spans.
+      properties:
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyValue'
+          description: A list of 0 or more key-value pairs.
+        droppedAttributesCount:
+          type: integer
+          format: int32
+          description: The number of attributes that were dropped.
+    InstrumentationScope:
+      type: object
+      description: |
+        InstrumentationScope is a message concerning the scope an individual span was
+        produced by.
+      properties:
+        name:
+          type: string
+          description: The name of the instrumentation scope.
+        version:
+          type: string
+          description: The version of the instrumentation scope.
+        attributes:
+          type: array
+          items:
+            $ref: '#/components/schemas/KeyValue'
+          description: A list of 0 or more key-value pairs.
+        droppedAttributesCount:
+          type: integer
+          format: int32
+          description: The number of attributes that were dropped.
+    # Old implementation
     Traces:
       type: object
       properties:

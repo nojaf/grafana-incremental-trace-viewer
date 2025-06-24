@@ -6,12 +6,67 @@
 package plugin
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
+
+// AnyValue AnyValue is used to represent any type of attribute value.
+type AnyValue struct {
+	union json.RawMessage
+}
+
+// AnyValue0 A string value.
+type AnyValue0 struct {
+	StringValue *string `json:"stringValue,omitempty"`
+}
+
+// AnyValue1 A boolean value.
+type AnyValue1 struct {
+	BoolValue *bool `json:"boolValue,omitempty"`
+}
+
+// AnyValue2 An integer value.
+type AnyValue2 struct {
+	IntValue *string `json:"intValue,omitempty"`
+}
+
+// AnyValue3 A double value.
+type AnyValue3 struct {
+	DoubleValue *float64 `json:"doubleValue,omitempty"`
+}
+
+// AnyValue4 An array of AnyValue.
+type AnyValue4 struct {
+	// ArrayValue ArrayValue is a list of AnyValue messages.
+	ArrayValue *ArrayValue `json:"arrayValue,omitempty"`
+}
+
+// AnyValue5 A list of KeyValue pairs.
+type AnyValue5 struct {
+	// KvlistValue KeyValueList is a list of KeyValue messages.
+	KvlistValue *KeyValueList `json:"kvlistValue,omitempty"`
+}
+
+// AnyValue6 A bytes value.
+type AnyValue6 struct {
+	BytesValue *[]byte `json:"bytesValue,omitempty"`
+}
+
+// ArrayValue ArrayValue is a list of AnyValue messages.
+type ArrayValue struct {
+	Values *[]AnyValue `json:"values,omitempty"`
+}
+
+// DataSourceInfo defines model for DataSourceInfo.
+type DataSourceInfo struct {
+	Database  string `json:"database"`
+	TimeField string `json:"timeField"`
+	URL       string `json:"url"`
+}
 
 // GetAdditionalSpansRequest defines model for GetAdditionalSpansRequest.
 type GetAdditionalSpansRequest struct {
@@ -34,11 +89,23 @@ type GetInitialTraceDetailRequest struct {
 	URL           string `json:"url"`
 }
 
-// GetTracesRequest defines model for GetTracesRequest.
-type GetTracesRequest struct {
-	Database  string `json:"database"`
-	TimeField string `json:"timeField"`
-	URL       string `json:"url"`
+// KeyValue KeyValue is a key-value pair for attributes.
+type KeyValue struct {
+	// Key The attribute key.
+	Key *string `json:"key,omitempty"`
+
+	// Value AnyValue is used to represent any type of attribute value.
+	Value *AnyValue `json:"value,omitempty"`
+}
+
+// KeyValueList KeyValueList is a list of KeyValue messages.
+type KeyValueList struct {
+	Values *[]KeyValue `json:"values,omitempty"`
+}
+
+// SearchResponse defines model for SearchResponse.
+type SearchResponse struct {
+	Traces []Trace `json:"traces"`
 }
 
 // SpanNode defines model for SpanNode.
@@ -67,6 +134,15 @@ type Traces struct {
 	Traces []Trace `json:"traces"`
 }
 
+// SearchParams defines parameters for Search.
+type SearchParams struct {
+	Q     *string `form:"q,omitempty" json:"q,omitempty"`
+	Start *int    `form:"start,omitempty" json:"start,omitempty"`
+}
+
+// SearchJSONRequestBody defines body for Search for application/json ContentType.
+type SearchJSONRequestBody = DataSourceInfo
+
 // GetInitialTraceDetailJSONRequestBody defines body for GetInitialTraceDetail for application/json ContentType.
 type GetInitialTraceDetailJSONRequestBody = GetInitialTraceDetailRequest
 
@@ -74,10 +150,205 @@ type GetInitialTraceDetailJSONRequestBody = GetInitialTraceDetailRequest
 type GetAdditionalSpansJSONRequestBody = GetAdditionalSpansRequest
 
 // GetTracesJSONRequestBody defines body for GetTraces for application/json ContentType.
-type GetTracesJSONRequestBody = GetTracesRequest
+type GetTracesJSONRequestBody = DataSourceInfo
+
+// AsAnyValue0 returns the union data inside the AnyValue as a AnyValue0
+func (t AnyValue) AsAnyValue0() (AnyValue0, error) {
+	var body AnyValue0
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnyValue0 overwrites any union data inside the AnyValue as the provided AnyValue0
+func (t *AnyValue) FromAnyValue0(v AnyValue0) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnyValue0 performs a merge with any union data inside the AnyValue, using the provided AnyValue0
+func (t *AnyValue) MergeAnyValue0(v AnyValue0) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnyValue1 returns the union data inside the AnyValue as a AnyValue1
+func (t AnyValue) AsAnyValue1() (AnyValue1, error) {
+	var body AnyValue1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnyValue1 overwrites any union data inside the AnyValue as the provided AnyValue1
+func (t *AnyValue) FromAnyValue1(v AnyValue1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnyValue1 performs a merge with any union data inside the AnyValue, using the provided AnyValue1
+func (t *AnyValue) MergeAnyValue1(v AnyValue1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnyValue2 returns the union data inside the AnyValue as a AnyValue2
+func (t AnyValue) AsAnyValue2() (AnyValue2, error) {
+	var body AnyValue2
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnyValue2 overwrites any union data inside the AnyValue as the provided AnyValue2
+func (t *AnyValue) FromAnyValue2(v AnyValue2) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnyValue2 performs a merge with any union data inside the AnyValue, using the provided AnyValue2
+func (t *AnyValue) MergeAnyValue2(v AnyValue2) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnyValue3 returns the union data inside the AnyValue as a AnyValue3
+func (t AnyValue) AsAnyValue3() (AnyValue3, error) {
+	var body AnyValue3
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnyValue3 overwrites any union data inside the AnyValue as the provided AnyValue3
+func (t *AnyValue) FromAnyValue3(v AnyValue3) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnyValue3 performs a merge with any union data inside the AnyValue, using the provided AnyValue3
+func (t *AnyValue) MergeAnyValue3(v AnyValue3) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnyValue4 returns the union data inside the AnyValue as a AnyValue4
+func (t AnyValue) AsAnyValue4() (AnyValue4, error) {
+	var body AnyValue4
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnyValue4 overwrites any union data inside the AnyValue as the provided AnyValue4
+func (t *AnyValue) FromAnyValue4(v AnyValue4) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnyValue4 performs a merge with any union data inside the AnyValue, using the provided AnyValue4
+func (t *AnyValue) MergeAnyValue4(v AnyValue4) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnyValue5 returns the union data inside the AnyValue as a AnyValue5
+func (t AnyValue) AsAnyValue5() (AnyValue5, error) {
+	var body AnyValue5
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnyValue5 overwrites any union data inside the AnyValue as the provided AnyValue5
+func (t *AnyValue) FromAnyValue5(v AnyValue5) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnyValue5 performs a merge with any union data inside the AnyValue, using the provided AnyValue5
+func (t *AnyValue) MergeAnyValue5(v AnyValue5) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsAnyValue6 returns the union data inside the AnyValue as a AnyValue6
+func (t AnyValue) AsAnyValue6() (AnyValue6, error) {
+	var body AnyValue6
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromAnyValue6 overwrites any union data inside the AnyValue as the provided AnyValue6
+func (t *AnyValue) FromAnyValue6(v AnyValue6) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeAnyValue6 performs a merge with any union data inside the AnyValue, using the provided AnyValue6
+func (t *AnyValue) MergeAnyValue6(v AnyValue6) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t AnyValue) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *AnyValue) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// Search for traces
+	// (POST /api/search)
+	Search(w http.ResponseWriter, r *http.Request, params SearchParams)
 	// Get the root span from a given trace
 	// (POST /trace/{traceId}/span/{spanId})
 	GetInitialTraceDetail(w http.ResponseWriter, r *http.Request, traceID string, spanID string)
@@ -97,6 +368,41 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// Search operation middleware
+func (siw *ServerInterfaceWrapper) Search(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SearchParams
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "q", r.URL.Query(), &params.Q)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "start" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "start", r.URL.Query(), &params.Start)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "start", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Search(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // GetInitialTraceDetail operation middleware
 func (siw *ServerInterfaceWrapper) GetInitialTraceDetail(w http.ResponseWriter, r *http.Request) {
@@ -300,6 +606,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc("POST "+options.BaseURL+"/api/search", wrapper.Search)
 	m.HandleFunc("POST "+options.BaseURL+"/trace/{traceId}/span/{spanId}", wrapper.GetInitialTraceDetail)
 	m.HandleFunc("POST "+options.BaseURL+"/trace/{traceId}/span/{spanId}/children", wrapper.GetAdditionalSpans)
 	m.HandleFunc("POST "+options.BaseURL+"/traces", wrapper.GetTraces)
