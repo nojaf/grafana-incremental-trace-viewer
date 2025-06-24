@@ -11,7 +11,7 @@ function App(props: AppRootProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <Routes>
-        <Route path={`:datasourceId/${ROUTES.TraceDetails}/:traceId/:spanId`} element={<TraceDetail />} />
+        <Route path={`:datasourceId/${ROUTES.TraceDetails}/:traceId`} element={<TraceDetail />} />
         {/* Default page */}
         <Route path="*" element={<TraceOverview />} />
       </Routes>

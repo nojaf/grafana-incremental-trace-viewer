@@ -61,7 +61,9 @@ type ArrayValue struct {
 	Values *[]AnyValue `json:"values,omitempty"`
 }
 
-// DataSourceInfo defines model for DataSourceInfo.
+// DataSourceInfo Information about the datasource to use for the search.
+// This has the OpenSearch specific fields to connect to the datasource.
+// It will later have the exactly Tempo API information.
 type DataSourceInfo struct {
 	Database  string `json:"database"`
 	TimeField string `json:"timeField"`
@@ -105,7 +107,7 @@ type KeyValueList struct {
 
 // SearchResponse defines model for SearchResponse.
 type SearchResponse struct {
-	Traces []Trace `json:"traces"`
+	Traces []TempoTrace `json:"traces"`
 }
 
 // SpanNode defines model for SpanNode.
@@ -119,6 +121,28 @@ type SpanNode struct {
 	StartTime            time.Time `json:"startTime"`
 	TotalChildrenCount   int       `json:"totalChildrenCount"`
 	TraceID              string    `json:"traceId"`
+}
+
+// TempoSpan defines model for TempoSpan.
+type TempoSpan struct {
+	Name   *string `json:"name,omitempty"`
+	SpanID *string `json:"spanId,omitempty"`
+}
+
+// TempoSpanSet defines model for TempoSpanSet.
+type TempoSpanSet struct {
+	Matched int         `json:"matched"`
+	Spans   []TempoSpan `json:"spans"`
+}
+
+// TempoTrace defines model for TempoTrace.
+type TempoTrace struct {
+	DurationMs        int            `json:"durationMs"`
+	RootServiceName   string         `json:"rootServiceName"`
+	RootTraceName     string         `json:"rootTraceName"`
+	SpanSets          []TempoSpanSet `json:"spanSets"`
+	StartTimeUnixNano int64          `json:"startTimeUnixNano"`
+	TraceID           string         `json:"traceId"`
 }
 
 // Trace defines model for Trace.
@@ -138,6 +162,7 @@ type Traces struct {
 type SearchParams struct {
 	Q     *string `form:"q,omitempty" json:"q,omitempty"`
 	Start *int    `form:"start,omitempty" json:"start,omitempty"`
+	End   *int    `form:"end,omitempty" json:"end,omitempty"`
 }
 
 // SearchJSONRequestBody defines body for Search for application/json ContentType.
@@ -390,6 +415,14 @@ func (siw *ServerInterfaceWrapper) Search(w http.ResponseWriter, r *http.Request
 	err = runtime.BindQueryParameter("form", true, false, "start", r.URL.Query(), &params.Start)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "start", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "end" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "end", r.URL.Query(), &params.End)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "end", Err: err})
 		return
 	}
 

@@ -4,462 +4,480 @@
  */
 
 export interface paths {
-    "/traces": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Get traces from a given datasource */
-        post: operations["getTraces"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  '/traces': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/trace/{traceId}/span/{spanId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Get the root span from a given trace */
-        post: operations["getInitialTraceDetail"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Get traces from a given datasource */
+    post: operations['getTraces'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/trace/{traceId}/span/{spanId}': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/trace/{traceId}/span/{spanId}/children": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Get additional spans for a given span id */
-        post: operations["getAdditionalSpans"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Get the root span from a given trace */
+    post: operations['getInitialTraceDetail'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/trace/{traceId}/span/{spanId}/children': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Search for traces */
-        post: operations["search"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Get additional spans for a given span id */
+    post: operations['getAdditionalSpans'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  '/api/search': {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    get?: never;
+    put?: never;
+    /** Search for traces */
+    post: operations['search'];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        DataSourceInfo: {
-            url: string;
-            database: string;
-            timeField: string;
-        };
-        SearchResponse: {
-            traces: components["schemas"]["Trace"][];
-        };
-        TempoV1Response: {
-            traces: components["schemas"]["TempoTrace"][];
-        };
-        TempoTrace: {
-            traceId: string;
-            rootServiceName: string;
-            rootTraceName: string;
-            /** Format: date-time */
-            startTime: string;
-            duration: number;
-            spanSet: components["schemas"]["TempoSpanSet"][];
-        };
-        TempoSpanSet: {
-            spans: components["schemas"]["TempoSpan"][];
-            matched: number;
-        };
-        TempoSpan: {
-            spanId?: string;
-            name?: string;
-        };
-        /** @description A Span represents a single operation within a trace. */
-        Span: {
-            /**
-             * Format: byte
-             * @description A unique identifier for a trace. All spans from the same trace share the same `trace_id`.
-             */
-            traceId?: string;
-            /**
-             * Format: byte
-             * @description A unique identifier for a span within a trace, assigned when the span is created.
-             */
-            spanId?: string;
-            /**
-             * Format: byte
-             * @description The `span_id` of this span's parent span. If this is a root span, this field must be empty.
-             */
-            parentSpanId?: string;
-            /** @description The W3C TraceFlags and Tracestate HTTP request header fields.
-             *     See https://www.w3.org/TR/trace-context/#tracestate-header
-             *      */
-            traceState?: string;
-            /** @description A description of the operation or activity. */
-            name?: string;
-            /**
-             * @description Distinguishes between client and server, producer and consumer, etc.
-             *     See https://opentelemetry.io/docs/specs/otel/trace/api/#spankind
-             *
-             * @enum {string}
-             */
-            kind?: "SPAN_KIND_UNSPECIFIED" | "SPAN_KIND_INTERNAL" | "SPAN_KIND_SERVER" | "SPAN_KIND_CLIENT" | "SPAN_KIND_PRODUCER" | "SPAN_KIND_CONSUMER";
-            /**
-             * Format: int64
-             * @description The start timestamp of the span.
-             */
-            startTimeUnixNano?: string;
-            /**
-             * Format: int64
-             * @description The end timestamp of the span.
-             */
-            endTimeUnixNano?: string;
-            /** @description A list of 0 or more key-value pairs. */
-            attributes?: components["schemas"]["KeyValue"][];
-            /**
-             * Format: int32
-             * @description The number of attributes that were dropped.
-             */
-            droppedAttributesCount?: number;
-            /** @description A list of 0 or more Events that happened during the span's lifetime. */
-            events?: components["schemas"]["SpanEvent"][];
-            /**
-             * Format: int32
-             * @description The number of events that were dropped.
-             */
-            droppedEventsCount?: number;
-            /** @description Links to other Spans in the same or different traces. */
-            links?: components["schemas"]["SpanLink"][];
-            /**
-             * Format: int32
-             * @description The number of links that were dropped.
-             */
-            droppedLinksCount?: number;
-            /** @description The status of the span. */
-            status?: components["schemas"]["Status"];
-        };
-        /** @description The Status of a Span. */
-        Status: {
-            /** @description A short description of the status. */
-            message?: string;
-            /**
-             * @description The status code.
-             * @enum {string}
-             */
-            code?: "STATUS_CODE_UNSET" | "STATUS_CODE_OK" | "STATUS_CODE_ERROR";
-        };
-        /** @description An event that happened during a Span's lifetime. */
-        SpanEvent: {
-            /**
-             * Format: int64
-             * @description The time the event occurred.
-             */
-            timeUnixNano?: string;
-            /** @description The name of the event. */
-            name?: string;
-            attributes?: components["schemas"]["KeyValue"][];
-            /**
-             * Format: int32
-             * @description The number of attributes that were dropped.
-             */
-            droppedAttributesCount?: number;
-        };
-        /** @description A link to another Span. */
-        SpanLink: {
-            /**
-             * Format: byte
-             * @description The `trace_id` of the linked span.
-             */
-            traceId?: string;
-            /**
-             * Format: byte
-             * @description The `span_id` of the linked span.
-             */
-            spanId?: string;
-            /** @description The W3C TraceFlags and Tracestate HTTP request header fields.
-             *     See https://www.w3.org/TR/trace-context/#tracestate-header
-             *      */
-            traceState?: string;
-            attributes?: components["schemas"]["KeyValue"][];
-            /**
-             * Format: int32
-             * @description The number of attributes that were dropped.
-             */
-            droppedAttributesCount?: number;
-        };
-        /** @description KeyValue is a key-value pair for attributes. */
-        KeyValue: {
-            /** @description The attribute key. */
-            key?: string;
-            /** @description The attribute value. */
-            value?: components["schemas"]["AnyValue"];
-        };
-        /** @description AnyValue is used to represent any type of attribute value. */
-        AnyValue: {
-            stringValue?: string;
-        } | {
-            boolValue?: boolean;
-        } | {
-            /** Format: int64 */
-            intValue?: string;
-        } | {
-            /** Format: double */
-            doubleValue?: number;
-        } | {
-            arrayValue?: components["schemas"]["ArrayValue"];
-        } | {
-            kvlistValue?: components["schemas"]["KeyValueList"];
-        } | {
-            /** Format: byte */
-            bytesValue?: string;
-        };
-        /** @description ArrayValue is a list of AnyValue messages. */
-        ArrayValue: {
-            values?: components["schemas"]["AnyValue"][];
-        };
-        /** @description KeyValueList is a list of KeyValue messages. */
-        KeyValueList: {
-            values?: components["schemas"]["KeyValue"][];
-        };
-        /** @description A collection of Spans produced by a single resource.
-         *     For example, spans from a single host, or an application running on that host.
-         *      */
-        ResourceSpans: {
-            /** @description The resource for the spans in this message. */
-            resource?: components["schemas"]["Resource"];
-            /** @description A list of spans that originate from an instrumentation scope. */
-            scopeSpans?: components["schemas"]["ScopeSpans"][];
-            /** @description This schema_url applies to the Resource and all spans in the resource_spans array.
-             *     See https://opentelemetry.io/docs/specs/otel/overview/#schema-url
-             *      */
-            schemaUrl?: string;
-        };
-        /** @description A collection of Spans produced by an InstrumentationScope.
-         *      */
-        ScopeSpans: {
-            /** @description The instrumentation scope for the spans in this message. */
-            scope?: components["schemas"]["InstrumentationScope"];
-            /** @description A list of spans that originate from an instrumentation scope. */
-            spans?: components["schemas"]["Span"][];
-            /** @description This schema_url applies to all spans in the scope_spans array.
-             *     See https://opentelemetry.io/docs/specs/otel/overview/#schema-url
-             *      */
-            schemaUrl?: string;
-        };
-        /** @description Resource describes a source of a set of Spans. */
-        Resource: {
-            /** @description A list of 0 or more key-value pairs. */
-            attributes?: components["schemas"]["KeyValue"][];
-            /**
-             * Format: int32
-             * @description The number of attributes that were dropped.
-             */
-            droppedAttributesCount?: number;
-        };
-        /** @description InstrumentationScope is a message concerning the scope an individual span was
-         *     produced by.
-         *      */
-        InstrumentationScope: {
-            /** @description The name of the instrumentation scope. */
-            name?: string;
-            /** @description The version of the instrumentation scope. */
-            version?: string;
-            /** @description A list of 0 or more key-value pairs. */
-            attributes?: components["schemas"]["KeyValue"][];
-            /**
-             * Format: int32
-             * @description The number of attributes that were dropped.
-             */
-            droppedAttributesCount?: number;
-        };
-        Traces: {
-            traces: components["schemas"]["Trace"][];
-        };
-        Trace: {
-            traceId: string;
-            spanId: string;
-            /** Format: date-time */
-            timestamp: string;
-            name: string;
-        };
-        GetInitialTraceDetailRequest: {
-            url: string;
-            database: string;
-            timeField: string;
-            depth?: number;
-            childrenLimit?: number;
-        };
-        SpanNode: {
-            traceId: string;
-            spanId: string;
-            name: string;
-            /** Format: date-time */
-            startTime: string;
-            /** Format: date-time */
-            endTime: string;
-            parentSpanId: string;
-            level: number;
-            currentChildrenCount: number;
-            totalChildrenCount: number;
-        };
-        GetAdditionalSpansRequest: {
-            url: string;
-            database: string;
-            timeField: string;
-            depth: number;
-            childrenLimit: number;
-            level: number;
-            skip: number;
-            take: number;
-        };
+  schemas: {
+    /** @description Information about the datasource to use for the search.
+     *     This has the OpenSearch specific fields to connect to the datasource.
+     *     It will later have the exactly Tempo API information.
+     *      */
+    DataSourceInfo: {
+      url: string;
+      database: string;
+      timeField: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    SearchResponse: {
+      traces: components['schemas']['TempoTrace'][];
+    };
+    TempoV1Response: {
+      traces: components['schemas']['TempoTrace'][];
+    };
+    TempoTrace: {
+      traceId: string;
+      rootServiceName: string;
+      rootTraceName: string;
+      /** Format: int64 */
+      startTimeUnixNano: number;
+      durationMs: number;
+      spanSets: components['schemas']['TempoSpanSet'][];
+    };
+    TempoSpanSet: {
+      spans: components['schemas']['TempoSpan'][];
+      matched: number;
+    };
+    TempoSpan: {
+      spanId?: string;
+      name?: string;
+    };
+    /** @description A Span represents a single operation within a trace. */
+    Span: {
+      /**
+       * Format: byte
+       * @description A unique identifier for a trace. All spans from the same trace share the same `trace_id`.
+       */
+      traceId?: string;
+      /**
+       * Format: byte
+       * @description A unique identifier for a span within a trace, assigned when the span is created.
+       */
+      spanId?: string;
+      /**
+       * Format: byte
+       * @description The `span_id` of this span's parent span. If this is a root span, this field must be empty.
+       */
+      parentSpanId?: string;
+      /** @description The W3C TraceFlags and Tracestate HTTP request header fields.
+       *     See https://www.w3.org/TR/trace-context/#tracestate-header
+       *      */
+      traceState?: string;
+      /** @description A description of the operation or activity. */
+      name?: string;
+      /**
+       * @description Distinguishes between client and server, producer and consumer, etc.
+       *     See https://opentelemetry.io/docs/specs/otel/trace/api/#spankind
+       *
+       * @enum {string}
+       */
+      kind?:
+        | 'SPAN_KIND_UNSPECIFIED'
+        | 'SPAN_KIND_INTERNAL'
+        | 'SPAN_KIND_SERVER'
+        | 'SPAN_KIND_CLIENT'
+        | 'SPAN_KIND_PRODUCER'
+        | 'SPAN_KIND_CONSUMER';
+      /**
+       * Format: int64
+       * @description The start timestamp of the span.
+       */
+      startTimeUnixNano?: string;
+      /**
+       * Format: int64
+       * @description The end timestamp of the span.
+       */
+      endTimeUnixNano?: string;
+      /** @description A list of 0 or more key-value pairs. */
+      attributes?: components['schemas']['KeyValue'][];
+      /**
+       * Format: int32
+       * @description The number of attributes that were dropped.
+       */
+      droppedAttributesCount?: number;
+      /** @description A list of 0 or more Events that happened during the span's lifetime. */
+      events?: components['schemas']['SpanEvent'][];
+      /**
+       * Format: int32
+       * @description The number of events that were dropped.
+       */
+      droppedEventsCount?: number;
+      /** @description Links to other Spans in the same or different traces. */
+      links?: components['schemas']['SpanLink'][];
+      /**
+       * Format: int32
+       * @description The number of links that were dropped.
+       */
+      droppedLinksCount?: number;
+      /** @description The status of the span. */
+      status?: components['schemas']['Status'];
+    };
+    /** @description The Status of a Span. */
+    Status: {
+      /** @description A short description of the status. */
+      message?: string;
+      /**
+       * @description The status code.
+       * @enum {string}
+       */
+      code?: 'STATUS_CODE_UNSET' | 'STATUS_CODE_OK' | 'STATUS_CODE_ERROR';
+    };
+    /** @description An event that happened during a Span's lifetime. */
+    SpanEvent: {
+      /**
+       * Format: int64
+       * @description The time the event occurred.
+       */
+      timeUnixNano?: string;
+      /** @description The name of the event. */
+      name?: string;
+      attributes?: components['schemas']['KeyValue'][];
+      /**
+       * Format: int32
+       * @description The number of attributes that were dropped.
+       */
+      droppedAttributesCount?: number;
+    };
+    /** @description A link to another Span. */
+    SpanLink: {
+      /**
+       * Format: byte
+       * @description The `trace_id` of the linked span.
+       */
+      traceId?: string;
+      /**
+       * Format: byte
+       * @description The `span_id` of the linked span.
+       */
+      spanId?: string;
+      /** @description The W3C TraceFlags and Tracestate HTTP request header fields.
+       *     See https://www.w3.org/TR/trace-context/#tracestate-header
+       *      */
+      traceState?: string;
+      attributes?: components['schemas']['KeyValue'][];
+      /**
+       * Format: int32
+       * @description The number of attributes that were dropped.
+       */
+      droppedAttributesCount?: number;
+    };
+    /** @description KeyValue is a key-value pair for attributes. */
+    KeyValue: {
+      /** @description The attribute key. */
+      key?: string;
+      /** @description The attribute value. */
+      value?: components['schemas']['AnyValue'];
+    };
+    /** @description AnyValue is used to represent any type of attribute value. */
+    AnyValue:
+      | {
+          stringValue?: string;
+        }
+      | {
+          boolValue?: boolean;
+        }
+      | {
+          /** Format: int64 */
+          intValue?: string;
+        }
+      | {
+          /** Format: double */
+          doubleValue?: number;
+        }
+      | {
+          arrayValue?: components['schemas']['ArrayValue'];
+        }
+      | {
+          kvlistValue?: components['schemas']['KeyValueList'];
+        }
+      | {
+          /** Format: byte */
+          bytesValue?: string;
+        };
+    /** @description ArrayValue is a list of AnyValue messages. */
+    ArrayValue: {
+      values?: components['schemas']['AnyValue'][];
+    };
+    /** @description KeyValueList is a list of KeyValue messages. */
+    KeyValueList: {
+      values?: components['schemas']['KeyValue'][];
+    };
+    /** @description A collection of Spans produced by a single resource.
+     *     For example, spans from a single host, or an application running on that host.
+     *      */
+    ResourceSpans: {
+      /** @description The resource for the spans in this message. */
+      resource?: components['schemas']['Resource'];
+      /** @description A list of spans that originate from an instrumentation scope. */
+      scopeSpans?: components['schemas']['ScopeSpans'][];
+      /** @description This schema_url applies to the Resource and all spans in the resource_spans array.
+       *     See https://opentelemetry.io/docs/specs/otel/overview/#schema-url
+       *      */
+      schemaUrl?: string;
+    };
+    /** @description A collection of Spans produced by an InstrumentationScope.
+     *      */
+    ScopeSpans: {
+      /** @description The instrumentation scope for the spans in this message. */
+      scope?: components['schemas']['InstrumentationScope'];
+      /** @description A list of spans that originate from an instrumentation scope. */
+      spans?: components['schemas']['Span'][];
+      /** @description This schema_url applies to all spans in the scope_spans array.
+       *     See https://opentelemetry.io/docs/specs/otel/overview/#schema-url
+       *      */
+      schemaUrl?: string;
+    };
+    /** @description Resource describes a source of a set of Spans. */
+    Resource: {
+      /** @description A list of 0 or more key-value pairs. */
+      attributes?: components['schemas']['KeyValue'][];
+      /**
+       * Format: int32
+       * @description The number of attributes that were dropped.
+       */
+      droppedAttributesCount?: number;
+    };
+    /** @description InstrumentationScope is a message concerning the scope an individual span was
+     *     produced by.
+     *      */
+    InstrumentationScope: {
+      /** @description The name of the instrumentation scope. */
+      name?: string;
+      /** @description The version of the instrumentation scope. */
+      version?: string;
+      /** @description A list of 0 or more key-value pairs. */
+      attributes?: components['schemas']['KeyValue'][];
+      /**
+       * Format: int32
+       * @description The number of attributes that were dropped.
+       */
+      droppedAttributesCount?: number;
+    };
+    Traces: {
+      traces: components['schemas']['Trace'][];
+    };
+    Trace: {
+      traceId: string;
+      spanId: string;
+      /** Format: date-time */
+      timestamp: string;
+      name: string;
+    };
+    GetInitialTraceDetailRequest: {
+      url: string;
+      database: string;
+      timeField: string;
+      depth?: number;
+      childrenLimit?: number;
+    };
+    SpanNode: {
+      traceId: string;
+      spanId: string;
+      name: string;
+      /** Format: date-time */
+      startTime: string;
+      /** Format: date-time */
+      endTime: string;
+      parentSpanId: string;
+      level: number;
+      currentChildrenCount: number;
+      totalChildrenCount: number;
+    };
+    GetAdditionalSpansRequest: {
+      url: string;
+      database: string;
+      timeField: string;
+      depth: number;
+      childrenLimit: number;
+      level: number;
+      skip: number;
+      take: number;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    getTraces: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["DataSourceInfo"];
-            };
-        };
-        responses: {
-            /** @description A list of traces */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Traces"];
-                };
-            };
-        };
+  getTraces: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    getInitialTraceDetail: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                traceId: string;
-                spanId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["GetInitialTraceDetailRequest"];
-            };
-        };
-        responses: {
-            /** @description A list of spans */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SpanNode"][];
-                };
-            };
-        };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['DataSourceInfo'];
+      };
     };
-    getAdditionalSpans: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                traceId: string;
-                spanId: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description A list of traces */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["GetAdditionalSpansRequest"];
-            };
+        content: {
+          'application/json': components['schemas']['Traces'];
         };
-        responses: {
-            /** @description A list of spans */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SpanNode"][];
-                };
-            };
-        };
+      };
     };
-    search: {
-        parameters: {
-            query?: {
-                q?: string;
-                start?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["DataSourceInfo"];
-            };
-        };
-        responses: {
-            /** @description A list of traces */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SearchResponse"];
-                };
-            };
-        };
+  };
+  getInitialTraceDetail: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        traceId: string;
+        spanId: string;
+      };
+      cookie?: never;
     };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['GetInitialTraceDetailRequest'];
+      };
+    };
+    responses: {
+      /** @description A list of spans */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SpanNode'][];
+        };
+      };
+    };
+  };
+  getAdditionalSpans: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        traceId: string;
+        spanId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['GetAdditionalSpansRequest'];
+      };
+    };
+    responses: {
+      /** @description A list of spans */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SpanNode'][];
+        };
+      };
+    };
+  };
+  search: {
+    parameters: {
+      query?: {
+        q?: string;
+        start?: number;
+        end?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        'application/json': components['schemas']['DataSourceInfo'];
+      };
+    };
+    responses: {
+      /** @description A list of traces */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          'application/json': components['schemas']['SearchResponse'];
+        };
+      };
+    };
+  };
 }
 export enum ApiPaths {
-    getTraces = "/traces",
-    getInitialTraceDetail = "/trace/{traceId}/span/{spanId}",
-    getAdditionalSpans = "/trace/{traceId}/span/{spanId}/children",
-    search = "/api/search"
+  getTraces = '/traces',
+  getInitialTraceDetail = '/trace/{traceId}/span/{spanId}',
+  getAdditionalSpans = '/trace/{traceId}/span/{spanId}/children',
+  search = '/api/search',
 }

@@ -23,9 +23,9 @@ export type datasource = {
   url: string;
 };
 
-type simpleTrace = components['schemas']['Trace'];
-type rootTracesResponse = components['schemas']['Traces'];
-type getTracesRequest = components['schemas']['GetTracesRequest'];
+type dataSourceInfo = components['schemas']['DataSourceInfo'];
+type searchResponse = components['schemas']['SearchResponse'];
+type tempoTrace = components['schemas']['TempoTrace'];
 
 function TraceOverview() {
   const queryClient = useQueryClient();
@@ -43,7 +43,7 @@ function TraceOverview() {
 
   const [selectedSource, setSelectedSource] = useState<number | null>(null);
 
-  const result = useQuery<simpleTrace[]>({
+  const result = useQuery<tempoTrace[]>({
     queryKey: ['datasource', selectedSource, 'traces'],
     queryFn: async ({ queryKey }) => {
       const sourceId = queryKey[1];
@@ -56,14 +56,14 @@ function TraceOverview() {
       if (!datasource) {
         throw new Error(`Datasource with id ${sourceId} not found`);
       }
-      const response = getBackendSrv().fetch<rootTracesResponse>({
-        url: `${BASE_URL}/${ApiPaths.getTraces}`,
+      const response = getBackendSrv().fetch<searchResponse>({
+        url: `${BASE_URL}/${ApiPaths.search}`,
         method: 'POST',
         data: {
           url: datasource.url,
           database: datasource.jsonData.database,
           timeField: datasource.jsonData.timeField,
-        } satisfies getTracesRequest,
+        } satisfies dataSourceInfo,
       });
       const value = await lastValueFrom(response);
       return value.data.traces;
@@ -99,12 +99,9 @@ function TraceOverview() {
           <ul style={{ padding: '2rem' }}>
             {result.data.map((r) => {
               return (
-                <Link
-                  key={r.spanId}
-                  to={prefixRoute(`${selectedSource}/${ROUTES.TraceDetails}/${r.traceId}/${r.spanId}`)}
-                >
+                <Link key={r.traceId} to={prefixRoute(`${selectedSource}/${ROUTES.TraceDetails}/${r.traceId}`)}>
                   <li>
-                    {r.name} ({r.spanId})
+                    {r.rootTraceName} ({r.rootServiceName})
                   </li>
                 </Link>
               );

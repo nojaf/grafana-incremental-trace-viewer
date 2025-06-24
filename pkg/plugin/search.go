@@ -11,11 +11,11 @@ import (
 	"github.com/opensearch-project/opensearch-go/opensearchapi"
 )
 
-func (siw *ServerInterfaceImpl) GetTraces(w http.ResponseWriter, req *http.Request) {
-	log.Println("Processing root traces request")
+func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, params SearchParams) {
+	log.Println("Processing search request")
 
 	var request DataSourceInfo
-	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		log.Printf("Failed to decode request: %v", err)
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -28,21 +28,23 @@ func (siw *ServerInterfaceImpl) GetTraces(w http.ResponseWriter, req *http.Reque
 		return
 	}
 
+	noParentSpan := `{ "term": { "parentSpanId.keyword": { "value": "" } } }`
+	timeRange := ""
+	if params.Start != nil && params.End != nil {
+		timeRange = fmt.Sprintf(`{ "range": { "%s": { "gte": %d, "lte": %d } } }`, request.TimeField, *params.Start, *params.End)
+	}
+	queryTerms := noParentSpan
+	if timeRange != "" {
+		queryTerms = noParentSpan + "," + timeRange
+	}
+
 	// spans without a parent span id
-	maxSize := 100
 	content := strings.NewReader(fmt.Sprintf(`{
-    "size": %d,
     "sort": [{ %q: "desc" }],
     "query": {
       "bool": {
         "should": [
-          {
-            "term": {
-              "parentSpanId.keyword": {
-                "value": ""
-              }
-            }
-          }
+          %s
         ]
       }
     },
@@ -53,7 +55,7 @@ func (siw *ServerInterfaceImpl) GetTraces(w http.ResponseWriter, req *http.Reque
       "parentSpanId",
       %q
     ]
-  }`, maxSize, request.TimeField, request.TimeField))
+  }`, request.TimeField, queryTerms, request.TimeField))
 
 	search := opensearchapi.SearchRequest{
 		Index: []string{request.Database},
@@ -80,18 +82,19 @@ func (siw *ServerInterfaceImpl) GetTraces(w http.ResponseWriter, req *http.Reque
 	log.Printf("OpenSearch returned %d hits (total: %d)", len(osResponse.Hits.Hits), osResponse.Hits.Total.Value)
 
 	// Transform to simplified response format
-	traces := make([]Trace, 0)
+	traces := make([]TempoTrace, 0)
 	for _, hit := range osResponse.Hits.Hits {
-		trace := Trace{
-			TraceID:   hit.Source.TraceID,
-			SpanID:    hit.Source.SpanID,
-			Timestamp: hit.Source.Timestamp,
-			Name:      hit.Source.Name,
+		trace := TempoTrace{
+			TraceID:           hit.Source.TraceID,
+			RootServiceName:   hit.Source.Resource.Service.Name,
+			RootTraceName:     hit.Source.Name,
+			StartTimeUnixNano: hit.Source.StartTime.UnixNano(),
+			DurationMs:        int(hit.Source.EndTime.Sub(hit.Source.StartTime).Milliseconds()),
 		}
 		traces = append(traces, trace)
 	}
 
-	response := Traces{
+	response := SearchResponse{
 		Traces: traces,
 	}
 

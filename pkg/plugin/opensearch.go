@@ -45,13 +45,75 @@ type Hit struct {
 // TraceSource represents the minimal span data as returned from OpenSearch.
 // It is used for traversal and data transfer, before enriching to SpanNode for API responses.
 type TraceSource struct {
-	TraceID      string    `json:"traceId"`
-	SpanID       string    `json:"spanId"`
-	Timestamp    time.Time `json:"@timestamp"`
-	Name         string    `json:"name"`
-	ParentSpanID string    `json:"parentSpanId"`
-	StartTime    time.Time `json:"startTime"`
-	EndTime      time.Time `json:"endTime"`
+	TraceID                string                 `json:"traceId"`
+	SpanID                 string                 `json:"spanId"`
+	Timestamp              time.Time              `json:"@timestamp"`
+	Name                   string                 `json:"name"`
+	ParentSpanID           string                 `json:"parentSpanId"`
+	StartTime              time.Time              `json:"startTime"`
+	EndTime                time.Time              `json:"endTime"`
+	Kind                   string                 `json:"kind"`
+	Status                 Status                 `json:"status"`
+	Attributes             map[string]interface{} `json:"attributes"`
+	Events                 []Event                `json:"events"`
+	Links                  []Link                 `json:"links"`
+	TraceState             string                 `json:"traceState"`
+	DroppedAttributesCount int64                  `json:"droppedAttributesCount"`
+	DroppedEventsCount     int64                  `json:"droppedEventsCount"`
+	DroppedLinksCount      int64                  `json:"droppedLinksCount"`
+	Resource               Resource               `json:"resource"`
+	InstrumentationScope   InstrumentationScope   `json:"instrumentationScope"`
+}
+
+type Status struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+type DataStream struct {
+	Dataset   string `json:"dataset,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+	Type      string `json:"type,omitempty"`
+}
+
+type Service struct {
+	Name string `json:"name,omitempty"`
+}
+
+type User struct {
+	Name string `json:"name,omitempty"`
+}
+
+type Event struct {
+	Timestamp              time.Time       `json:"@timestamp"`
+	Attributes             EventAttributes `json:"attributes,omitempty"`
+	DroppedAttributesCount int64           `json:"droppedAttributesCount,omitempty"`
+	Name                   string          `json:"name,omitempty"`
+}
+
+type EventAttributes struct {
+	LogIndex *int64 `json:"log_index,omitempty"`
+	LogLevel string `json:"log_level,omitempty"`
+	Message  string `json:"message,omitempty"`
+}
+
+type Link struct {
+	TraceID                string                 `json:"traceId,omitempty"`
+	SpanID                 string                 `json:"spanId,omitempty"`
+	TraceState             string                 `json:"traceState,omitempty"`
+	Attributes             map[string]interface{} `json:"attributes,omitempty"`
+	DroppedAttributesCount int64                  `json:"droppedAttributesCount,omitempty"`
+}
+
+type Resource struct {
+	Service Service `json:"service,omitempty"`
+}
+
+type InstrumentationScope struct {
+	DroppedAttributesCount int64  `json:"droppedAttributesCount,omitempty"`
+	Name                   string `json:"name,omitempty"`
+	SchemaURL              string `json:"schemaUrl,omitempty"`
+	Version                string `json:"version,omitempty"`
 }
 
 // OpenSearch aggregation response structures

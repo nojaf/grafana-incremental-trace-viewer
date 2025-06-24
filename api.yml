@@ -92,6 +92,7 @@ paths:
         - name: end
           schema:
             type: integer # unix epoch seconds
+          in: query
       requestBody:
         content:
           application/json:
@@ -129,7 +130,7 @@ components:
         traces:
           type: array
           items:
-            $ref: '#/components/schemas/Trace'
+            $ref: '#/components/schemas/TempoTrace'
       required:
         - traces
     TempoV1Response:
@@ -150,12 +151,12 @@ components:
           type: string
         rootTraceName:
           type: string
-        startTime:
-          type: string
-          format: date-time
-        duration:
+        startTimeUnixNano:
+          type: integer
+          format: int64
+        durationMs:
           type: integer # TimeSpan in dotnet
-        spanSet:
+        spanSets:
           type: array
           items:
             $ref: '#/components/schemas/TempoSpanSet'
@@ -163,9 +164,9 @@ components:
         - traceId
         - rootServiceName
         - rootTraceName
-        - startTime
-        - duration
-        - spanSet
+        - startTimeUnixNano
+        - durationMs
+        - spanSets
     TempoSpanSet:
       type: object
       properties:
