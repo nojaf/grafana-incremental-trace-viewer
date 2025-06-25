@@ -1,6 +1,5 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { Button } from '@grafana/ui';
 import { testIds } from '../components/testIds';
 import { getBackendSrv, PluginPage } from '@grafana/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -9,69 +8,12 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { type components } from '../schema.gen';
 import type { datasource } from './TraceOverview';
 import { BASE_URL } from '../constants';
-
-type ISODateString = string;
+import { Span, SpanDetailPanel } from '../components/Span';
+import { getMillisecondsDifferenceNative } from '../utils/utils.timeline';
 
 type SpanNode = components['schemas']['SpanNode'];
 type GetInitialTraceDetailRequest = components['schemas']['GetInitialTraceDetailRequest'];
 type GetAdditionalSpansRequest = components['schemas']['GetAdditionalSpansRequest'];
-
-type SpanNodeProps = SpanNode & {
-  index: number;
-  loadMore: (index: number, spanId: string, currentLevel: number, skip: number) => void;
-};
-
-function getMillisecondsDifferenceNative(startTime: ISODateString, endTime: ISODateString) {
-  const s = new Date(startTime);
-  const e = new Date(endTime);
-
-  // Validate if the Date objects are valid (e.g., if parsing failed)
-  if (isNaN(s.getTime()) || isNaN(e.getTime())) {
-    throw new Error('Invalid ISO 8601 date string provided.');
-  }
-
-  return e.getTime() - s.getTime();
-}
-
-const Span = (props: SpanNodeProps) => {
-  return (
-    <div
-      className="border-l-2 border-gray-200 pl-4 transition-colors duration-200 hover:bg-gray-700 h-full"
-      style={{ marginLeft: `calc(1rem * var(--indent-level, ${props.level}))` } as React.CSSProperties}
-    >
-      <div className="flex items-center gap-4 px-4 py-2 border border-gray-200 h-full">
-        <div className="text-sm">
-          <strong className="mr-2">Name:</strong> {props.name}
-        </div>
-        <div className="text-sm">
-          <strong className="mr-2">ID:</strong> {props.spanId}
-        </div>
-        <div className="text-sm">
-          <strong className="mr-2">Duration:</strong> {getMillisecondsDifferenceNative(props.startTime, props.endTime)}
-          ms
-        </div>
-        <div className="text-sm">
-          <span>
-            current children:
-            {props.currentChildrenCount}
-          </span>
-        </div>
-        <div className="text-sm">
-          <span>total children: {props.totalChildrenCount}</span>
-        </div>
-        {props.currentChildrenCount < props.totalChildrenCount && (
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => props.loadMore(props.index, props.spanId, props.level, props.currentChildrenCount)}
-          >
-            Load more
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-};
 
 function TraceDetail() {
   const {
@@ -82,6 +24,7 @@ function TraceDetail() {
   const queryClient = useQueryClient();
   const parentRef = React.useRef(null);
   const queryKey = ['datasource', datasourceId, 'trace', traceId, 'spans', rootSpanId];
+  const [selectedSpan, setSelectedSpan] = React.useState<SpanNode | null>(null);
 
   const result = useQuery<SpanNode[]>(
     {
@@ -122,6 +65,22 @@ function TraceDetail() {
     },
     queryClient
   );
+
+  const traceDuration = React.useMemo(() => {
+    if (!result.isSuccess || result.data.length === 0) {
+      return 0;
+    }
+    const rootSpan = result.data[0];
+    return getMillisecondsDifferenceNative(rootSpan.startTime, rootSpan.endTime);
+  }, [result.isSuccess, result.data]);
+
+  const traceStartTime = React.useMemo(() => {
+    if (!result.isSuccess || result.data.length === 0) {
+      return 0;
+    }
+    const rootSpan = result.data[0];
+    return new Date(rootSpan.startTime).getTime();
+  }, [result.isSuccess, result.data]);
 
   const rowVirtualizer = useVirtualizer({
     count: result.isSuccess ? result.data.length : 0,
@@ -213,52 +172,71 @@ function TraceDetail() {
 
   return (
     <PluginPage>
-      <div data-testid={testIds.pageThree.container}>
-        This is detail page for span {rootSpanId}
-        <br />
-        <br />
-        {/* The ID parameter is set */}
-        {rootSpanId && <strong>ID: {rootSpanId} </strong>}
-      </div>
-      {result.isLoading && <div>Loading...</div>}
-      {result.isError && <div>Error: {result.error.message}</div>}
-      {result.isSuccess && (
-        /* The scrollable element for your list */
-        <div
-          ref={parentRef}
-          style={{
-            height: `60vh`,
-            overflow: 'auto',
-          }}
-        >
-          {/* The large inner element to hold all of the items */}
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              position: 'relative',
-            }}
-            className="w-full relative"
-          >
-            {/* Only the visible items in the virtualizer, manually positioned to be in view */}
-            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-              const span = result.data[virtualItem.index];
-              return (
+      <div className="flex h-[calc(100vh-120px)]">
+        <div className="flex-grow flex flex-col">
+          <div className="flex bg-gray-800 p-2 border-b border-gray-700">
+            <div className="w-1/3 font-bold">Span</div>
+            <div className="w-2/3 font-bold px-4">
+              <div className="w-full relative">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute border-l border-gray-500 h-2 pl-1 text-xs"
+                    style={{
+                      left: `${(i / 4) * 100}%`,
+                    }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+                  >
+                    {((traceDuration / 1000 / 4) * i).toFixed(2)}s
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex-grow" data-testid={testIds.pageThree.container}>
+            {result.isLoading && <div>Loading...</div>}
+            {result.isError && <div>Error: {result.error.message}</div>}
+            {result.isSuccess && (
+              <div ref={parentRef} className="h-full overflow-auto">
                 <div
-                  key={virtualItem.key}
-                  className="absolute top-0 left-0 bottom-0 right-0 w-full my-0"
                   style={{
-                    height: `${virtualItem.size}px`,
-                    transform: `translateY(${virtualItem.start}px)`,
-                  }}
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                  }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+                  className="w-full relative"
                 >
-                  <Span key={span.spanId} {...span} index={virtualItem.index} loadMore={loadMore} />
+                  {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                    const span = result.data[virtualItem.index];
+                    return (
+                      <div
+                        key={virtualItem.key}
+                        className="absolute top-0 left-0 w-full border-b border-[#2d2d2d]"
+                        style={{
+                          height: `${virtualItem.size}px`,
+                          transform: `translateY(${virtualItem.start}px)`,
+                        }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+                      >
+                        <Span
+                          key={span.spanId}
+                          {...span}
+                          index={virtualItem.index}
+                          loadMore={loadMore}
+                          traceStartTime={traceStartTime}
+                          traceDuration={traceDuration}
+                          onSelect={setSelectedSpan}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
         </div>
-      )}
-      <pre>{JSON.stringify(result.data && result.data.length, null, 2)}</pre>
+        {selectedSpan && (
+          <div className="w-1/3 border-l border-gray-700 min-w-[300px]">
+            <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} />
+          </div>
+        )}
+      </div>
     </PluginPage>
   );
 }
