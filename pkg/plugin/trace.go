@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/g-research/grafana-incremental-trace-viewer/pkg/opensearch"
+	os "github.com/opensearch-project/opensearch-go"
 )
 
 // Not sure what this should be, but I'm rolling with this.
@@ -68,6 +69,87 @@ func convertIdToBytes(id string) []int32 {
 	return bytes
 }
 
+func convertHitToSpan(hit opensearch.Hit) Span {
+	spanAttributes := make([]KeyValue, 0, len(hit.Source.Attributes))
+	for k, v := range hit.Source.Attributes {
+		spanAttributes = append(spanAttributes, convertKeyValue(k, v))
+	}
+
+	events := make([]Event, 0, len(hit.Source.Events))
+	for _, event := range hit.Source.Events {
+		eventAttributes := convertKeyValues(event.Attributes)
+
+		events = append(events, Event{
+			Attributes:             ptrTo(eventAttributes),
+			DroppedAttributesCount: ptrTo(int32(event.DroppedAttributesCount)),
+			Name:                   ptrTo(event.Name),
+		})
+	}
+
+	links := make([]Link, 0, len(hit.Source.Links))
+	for _, link := range hit.Source.Links {
+		linkAttributes := convertKeyValues(link.Attributes)
+		links = append(links, Link{
+			Attributes:             ptrTo(linkAttributes),
+			DroppedAttributesCount: ptrTo(int32(link.DroppedAttributesCount)),
+			TraceID:                ptrTo(convertIdToBytes(link.TraceID)),
+			SpanID:                 ptrTo(convertIdToBytes(link.SpanID)),
+			TraceState:             ptrTo(link.TraceState),
+		})
+	}
+
+	return Span{
+		Attributes:             ptrTo(spanAttributes),
+		DroppedAttributesCount: ptrTo(int32(hit.Source.DroppedAttributesCount)),
+		DroppedEventsCount:     ptrTo(int32(hit.Source.DroppedEventsCount)),
+		DroppedLinksCount:      ptrTo(int32(hit.Source.DroppedLinksCount)),
+		Events:                 ptrTo(events),
+		Kind:                   ptrTo(SpanKind(hit.Source.Kind)),
+		Links:                  ptrTo(links),
+		Name:                   ptrTo(hit.Source.Name),
+		ParentSpanID:           ptrTo(convertIdToBytes(hit.Source.ParentSpanID)),
+		SpanID:                 ptrTo(convertIdToBytes(hit.Source.SpanID)),
+		StartTimeUnixNano:      ptrTo(hit.Source.StartTime.UnixNano()),
+		EndTimeUnixNano:        ptrTo(hit.Source.EndTime.UnixNano()),
+		TraceID:                ptrTo(convertIdToBytes(hit.Source.TraceID)),
+		TraceState:             ptrTo(hit.Source.TraceState),
+		Status: &Status{
+			Code:    ptrTo(StatusCode(hit.Source.Status.Code)),
+			Message: ptrTo(hit.Source.Status.Message),
+		},
+	}
+}
+
+func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID string, spanID string, skip int, take int) ([]Span, error) {
+	query := fmt.Sprintf(`{
+	"size": %d,
+	"from": %d,
+	"query": {
+		"bool": {
+			"must": [
+				{ "term": { "traceId.keyword": %q } },
+				{ "term": { "parentSpanId.keyword": %q } }
+			]
+		}
+	},
+	"sort": [ { %q: { "order": "asc" } }]
+}`, take, skip, traceID, spanID, datasourceInfo.TimeField)
+
+	openSearchResponse, err := opensearch.Search(client, datasourceInfo.Database, query)
+	if err != nil {
+		log.Printf("Failed to execute OpenSearch query: %v", err)
+		return nil, err
+	}
+
+	log.Printf("Found %d spans for trace %s and span %s, skipping %d and taking %d", len(openSearchResponse.Hits.Hits), traceID, spanID, skip, take)
+
+	spans := make([]Span, 0, len(openSearchResponse.Hits.Hits))
+	for _, hit := range openSearchResponse.Hits.Hits {
+		spans = append(spans, convertHitToSpan(hit))
+	}
+	return spans, nil
+}
+
 func getInitialTrace(datasourceInfo DataSourceInfo, traceID string) (TracesData, error) {
 	client, err := opensearch.GetOpenSearchClient(datasourceInfo.URL)
 	if err != nil {
@@ -108,55 +190,17 @@ func getInitialTrace(datasourceInfo DataSourceInfo, traceID string) (TracesData,
 			Attributes: &resourceAttributes,
 		}
 
-		spanAttributes := make([]KeyValue, 0, len(hit.Source.Attributes))
-		for k, v := range hit.Source.Attributes {
-			spanAttributes = append(spanAttributes, convertKeyValue(k, v))
+		span := convertHitToSpan(hit)
+
+		levelOneSpans, err := fetchSpanChildren(client, datasourceInfo, traceID, hit.Source.SpanID, 0, 1000)
+		if err != nil {
+			log.Printf("Failed to fetch span children: %v", err)
+			return TracesData{}, err
 		}
 
-		events := make([]Event, 0, len(hit.Source.Events))
-		for _, event := range hit.Source.Events {
-			eventAttributes := convertKeyValues(event.Attributes)
-
-			events = append(events, Event{
-				Attributes:             ptrTo(eventAttributes),
-				DroppedAttributesCount: ptrTo(int32(event.DroppedAttributesCount)),
-				Name:                   ptrTo(event.Name),
-			})
-		}
-
-		links := make([]Link, 0, len(hit.Source.Links))
-		for _, link := range hit.Source.Links {
-			linkAttributes := convertKeyValues(link.Attributes)
-			links = append(links, Link{
-				Attributes:             ptrTo(linkAttributes),
-				DroppedAttributesCount: ptrTo(int32(link.DroppedAttributesCount)),
-				TraceID:                ptrTo(convertIdToBytes(link.TraceID)),
-				SpanID:                 ptrTo(convertIdToBytes(link.SpanID)),
-				TraceState:             ptrTo(link.TraceState),
-			})
-		}
-
-		span := Span{
-			Attributes:             ptrTo(spanAttributes),
-			DroppedAttributesCount: ptrTo(int32(hit.Source.DroppedAttributesCount)),
-			DroppedEventsCount:     ptrTo(int32(hit.Source.DroppedEventsCount)),
-			DroppedLinksCount:      ptrTo(int32(hit.Source.DroppedLinksCount)),
-			Events:                 ptrTo(events),
-			Kind:                   ptrTo(SpanKind(hit.Source.Kind)),
-			Links:                  ptrTo(links),
-			Name:                   ptrTo(hit.Source.Name),
-			ParentSpanID:           ptrTo(convertIdToBytes(hit.Source.ParentSpanID)),
-			SpanID:                 ptrTo(convertIdToBytes(hit.Source.SpanID)),
-			StartTimeUnixNano:      ptrTo(hit.Source.StartTime.UnixNano()),
-			EndTimeUnixNano:        ptrTo(hit.Source.EndTime.UnixNano()),
-			TraceID:                ptrTo(convertIdToBytes(hit.Source.TraceID)),
-			TraceState:             ptrTo(hit.Source.TraceState),
-			Status: &Status{
-				Code:    ptrTo(StatusCode(hit.Source.Status.Code)),
-				Message: ptrTo(hit.Source.Status.Message),
-			},
-			// Flags:                  ptrTo(int32(hit.Source.Flags)),
-		}
+		spans := make([]Span, 0, 1+len(levelOneSpans))
+		spans = append(spans, span)
+		spans = append(spans, levelOneSpans...)
 
 		scopeSpans := make([]ScopeSpans, 0, 1)
 		// This currently only adds the root span, but we should add all spans.
@@ -169,7 +213,7 @@ func getInitialTrace(datasourceInfo DataSourceInfo, traceID string) (TracesData,
 				Attributes:             nil,
 				DroppedAttributesCount: ptrTo(int32(hit.Source.InstrumentationScope.DroppedAttributesCount)),
 			},
-			Spans: ptrTo([]Span{span}),
+			Spans: ptrTo(spans),
 		})
 
 		resourceSpans = append(resourceSpans, ResourceSpans{
