@@ -6,7 +6,6 @@
 package plugin
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"time"
@@ -14,51 +13,50 @@ import (
 	"github.com/oapi-codegen/runtime"
 )
 
-// AnyValue AnyValue is used to represent any type of attribute value.
+// Defines values for SpanKind.
+const (
+	Client      SpanKind = "client"
+	Consumer    SpanKind = "consumer"
+	Internal    SpanKind = "internal"
+	Producer    SpanKind = "producer"
+	Server      SpanKind = "server"
+	Unspecified SpanKind = "unspecified"
+)
+
+// Defines values for StatusCode.
+const (
+	Error StatusCode = "error"
+	Ok    StatusCode = "ok"
+	Unset StatusCode = "unset"
+)
+
+// Defines values for ValueOneofCase.
+const (
+	ValueOneofCaseArrayValue  ValueOneofCase = "arrayValue"
+	ValueOneofCaseBoolValue   ValueOneofCase = "boolValue"
+	ValueOneofCaseBytesValue  ValueOneofCase = "bytesValue"
+	ValueOneofCaseDoubleValue ValueOneofCase = "doubleValue"
+	ValueOneofCaseIntValue    ValueOneofCase = "intValue"
+	ValueOneofCaseKvlistValue ValueOneofCase = "kvlistValue"
+	ValueOneofCaseNone        ValueOneofCase = "none"
+	ValueOneofCaseStringValue ValueOneofCase = "stringValue"
+)
+
+// AnyValue defines model for AnyValue.
 type AnyValue struct {
-	union json.RawMessage
+	ArrayValue  *ArrayValue     `json:"arrayValue,omitempty"`
+	BoolValue   *bool           `json:"boolValue,omitempty"`
+	BytesValue  *[]int32        `json:"bytesValue"`
+	DoubleValue *float64        `json:"doubleValue,omitempty"`
+	IntValue    *int64          `json:"intValue,omitempty"`
+	KvlistValue *KeyValueList   `json:"kvlistValue,omitempty"`
+	StringValue *string         `json:"stringValue"`
+	ValueCase   *ValueOneofCase `json:"valueCase,omitempty"`
 }
 
-// AnyValue0 A string value.
-type AnyValue0 struct {
-	StringValue *string `json:"stringValue,omitempty"`
-}
-
-// AnyValue1 A boolean value.
-type AnyValue1 struct {
-	BoolValue *bool `json:"boolValue,omitempty"`
-}
-
-// AnyValue2 An integer value.
-type AnyValue2 struct {
-	IntValue *string `json:"intValue,omitempty"`
-}
-
-// AnyValue3 A double value.
-type AnyValue3 struct {
-	DoubleValue *float64 `json:"doubleValue,omitempty"`
-}
-
-// AnyValue4 An array of AnyValue.
-type AnyValue4 struct {
-	// ArrayValue ArrayValue is a list of AnyValue messages.
-	ArrayValue *ArrayValue `json:"arrayValue,omitempty"`
-}
-
-// AnyValue5 A list of KeyValue pairs.
-type AnyValue5 struct {
-	// KvlistValue KeyValueList is a list of KeyValue messages.
-	KvlistValue *KeyValueList `json:"kvlistValue,omitempty"`
-}
-
-// AnyValue6 A bytes value.
-type AnyValue6 struct {
-	BytesValue *[]byte `json:"bytesValue,omitempty"`
-}
-
-// ArrayValue ArrayValue is a list of AnyValue messages.
+// ArrayValue defines model for ArrayValue.
 type ArrayValue struct {
-	Values *[]AnyValue `json:"values,omitempty"`
+	Values *[]AnyValue `json:"values"`
 }
 
 // DataSourceInfo Information about the datasource to use for the search.
@@ -70,319 +68,190 @@ type DataSourceInfo struct {
 	URL       string `json:"url"`
 }
 
-// GetAdditionalSpansRequest defines model for GetAdditionalSpansRequest.
-type GetAdditionalSpansRequest struct {
-	ChildrenLimit int    `json:"childrenLimit"`
-	Database      string `json:"database"`
-	Depth         int    `json:"depth"`
-	Level         int    `json:"level"`
-	Skip          int    `json:"skip"`
-	Take          int    `json:"take"`
-	TimeField     string `json:"timeField"`
-	URL           string `json:"url"`
+// EntityRef defines model for EntityRef.
+type EntityRef struct {
+	DescriptionKeys *[]string `json:"descriptionKeys"`
+	IDKeys          *[]string `json:"idKeys"`
+	SchemaURL       *string   `json:"schemaUrl"`
+	Type            *string   `json:"type"`
 }
 
-// GetInitialTraceDetailRequest defines model for GetInitialTraceDetailRequest.
-type GetInitialTraceDetailRequest struct {
-	ChildrenLimit *int   `json:"childrenLimit,omitempty"`
-	Database      string `json:"database"`
-	Depth         *int   `json:"depth,omitempty"`
-	TimeField     string `json:"timeField"`
-	URL           string `json:"url"`
+// Event defines model for Event.
+type Event struct {
+	Attributes             *[]KeyValue `json:"attributes"`
+	DroppedAttributesCount *int32      `json:"droppedAttributesCount,omitempty"`
+	Name                   *string     `json:"name"`
+	TimeUnixNano           *int64      `json:"timeUnixNano,omitempty"`
 }
 
-// KeyValue KeyValue is a key-value pair for attributes.
+// InstrumentationScope defines model for InstrumentationScope.
+type InstrumentationScope struct {
+	Attributes             *[]KeyValue `json:"attributes"`
+	DroppedAttributesCount *int32      `json:"droppedAttributesCount,omitempty"`
+	Name                   *string     `json:"name"`
+	Version                *string     `json:"version"`
+}
+
+// KeyValue defines model for KeyValue.
 type KeyValue struct {
-	// Key The attribute key.
-	Key *string `json:"key,omitempty"`
-
-	// Value AnyValue is used to represent any type of attribute value.
+	Key   *string   `json:"key"`
 	Value *AnyValue `json:"value,omitempty"`
 }
 
-// KeyValueList KeyValueList is a list of KeyValue messages.
+// KeyValueList defines model for KeyValueList.
 type KeyValueList struct {
-	Values *[]KeyValue `json:"values,omitempty"`
+	Values *[]KeyValue `json:"values"`
 }
 
-// SearchResponse defines model for SearchResponse.
-type SearchResponse struct {
-	Traces []TempoTrace `json:"traces"`
+// Link defines model for Link.
+type Link struct {
+	Attributes             *[]KeyValue `json:"attributes"`
+	DroppedAttributesCount *int32      `json:"droppedAttributesCount,omitempty"`
+	Flags                  *int32      `json:"flags,omitempty"`
+	SpanID                 *[]int32    `json:"spanId"`
+	TraceID                *[]int32    `json:"traceId"`
+	TraceState             *string     `json:"traceState"`
 }
 
-// SpanNode defines model for SpanNode.
-type SpanNode struct {
-	CurrentChildrenCount int       `json:"currentChildrenCount"`
-	EndTime              time.Time `json:"endTime"`
-	Level                int       `json:"level"`
-	Name                 string    `json:"name"`
-	ParentSpanID         string    `json:"parentSpanId"`
-	SpanID               string    `json:"spanId"`
-	StartTime            time.Time `json:"startTime"`
-	TotalChildrenCount   int       `json:"totalChildrenCount"`
-	TraceID              string    `json:"traceId"`
+// Resource defines model for Resource.
+type Resource struct {
+	Attributes             *[]KeyValue  `json:"attributes"`
+	DroppedAttributesCount *int32       `json:"droppedAttributesCount,omitempty"`
+	EntityRefs             *[]EntityRef `json:"entityRefs"`
 }
 
-// TempoSpan defines model for TempoSpan.
-type TempoSpan struct {
-	Name   *string `json:"name,omitempty"`
-	SpanID *string `json:"spanId,omitempty"`
+// ResourceSpans defines model for ResourceSpans.
+type ResourceSpans struct {
+	Resource   *Resource     `json:"resource,omitempty"`
+	SchemaURL  *string       `json:"schemaUrl"`
+	ScopeSpans *[]ScopeSpans `json:"scopeSpans"`
 }
 
-// TempoSpanSet defines model for TempoSpanSet.
-type TempoSpanSet struct {
-	Matched int         `json:"matched"`
-	Spans   []TempoSpan `json:"spans"`
+// ScopeSpans defines model for ScopeSpans.
+type ScopeSpans struct {
+	SchemaURL *string               `json:"schemaUrl"`
+	Scope     *InstrumentationScope `json:"scope,omitempty"`
+	Spans     *[]Span               `json:"spans"`
+}
+
+// Span defines model for Span.
+type Span struct {
+	Attributes             *[]KeyValue `json:"attributes"`
+	DroppedAttributesCount *int32      `json:"droppedAttributesCount,omitempty"`
+	DroppedEventsCount     *int32      `json:"droppedEventsCount,omitempty"`
+	DroppedLinksCount      *int32      `json:"droppedLinksCount,omitempty"`
+	EndTimeUnixNano        *int64      `json:"endTimeUnixNano,omitempty"`
+	Events                 *[]Event    `json:"events"`
+	Flags                  *int32      `json:"flags,omitempty"`
+	Kind                   *SpanKind   `json:"kind,omitempty"`
+	Links                  *[]Link     `json:"links"`
+	Name                   *string     `json:"name"`
+	ParentSpanID           *[]int32    `json:"parentSpanId"`
+	SpanID                 *[]int32    `json:"spanId"`
+	StartTimeUnixNano      *int64      `json:"startTimeUnixNano,omitempty"`
+	Status                 *Status     `json:"status,omitempty"`
+	TraceID                *[]int32    `json:"traceId"`
+	TraceState             *string     `json:"traceState"`
+}
+
+// SpanKind defines model for SpanKind.
+type SpanKind string
+
+// SpanSet defines model for SpanSet.
+type SpanSet struct {
+	Matched *int32  `json:"matched,omitempty"`
+	Spans   *[]Span `json:"spans"`
+}
+
+// Status defines model for Status.
+type Status struct {
+	Code    *StatusCode `json:"code,omitempty"`
+	Message *string     `json:"message"`
+}
+
+// StatusCode defines model for StatusCode.
+type StatusCode string
+
+// TempoMetrics defines model for TempoMetrics.
+type TempoMetrics struct {
+	InspectedBytes  *int32 `json:"inspectedBytes"`
+	InspectedTraces *int32 `json:"inspectedTraces"`
+	TotalBlocks     *int32 `json:"totalBlocks"`
 }
 
 // TempoTrace defines model for TempoTrace.
 type TempoTrace struct {
-	DurationMs        int            `json:"durationMs"`
-	RootServiceName   string         `json:"rootServiceName"`
-	RootTraceName     string         `json:"rootTraceName"`
-	SpanSets          []TempoSpanSet `json:"spanSets"`
-	StartTimeUnixNano int64          `json:"startTimeUnixNano"`
-	TraceID           string         `json:"traceId"`
+	Duration        *string    `json:"duration,omitempty"`
+	RootServiceName *string    `json:"rootServiceName"`
+	RootTraceName   *string    `json:"rootTraceName"`
+	SpanSets        *[]SpanSet `json:"spanSets"`
+	StartTime       *time.Time `json:"startTime,omitempty"`
+	TraceID         *string    `json:"traceId"`
 }
 
-// Trace defines model for Trace.
-type Trace struct {
-	Name      string    `json:"name"`
-	SpanID    string    `json:"spanId"`
-	Timestamp time.Time `json:"timestamp"`
-	TraceID   string    `json:"traceId"`
+// TempoV1Response defines model for TempoV1Response.
+type TempoV1Response struct {
+	Metrics   *TempoMetrics `json:"metrics,omitempty"`
+	TagNames  *[]string     `json:"tagNames"`
+	TagValues *[]string     `json:"tagValues"`
+	Traces    *[]TempoTrace `json:"traces"`
 }
 
-// Traces defines model for Traces.
-type Traces struct {
-	Traces []Trace `json:"traces"`
+// TracesData defines model for TracesData.
+type TracesData struct {
+	ResourceSpans *[]ResourceSpans `json:"resourceSpans"`
 }
+
+// ValueOneofCase defines model for ValueOneofCase.
+type ValueOneofCase string
 
 // SearchParams defines parameters for Search.
 type SearchParams struct {
 	Q     *string `form:"q,omitempty" json:"q,omitempty"`
 	Start *int    `form:"start,omitempty" json:"start,omitempty"`
 	End   *int    `form:"end,omitempty" json:"end,omitempty"`
+	Spss  *int32  `form:"spss,omitempty" json:"spss,omitempty"`
+}
+
+// QueryTraceParams defines parameters for QueryTrace.
+type QueryTraceParams struct {
+	Start *int `form:"start,omitempty" json:"start,omitempty"`
+	End   *int `form:"end,omitempty" json:"end,omitempty"`
+
+	// Depth The depth of the query.
+	// If not provided, the default depth will be used.
+	Depth *int `form:"depth,omitempty" json:"depth,omitempty"`
+
+	// ChildrenLimit The maximum number of children to fetch on each level.
+	ChildrenLimit *int `form:"childrenLimit,omitempty" json:"childrenLimit,omitempty"`
+
+	// SpanID The parent span id to start the query from.
+	// If not provided, the root span will be used.
+	SpanID *string `form:"spanId,omitempty" json:"spanId,omitempty"`
+
+	// Skip The number of spans to skip.
+	// Should only be used in combination with spanId.
+	Skip *int `form:"skip,omitempty" json:"skip,omitempty"`
+
+	// Take The number of spans to take.
+	// Should only be used in combination with spanId.
+	Take *int `form:"take,omitempty" json:"take,omitempty"`
 }
 
 // SearchJSONRequestBody defines body for Search for application/json ContentType.
 type SearchJSONRequestBody = DataSourceInfo
 
-// GetInitialTraceDetailJSONRequestBody defines body for GetInitialTraceDetail for application/json ContentType.
-type GetInitialTraceDetailJSONRequestBody = GetInitialTraceDetailRequest
-
-// GetAdditionalSpansJSONRequestBody defines body for GetAdditionalSpans for application/json ContentType.
-type GetAdditionalSpansJSONRequestBody = GetAdditionalSpansRequest
-
-// GetTracesJSONRequestBody defines body for GetTraces for application/json ContentType.
-type GetTracesJSONRequestBody = DataSourceInfo
-
-// AsAnyValue0 returns the union data inside the AnyValue as a AnyValue0
-func (t AnyValue) AsAnyValue0() (AnyValue0, error) {
-	var body AnyValue0
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAnyValue0 overwrites any union data inside the AnyValue as the provided AnyValue0
-func (t *AnyValue) FromAnyValue0(v AnyValue0) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAnyValue0 performs a merge with any union data inside the AnyValue, using the provided AnyValue0
-func (t *AnyValue) MergeAnyValue0(v AnyValue0) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsAnyValue1 returns the union data inside the AnyValue as a AnyValue1
-func (t AnyValue) AsAnyValue1() (AnyValue1, error) {
-	var body AnyValue1
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAnyValue1 overwrites any union data inside the AnyValue as the provided AnyValue1
-func (t *AnyValue) FromAnyValue1(v AnyValue1) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAnyValue1 performs a merge with any union data inside the AnyValue, using the provided AnyValue1
-func (t *AnyValue) MergeAnyValue1(v AnyValue1) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsAnyValue2 returns the union data inside the AnyValue as a AnyValue2
-func (t AnyValue) AsAnyValue2() (AnyValue2, error) {
-	var body AnyValue2
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAnyValue2 overwrites any union data inside the AnyValue as the provided AnyValue2
-func (t *AnyValue) FromAnyValue2(v AnyValue2) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAnyValue2 performs a merge with any union data inside the AnyValue, using the provided AnyValue2
-func (t *AnyValue) MergeAnyValue2(v AnyValue2) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsAnyValue3 returns the union data inside the AnyValue as a AnyValue3
-func (t AnyValue) AsAnyValue3() (AnyValue3, error) {
-	var body AnyValue3
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAnyValue3 overwrites any union data inside the AnyValue as the provided AnyValue3
-func (t *AnyValue) FromAnyValue3(v AnyValue3) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAnyValue3 performs a merge with any union data inside the AnyValue, using the provided AnyValue3
-func (t *AnyValue) MergeAnyValue3(v AnyValue3) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsAnyValue4 returns the union data inside the AnyValue as a AnyValue4
-func (t AnyValue) AsAnyValue4() (AnyValue4, error) {
-	var body AnyValue4
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAnyValue4 overwrites any union data inside the AnyValue as the provided AnyValue4
-func (t *AnyValue) FromAnyValue4(v AnyValue4) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAnyValue4 performs a merge with any union data inside the AnyValue, using the provided AnyValue4
-func (t *AnyValue) MergeAnyValue4(v AnyValue4) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsAnyValue5 returns the union data inside the AnyValue as a AnyValue5
-func (t AnyValue) AsAnyValue5() (AnyValue5, error) {
-	var body AnyValue5
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAnyValue5 overwrites any union data inside the AnyValue as the provided AnyValue5
-func (t *AnyValue) FromAnyValue5(v AnyValue5) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAnyValue5 performs a merge with any union data inside the AnyValue, using the provided AnyValue5
-func (t *AnyValue) MergeAnyValue5(v AnyValue5) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-// AsAnyValue6 returns the union data inside the AnyValue as a AnyValue6
-func (t AnyValue) AsAnyValue6() (AnyValue6, error) {
-	var body AnyValue6
-	err := json.Unmarshal(t.union, &body)
-	return body, err
-}
-
-// FromAnyValue6 overwrites any union data inside the AnyValue as the provided AnyValue6
-func (t *AnyValue) FromAnyValue6(v AnyValue6) error {
-	b, err := json.Marshal(v)
-	t.union = b
-	return err
-}
-
-// MergeAnyValue6 performs a merge with any union data inside the AnyValue, using the provided AnyValue6
-func (t *AnyValue) MergeAnyValue6(v AnyValue6) error {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return err
-	}
-
-	merged, err := runtime.JSONMerge(t.union, b)
-	t.union = merged
-	return err
-}
-
-func (t AnyValue) MarshalJSON() ([]byte, error) {
-	b, err := t.union.MarshalJSON()
-	return b, err
-}
-
-func (t *AnyValue) UnmarshalJSON(b []byte) error {
-	err := t.union.UnmarshalJSON(b)
-	return err
-}
+// QueryTraceJSONRequestBody defines body for QueryTrace for application/json ContentType.
+type QueryTraceJSONRequestBody = DataSourceInfo
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Search for traces
 	// (POST /api/search)
 	Search(w http.ResponseWriter, r *http.Request, params SearchParams)
-	// Get the root span from a given trace
-	// (POST /trace/{traceId}/span/{spanId})
-	GetInitialTraceDetail(w http.ResponseWriter, r *http.Request, traceID string, spanID string)
-	// Get additional spans for a given span id
-	// (POST /trace/{traceId}/span/{spanId}/children)
-	GetAdditionalSpans(w http.ResponseWriter, r *http.Request, traceID string, spanID string)
-	// Get traces from a given datasource
-	// (POST /traces)
-	GetTraces(w http.ResponseWriter, r *http.Request)
+	// Get a trace details by id
+	// (POST /api/v2/traces/{traceId})
+	QueryTrace(w http.ResponseWriter, r *http.Request, traceID string, params QueryTraceParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -426,6 +295,14 @@ func (siw *ServerInterfaceWrapper) Search(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// ------------- Optional query parameter "spss" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "spss", r.URL.Query(), &params.Spss)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "spss", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Search(w, r, params)
 	}))
@@ -437,8 +314,8 @@ func (siw *ServerInterfaceWrapper) Search(w http.ResponseWriter, r *http.Request
 	handler.ServeHTTP(w, r)
 }
 
-// GetInitialTraceDetail operation middleware
-func (siw *ServerInterfaceWrapper) GetInitialTraceDetail(w http.ResponseWriter, r *http.Request) {
+// QueryTrace operation middleware
+func (siw *ServerInterfaceWrapper) QueryTrace(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
@@ -451,65 +328,67 @@ func (siw *ServerInterfaceWrapper) GetInitialTraceDetail(w http.ResponseWriter, 
 		return
 	}
 
-	// ------------- Path parameter "spanId" -------------
-	var spanID string
+	// Parameter object where we will unmarshal all parameters from the context
+	var params QueryTraceParams
 
-	err = runtime.BindStyledParameterWithOptions("simple", "spanId", r.PathValue("spanId"), &spanID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: false})
+	// ------------- Optional query parameter "start" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "start", r.URL.Query(), &params.Start)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "start", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "end" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "end", r.URL.Query(), &params.End)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "end", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "depth" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "depth", r.URL.Query(), &params.Depth)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "depth", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "childrenLimit" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "childrenLimit", r.URL.Query(), &params.ChildrenLimit)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "childrenLimit", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "spanId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "spanId", r.URL.Query(), &params.SpanID)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "spanId", Err: err})
 		return
 	}
 
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetInitialTraceDetail(w, r, traceID, spanID)
-	}))
+	// ------------- Optional query parameter "skip" -------------
 
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetAdditionalSpans operation middleware
-func (siw *ServerInterfaceWrapper) GetAdditionalSpans(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "traceId" -------------
-	var traceID string
-
-	err = runtime.BindStyledParameterWithOptions("simple", "traceId", r.PathValue("traceId"), &traceID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: false})
+	err = runtime.BindQueryParameter("form", true, false, "skip", r.URL.Query(), &params.Skip)
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "traceId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "skip", Err: err})
 		return
 	}
 
-	// ------------- Path parameter "spanId" -------------
-	var spanID string
+	// ------------- Optional query parameter "take" -------------
 
-	err = runtime.BindStyledParameterWithOptions("simple", "spanId", r.PathValue("spanId"), &spanID, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: false})
+	err = runtime.BindQueryParameter("form", true, false, "take", r.URL.Query(), &params.Take)
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "spanId", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "take", Err: err})
 		return
 	}
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetAdditionalSpans(w, r, traceID, spanID)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// GetTraces operation middleware
-func (siw *ServerInterfaceWrapper) GetTraces(w http.ResponseWriter, r *http.Request) {
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.GetTraces(w, r)
+		siw.Handler.QueryTrace(w, r, traceID, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -640,9 +519,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc("POST "+options.BaseURL+"/api/search", wrapper.Search)
-	m.HandleFunc("POST "+options.BaseURL+"/trace/{traceId}/span/{spanId}", wrapper.GetInitialTraceDetail)
-	m.HandleFunc("POST "+options.BaseURL+"/trace/{traceId}/span/{spanId}/children", wrapper.GetAdditionalSpans)
-	m.HandleFunc("POST "+options.BaseURL+"/traces", wrapper.GetTraces)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v2/traces/{traceId}", wrapper.QueryTrace)
 
 	return m
 }

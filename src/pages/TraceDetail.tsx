@@ -74,14 +74,10 @@ const Span = (props: SpanNodeProps) => {
 };
 
 function TraceDetail() {
-  const {
-    traceId,
-    spanId: rootSpanId,
-    datasourceId,
-  } = useParams<{ traceId: string; spanId: string; datasourceId: string }>();
+  const { traceId, datasourceId } = useParams<{ traceId: string; datasourceId: string }>();
   const queryClient = useQueryClient();
   const parentRef = React.useRef(null);
-  const queryKey = ['datasource', datasourceId, 'trace', traceId, 'spans', rootSpanId];
+  const queryKey = ['datasource', datasourceId, 'trace', traceId];
 
   const result = useQuery<SpanNode[]>(
     {

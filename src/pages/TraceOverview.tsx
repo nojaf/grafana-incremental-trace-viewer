@@ -24,7 +24,7 @@ export type datasource = {
 };
 
 type dataSourceInfo = components['schemas']['DataSourceInfo'];
-type searchResponse = components['schemas']['SearchResponse'];
+type searchResponse = components['schemas']['TempoV1Response'];
 type tempoTrace = components['schemas']['TempoTrace'];
 
 function TraceOverview() {
@@ -33,7 +33,7 @@ function TraceOverview() {
     queryKey: ['datasources'],
     queryFn: () =>
       new Promise(async (resolve, _) => {
-        const response = await getBackendSrv().fetch<datasource[]>({
+        const response = getBackendSrv().fetch<datasource[]>({
           url: `/api/datasources`,
         });
         const value = await lastValueFrom(response);
@@ -66,7 +66,7 @@ function TraceOverview() {
         } satisfies dataSourceInfo,
       });
       const value = await lastValueFrom(response);
-      return value.data.traces;
+      return value.data.traces || [];
     },
   });
 

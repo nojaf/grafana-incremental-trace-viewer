@@ -1,11 +1,16 @@
-package plugin
+package opensearch
 
 import (
+	"context"
 	"crypto/tls"
+	"encoding/json"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/opensearch-project/opensearch-go"
+	"github.com/opensearch-project/opensearch-go/opensearchapi"
 )
 
 // OpenSearch response structures
@@ -61,7 +66,7 @@ type TraceSource struct {
 	DroppedAttributesCount int64                  `json:"droppedAttributesCount"`
 	DroppedEventsCount     int64                  `json:"droppedEventsCount"`
 	DroppedLinksCount      int64                  `json:"droppedLinksCount"`
-	Resource               Resource               `json:"resource"`
+	Resource               map[string]interface{} `json:"resource"`
 	InstrumentationScope   InstrumentationScope   `json:"instrumentationScope"`
 }
 
@@ -85,16 +90,10 @@ type User struct {
 }
 
 type Event struct {
-	Timestamp              time.Time       `json:"@timestamp"`
-	Attributes             EventAttributes `json:"attributes,omitempty"`
-	DroppedAttributesCount int64           `json:"droppedAttributesCount,omitempty"`
-	Name                   string          `json:"name,omitempty"`
-}
-
-type EventAttributes struct {
-	LogIndex *int64 `json:"log_index,omitempty"`
-	LogLevel string `json:"log_level,omitempty"`
-	Message  string `json:"message,omitempty"`
+	Timestamp              time.Time              `json:"@timestamp"`
+	Attributes             map[string]interface{} `json:"attributes,omitempty"`
+	DroppedAttributesCount int64                  `json:"droppedAttributesCount,omitempty"`
+	Name                   string                 `json:"name,omitempty"`
 }
 
 type Link struct {
@@ -103,10 +102,6 @@ type Link struct {
 	TraceState             string                 `json:"traceState,omitempty"`
 	Attributes             map[string]interface{} `json:"attributes,omitempty"`
 	DroppedAttributesCount int64                  `json:"droppedAttributesCount,omitempty"`
-}
-
-type Resource struct {
-	Service Service `json:"service,omitempty"`
 }
 
 type InstrumentationScope struct {
@@ -143,7 +138,7 @@ type TopHitsHits struct {
 	Hits []Hit `json:"hits"`
 }
 
-func getOpenSearchClient(url string) (*opensearch.Client, error) {
+func GetOpenSearchClient(url string) (*opensearch.Client, error) {
 	client, err := opensearch.NewClient(opensearch.Config{
 		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
 		Addresses: []string{url},
@@ -152,4 +147,25 @@ func getOpenSearchClient(url string) (*opensearch.Client, error) {
 		return nil, err
 	}
 	return client, nil
+}
+
+func Search(client *opensearch.Client, index string, body string) (*OpenSearchResponse, error) {
+	search := opensearchapi.SearchRequest{
+		Index: []string{index},
+		Body:  strings.NewReader(body),
+	}
+
+	searchResponse, err := search.Do(context.Background(), client)
+	if err != nil {
+		return nil, err
+	}
+	defer searchResponse.Body.Close()
+
+	var osResponse OpenSearchResponse
+	if err := json.NewDecoder(searchResponse.Body).Decode(&osResponse); err != nil {
+		log.Printf("Failed to decode OpenSearch response: %v", err)
+		return nil, err
+	}
+
+	return &osResponse, nil
 }

@@ -1,15 +1,17 @@
 package plugin
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 
-	"github.com/opensearch-project/opensearch-go/opensearchapi"
+	"github.com/g-research/grafana-incremental-trace-viewer/pkg/opensearch"
 )
+
+func ptrTo[T any](v T) *T {
+	return &v
+}
 
 func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, params SearchParams) {
 	log.Println("Processing search request")
@@ -21,7 +23,7 @@ func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	client, err := getOpenSearchClient(request.URL)
+	client, err := opensearch.GetOpenSearchClient(request.URL)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -39,7 +41,7 @@ func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, p
 	}
 
 	// spans without a parent span id
-	content := strings.NewReader(fmt.Sprintf(`{
+	openSearchQuery := fmt.Sprintf(`{
     "sort": [{ %q: "desc" }],
     "query": {
       "bool": {
@@ -55,25 +57,12 @@ func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, p
       "parentSpanId",
       %q
     ]
-  }`, request.TimeField, queryTerms, request.TimeField))
-
-	search := opensearchapi.SearchRequest{
-		Index: []string{request.Database},
-		Body:  content,
-	}
-
-	searchResponse, err := search.Do(context.Background(), client)
-	if err != nil {
-		log.Printf("Failed to execute OpenSearch query: %v", err)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-	defer searchResponse.Body.Close()
+  }`, request.TimeField, queryTerms, request.TimeField)
 
 	// Parse the response into our structured format
-	var osResponse OpenSearchResponse
-	if err := json.NewDecoder(searchResponse.Body).Decode(&osResponse); err != nil {
-		log.Printf("Failed to decode OpenSearch response: %v", err)
+	osResponse, err := opensearch.Search(client, request.Database, openSearchQuery)
+	if err != nil {
+		log.Printf("Failed to execute OpenSearch query: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -84,18 +73,24 @@ func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, p
 	// Transform to simplified response format
 	traces := make([]TempoTrace, 0)
 	for _, hit := range osResponse.Hits.Hits {
+		resourceName := ""
+		if r, ok := hit.Source.Resource["service.name"]; ok {
+			if s, ok := r.(string); ok {
+				resourceName = s
+			}
+		}
 		trace := TempoTrace{
-			TraceID:           hit.Source.TraceID,
-			RootServiceName:   hit.Source.Resource.Service.Name,
-			RootTraceName:     hit.Source.Name,
-			StartTimeUnixNano: hit.Source.StartTime.UnixNano(),
-			DurationMs:        int(hit.Source.EndTime.Sub(hit.Source.StartTime).Milliseconds()),
+			TraceID:         ptrTo(hit.Source.TraceID),
+			RootServiceName: &resourceName,
+			RootTraceName:   ptrTo(hit.Source.Name),
+			StartTime:       ptrTo(hit.Source.StartTime),
+			Duration:        ptrTo(string(hit.Source.EndTime.Sub(hit.Source.StartTime).Milliseconds())),
 		}
 		traces = append(traces, trace)
 	}
 
-	response := SearchResponse{
-		Traces: traces,
+	response := TempoV1Response{
+		Traces: ptrTo(traces),
 	}
 
 	w.Header().Add("Content-Type", "application/json")
