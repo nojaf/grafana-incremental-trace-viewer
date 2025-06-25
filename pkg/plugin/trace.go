@@ -69,6 +69,14 @@ func convertIdToBytes(id string) []int32 {
 	return bytes
 }
 
+func convertBytesToId(bytes []int32) string {
+	runes := make([]rune, 0, len(bytes))
+	for _, b := range bytes {
+		runes = append(runes, rune(b))
+	}
+	return string(runes)
+}
+
 func convertHitToSpan(hit opensearch.Hit) Span {
 	spanAttributes := make([]KeyValue, 0, len(hit.Source.Attributes))
 	for k, v := range hit.Source.Attributes {
@@ -150,7 +158,35 @@ func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID
 	return spans, nil
 }
 
-func getInitialTrace(datasourceInfo DataSourceInfo, traceID string) (TracesData, error) {
+func fetchChildrenWithDepth(client *os.Client, datasourceInfo DataSourceInfo, traceID string, spanID string, skip int, take int, currentDepth int, maxDepth int) ([]Span, error) {
+	if currentDepth > maxDepth {
+		return make([]Span, 0), nil
+	}
+
+	allSpans := make([]Span, 0)
+
+	currentSpans, err := fetchSpanChildren(client, datasourceInfo, traceID, spanID, skip, take)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, span := range currentSpans {
+		// Add the current span to the list of all spans.
+		allSpans = append(allSpans, span)
+
+		// Fetch the children of the current span, recursively.
+		children, err := fetchChildrenWithDepth(client, datasourceInfo, traceID, convertBytesToId(*span.SpanID) /* don't skip any children */, 0, take, currentDepth+1, maxDepth)
+		if err != nil {
+			return nil, err
+		}
+
+		allSpans = append(allSpans, children...)
+	}
+
+	return allSpans, nil
+}
+
+func getInitialTrace(datasourceInfo DataSourceInfo, traceID string, params QueryTraceParams) (TracesData, error) {
 	client, err := opensearch.GetOpenSearchClient(datasourceInfo.URL)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
@@ -192,15 +228,34 @@ func getInitialTrace(datasourceInfo DataSourceInfo, traceID string) (TracesData,
 
 		span := convertHitToSpan(hit)
 
-		levelOneSpans, err := fetchSpanChildren(client, datasourceInfo, traceID, hit.Source.SpanID, 0, 1000)
+		take := 10
+		if params.Take != nil {
+			take = *params.Take
+		}
+
+		maxDepth := 5
+		if params.Depth != nil {
+			maxDepth = *params.Depth
+		}
+
+		childSpans, err := fetchChildrenWithDepth(
+			client,
+			datasourceInfo,
+			traceID,
+			hit.Source.SpanID,
+			/* skip */ 0,
+			take,
+			/* currentDepth */ 1,
+			maxDepth,
+		)
 		if err != nil {
 			log.Printf("Failed to fetch span children: %v", err)
 			return TracesData{}, err
 		}
 
-		spans := make([]Span, 0, 1+len(levelOneSpans))
+		spans := make([]Span, 0, 1+len(childSpans))
 		spans = append(spans, span)
-		spans = append(spans, levelOneSpans...)
+		spans = append(spans, childSpans...)
 
 		scopeSpans := make([]ScopeSpans, 0, 1)
 		// This currently only adds the root span, but we should add all spans.
@@ -228,6 +283,44 @@ func getInitialTrace(datasourceInfo DataSourceInfo, traceID string) (TracesData,
 	}, nil
 }
 
+func getSubsequentTrace(datasourceInfo DataSourceInfo, traceID string, spanID string, params QueryTraceParams) (TracesData, error) {
+	client, err := opensearch.GetOpenSearchClient(datasourceInfo.URL)
+	if err != nil {
+		log.Printf("Failed to create OpenSearch client: %v", err)
+		return TracesData{}, err
+	}
+
+	skip := 0
+	if params.Skip != nil {
+		skip = *params.Skip
+	}
+
+	take := 10
+	if params.Take != nil {
+		take = *params.Take
+	}
+
+	depth := 5
+	if params.Depth != nil {
+		depth = *params.Depth
+	}
+
+	spans, err := fetchChildrenWithDepth(client, datasourceInfo, traceID, spanID, skip, take, 1, depth)
+	if err != nil {
+		return TracesData{}, err
+	}
+
+	return TracesData{
+		ResourceSpans: &([]ResourceSpans{
+			{
+				ScopeSpans: &[]ScopeSpans{
+					{Spans: &spans},
+				},
+			},
+		}),
+	}, nil
+}
+
 func (siw *ServerInterfaceImpl) QueryTrace(w http.ResponseWriter, req *http.Request, traceID string, params QueryTraceParams) {
 	log.Println("Processing trace query request for trace", traceID)
 
@@ -242,7 +335,7 @@ func (siw *ServerInterfaceImpl) QueryTrace(w http.ResponseWriter, req *http.Requ
 
 	if params.SpanID == nil {
 		log.Println("Processing initial trace query request for traceId", traceID)
-		t, err := getInitialTrace(request, traceID)
+		t, err := getInitialTrace(request, traceID, params)
 		if err != nil {
 			log.Printf("Failed to get initial trace: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -251,6 +344,13 @@ func (siw *ServerInterfaceImpl) QueryTrace(w http.ResponseWriter, req *http.Requ
 		trace = t
 	} else {
 		log.Println("Processing subsequent trace query request for traceId", traceID, "and spanId", *params.SpanID)
+		t, err := getSubsequentTrace(request, traceID, *params.SpanID, params)
+		if err != nil {
+			log.Printf("Failed to get subsequent trace: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		trace = t
 	}
 
 	w.Header().Add("Content-Type", "application/json")
