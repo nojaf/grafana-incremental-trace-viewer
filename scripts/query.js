@@ -8,23 +8,23 @@ const TRACE_ID = process.env.TRACE_ID || 'de1830392ffedd1675754617e9249e93';
 async function main() {
   const url = `${OPENSEARCH_URL}/${INDEX_PATTERN}/_search`;
   const query = {
-    "query": {
-      "bool": {
-        "must": [
+    query: {
+      bool: {
+        must: [
           {
-            "term": {
-              "traceId": TRACE_ID
-            }
+            term: {
+              traceId: TRACE_ID,
+            },
           },
           {
-            "term": {
-              "parentSpanId.keyword": ""
-            }
-          }
-        ]
-      }
-    }
-  }
+            term: {
+              'parentSpanId.keyword': '',
+            },
+          },
+        ],
+      },
+    },
+  };
 
   const res = await fetch(url, {
     method: 'POST', // GET also works with bodies, but ES docs use POST
