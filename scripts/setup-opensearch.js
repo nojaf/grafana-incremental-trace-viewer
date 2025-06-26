@@ -53,6 +53,7 @@ const indexTemplate = {
       properties: {
         traceId: { type: 'keyword' },
         spanId: { type: 'keyword' },
+        parentSpanId: { type: 'keyword' },
         serviceName: { type: 'keyword' },
         operationName: { type: 'keyword' },
         startTimeUnixNano: { type: 'long' },

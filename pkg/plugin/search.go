@@ -31,7 +31,7 @@ func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, p
 		return
 	}
 
-	noParentSpan := `{ "term": { "parentSpanId.keyword": { "value": "" } } }`
+	noParentSpan := `{ "term": { "parentSpanId": { "value": "" } } }`
 	timeRange := ""
 	if params.Start != nil && params.End != nil {
 		timeRange = fmt.Sprintf(`{ "range": { "%s": { "gte": %d, "lte": %d } } }`, request.TimeField, *params.Start, *params.End)

@@ -135,8 +135,8 @@ func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID
 	"query": {
 		"bool": {
 			"must": [
-				{ "term": { "traceId.keyword": %q } },
-				{ "term": { "parentSpanId.keyword": %q } }
+				{ "term": { "traceId": %q } },
+				{ "term": { "parentSpanId": %q } }
 			]
 		}
 	},
@@ -199,12 +199,12 @@ func getInitialTrace(datasourceInfo DataSourceInfo, traceID string, params Query
       "must": [
         {
           "term": {
-            "traceId.keyword": %q
+            "traceId": %q
           }
         },
         {
           "term": {
-            "parentSpanId.keyword": ""
+            "parentSpanId": ""
           }
         }
       ]

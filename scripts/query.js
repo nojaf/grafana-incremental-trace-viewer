@@ -2,56 +2,34 @@
 
 const OPENSEARCH_URL = process.env.OPENSEARCH_URL || 'http://localhost:9200';
 const INDEX_PATTERN = process.env.INDEX_PATTERN || 'ss4o_traces-default-namespace';
-const TRACE_ID = process.env.TRACE_ID || '066b7b02b5683fda312df9bc6e328894';
-
-let query = `
-{
-  "aggs": {
-    "unique_trace_ids": {
-      "composite": {
-        "sources": [
-          {
-            "traceId": {
-              "terms": {
-                "field": "traceId.keyword"
-              }
-            }
-          }
-        ],
-        "size": 10000
-      }
-    }
-  },
-  "size": 0
-}`;
+const SPAN_ID = process.env.SPAN_ID || 'a994680e93bfdd67';
+const TRACE_ID = process.env.TRACE_ID || 'de1830392ffedd1675754617e9249e93';
 
 async function main() {
   const url = `${OPENSEARCH_URL}/${INDEX_PATTERN}/_search`;
-  query = `{
-  "size": 1000,
-  "from": 0,
-  "query": {
-    "bool": {
-      "must": [
-        {
-          "term": {
-            "traceId.keyword": "41613183e54070e0c3d4e18c56322a85"
+  const query = {
+    "query": {
+      "bool": {
+        "must": [
+          {
+            "term": {
+              "traceId": TRACE_ID
+            }
+          },
+          {
+            "term": {
+              "parentSpanId.keyword": ""
+            }
           }
-        }
-      ]
+        ]
+      }
     }
-  },
-  "sort": [
-    { "startTime": { "order": "asc" } }
-  ]
-}`;
-
-  // 705dfa28fc212ebe2dacaa3932a250e5 and span 2b3e34b4df5b5654, skipping 0 and taking 1000"
+  }
 
   const res = await fetch(url, {
     method: 'POST', // GET also works with bodies, but ES docs use POST
     headers: { 'Content-Type': 'application/json' },
-    body: query,
+    body: JSON.stringify(query),
   });
 
   const json = await res.json();
