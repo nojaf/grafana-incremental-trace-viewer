@@ -174,3 +174,7 @@ We are using a contract first approach for the Go resource endpoints.
 ```shell
 bun run generate-api
 ```
+
+## Styling with Tailwind CSS
+
+This project uses [Tailwind CSS](https://tailwindcss.com/) for styling. Note that Tailwind cannot detect dynamically constructed class names, so we use inline `style` tags for truly dynamic values. For more details, see the [Tailwind CSS documentation on dynamic class names](https://tailwindcss.com/docs/detecting-classes-in-source-files#dynamic-class-names).

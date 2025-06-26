@@ -3,6 +3,7 @@ import { Route, Routes } from 'react-router-dom';
 import { AppRootProps } from '@grafana/data';
 import { ROUTES } from '../../constants';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
 const TraceOverview = React.lazy(() => import('../../pages/TraceOverview'));
 const TraceDetail = React.lazy(() => import('../../pages/TraceDetail'));
 const queryClient = new QueryClient();
