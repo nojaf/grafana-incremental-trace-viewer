@@ -4,7 +4,7 @@
  */
 
 export interface paths {
-  '/traces': {
+  '/api/search': {
     parameters: {
       query?: never;
       header?: never;
@@ -13,15 +13,15 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Get traces from a given datasource */
-    post: operations['getTraces'];
+    /** Search for traces */
+    post: operations['search'];
     delete?: never;
     options?: never;
     head?: never;
     patch?: never;
     trace?: never;
   };
-  '/trace/{traceId}/span/{spanId}': {
+  '/api/v2/traces/{traceId}': {
     parameters: {
       query?: never;
       header?: never;
@@ -30,25 +30,8 @@ export interface paths {
     };
     get?: never;
     put?: never;
-    /** Get the root span from a given trace */
-    post: operations['getInitialTraceDetail'];
-    delete?: never;
-    options?: never;
-    head?: never;
-    patch?: never;
-    trace?: never;
-  };
-  '/trace/{traceId}/span/{spanId}/children': {
-    parameters: {
-      query?: never;
-      header?: never;
-      path?: never;
-      cookie?: never;
-    };
-    get?: never;
-    put?: never;
-    /** Get additional spans for a given span id */
-    post: operations['getAdditionalSpans'];
+    /** Get a trace details by id */
+    post: operations['queryTrace'];
     delete?: never;
     options?: never;
     head?: never;
@@ -59,51 +42,174 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
-    GetTracesRequest: {
+    /** @description Information about the datasource to use for the search.
+     *     This has the OpenSearch specific fields to connect to the datasource.
+     *     It will later have the exactly Tempo API information.
+     *      */
+    DataSourceInfo: {
       url: string;
       database: string;
       timeField: string;
     };
-    Traces: {
-      traces: components['schemas']['Trace'][];
+    AnyValue: {
+      stringValue?: string | null;
+      boolValue?: boolean;
+      /** Format: int64 */
+      intValue?: number;
+      /** Format: double */
+      doubleValue?: number;
+      arrayValue?: components['schemas']['ArrayValue'];
+      kvlistValue?: components['schemas']['KeyValueList'];
+      bytesValue?: number[] | null;
+      valueCase?: components['schemas']['ValueOneofCase'];
     };
-    Trace: {
-      traceId: string;
-      spanId: string;
+    ArrayValue: {
+      readonly values?: components['schemas']['AnyValue'][] | null;
+    };
+    EntityRef: {
+      schemaUrl?: string | null;
+      type?: string | null;
+      readonly idKeys?: string[] | null;
+      readonly descriptionKeys?: string[] | null;
+    };
+    Event: {
+      /** Format: int64 */
+      timeUnixNano?: number;
+      name?: string | null;
+      readonly attributes?: components['schemas']['KeyValue'][] | null;
+      /** Format: int32 */
+      droppedAttributesCount?: number;
+    };
+    InstrumentationScope: {
+      name?: string | null;
+      version?: string | null;
+      readonly attributes?: components['schemas']['KeyValue'][] | null;
+      /** Format: int32 */
+      droppedAttributesCount?: number;
+    };
+    KeyValue: {
+      key?: string | null;
+      value?: components['schemas']['AnyValue'];
+    };
+    KeyValueList: {
+      readonly values?: components['schemas']['KeyValue'][] | null;
+    };
+    Link: {
+      traceId?: number[] | null;
+      spanId?: number[] | null;
+      traceState?: string | null;
+      readonly attributes?: components['schemas']['KeyValue'][] | null;
+      /** Format: int32 */
+      droppedAttributesCount?: number;
+      /** Format: int32 */
+      flags?: number;
+    };
+    Resource: {
+      readonly attributes?: components['schemas']['KeyValue'][] | null;
+      /** Format: int32 */
+      droppedAttributesCount?: number;
+      readonly entityRefs?: components['schemas']['EntityRef'][] | null;
+    };
+    ResourceSpans: {
+      resource?: components['schemas']['Resource'];
+      readonly scopeSpans?: components['schemas']['ScopeSpans'][] | null;
+      schemaUrl?: string | null;
+    };
+    ScopeSpans: {
+      scope?: components['schemas']['InstrumentationScope'];
+      readonly spans?: components['schemas']['Span'][] | null;
+      schemaUrl?: string | null;
+    };
+    Span: {
+      traceId?: number[] | null;
+      spanId?: number[] | null;
+      traceState?: string | null;
+      parentSpanId?: number[] | null;
+      /** Format: int32 */
+      flags?: number;
+      name?: string | null;
+      kind?: components['schemas']['SpanKind'];
+      /** Format: int64 */
+      startTimeUnixNano?: number;
+      /** Format: int64 */
+      endTimeUnixNano?: number;
+      readonly attributes?: components['schemas']['KeyValue'][] | null;
+      /** Format: int32 */
+      droppedAttributesCount?: number;
+      readonly events?: components['schemas']['Event'][] | null;
+      /** Format: int32 */
+      droppedEventsCount?: number;
+      readonly links?: components['schemas']['Link'][] | null;
+      /** Format: int32 */
+      droppedLinksCount?: number;
+      status?: components['schemas']['Status'];
+    };
+    /** @enum {string} */
+    SpanKind: 'unspecified' | 'internal' | 'server' | 'client' | 'producer' | 'consumer';
+    SpanSet: {
+      spans?: components['schemas']['Span'][] | null;
+      /** Format: int32 */
+      matched?: number;
+    };
+    Status: {
+      message?: string | null;
+      code?: components['schemas']['StatusCode'];
+    };
+    /** @enum {string} */
+    StatusCode: 'unset' | 'ok' | 'error';
+    /** @enum {string} */
+    TagScope: 'all' | 'resource' | 'span' | 'intrinsic';
+    TagValue: {
+      type?: string | null;
+      value?: string | null;
+    };
+    TempoMetrics: {
+      /** Format: int32 */
+      inspectedTraces?: number | null;
+      /** Format: int32 */
+      inspectedBytes?: number | null;
+      /** Format: int32 */
+      totalBlocks?: number | null;
+    };
+    TempoScope: {
+      name?: string | null;
+      tags?: string[] | null;
+    };
+    TempoTrace: {
+      traceId?: string | null;
+      rootServiceName?: string | null;
+      rootTraceName?: string | null;
       /** Format: date-time */
-      timestamp: string;
-      name: string;
+      startTime?: string;
+      /** Format: date-span */
+      duration?: string;
+      spanSets?: components['schemas']['SpanSet'][] | null;
     };
-    GetInitialTraceDetailRequest: {
-      url: string;
-      database: string;
-      timeField: string;
-      depth?: number;
-      childrenLimit?: number;
+    TempoV1Response: {
+      metrics?: components['schemas']['TempoMetrics'];
+      traces?: components['schemas']['TempoTrace'][] | null;
+      tagNames?: string[] | null;
+      tagValues?: string[] | null;
     };
-    SpanNode: {
-      traceId: string;
-      spanId: string;
-      name: string;
-      /** Format: date-time */
-      startTime: string;
-      /** Format: date-time */
-      endTime: string;
-      parentSpanId: string;
-      level: number;
-      currentChildrenCount: number;
-      totalChildrenCount: number;
+    TempoV2Response: {
+      metrics?: components['schemas']['TempoMetrics'];
+      traces?: components['schemas']['TempoTrace'][] | null;
+      scopes?: components['schemas']['TempoScope'][] | null;
+      tagValues?: components['schemas']['TagValue'][] | null;
     };
-    GetAdditionalSpansRequest: {
-      url: string;
-      database: string;
-      timeField: string;
-      depth: number;
-      childrenLimit: number;
-      level: number;
-      skip: number;
-      take: number;
+    TracesData: {
+      readonly resourceSpans?: components['schemas']['ResourceSpans'][] | null;
     };
+    /** @enum {string} */
+    ValueOneofCase:
+      | 'none'
+      | 'stringValue'
+      | 'boolValue'
+      | 'intValue'
+      | 'doubleValue'
+      | 'arrayValue'
+      | 'kvlistValue'
+      | 'bytesValue';
   };
   responses: never;
   parameters: never;
@@ -113,16 +219,21 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-  getTraces: {
+  search: {
     parameters: {
-      query?: never;
+      query?: {
+        q?: string;
+        start?: number;
+        end?: number;
+        spss?: number;
+      };
       header?: never;
       path?: never;
       cookie?: never;
     };
     requestBody?: {
       content: {
-        'application/json': components['schemas']['GetTracesRequest'];
+        'application/json': components['schemas']['DataSourceInfo'];
       };
     };
     responses: {
@@ -132,24 +243,45 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['Traces'];
+          'application/json': components['schemas']['TempoV1Response'];
         };
       };
     };
   };
-  getInitialTraceDetail: {
+  queryTrace: {
     parameters: {
-      query?: never;
+      query?: {
+        start?: number;
+        end?: number;
+        /** @description The depth of the query.
+         *     If not provided, the default depth will be used.
+         *      */
+        depth?: number;
+        /** @description The maximum number of children to fetch on each level.
+         *      */
+        childrenLimit?: number;
+        /** @description The parent span id to start the query from.
+         *     If not provided, the root span will be used.
+         *      */
+        spanId?: string;
+        /** @description The number of spans to skip.
+         *     Should only be used in combination with spanId.
+         *      */
+        skip?: number;
+        /** @description The number of spans to take.
+         *     Should only be used in combination with spanId.
+         *      */
+        take?: number;
+      };
       header?: never;
       path: {
         traceId: string;
-        spanId: string;
       };
       cookie?: never;
     };
     requestBody?: {
       content: {
-        'application/json': components['schemas']['GetInitialTraceDetailRequest'];
+        'application/json': components['schemas']['DataSourceInfo'];
       };
     };
     responses: {
@@ -159,41 +291,13 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['SpanNode'][];
-        };
-      };
-    };
-  };
-  getAdditionalSpans: {
-    parameters: {
-      query?: never;
-      header?: never;
-      path: {
-        traceId: string;
-        spanId: string;
-      };
-      cookie?: never;
-    };
-    requestBody?: {
-      content: {
-        'application/json': components['schemas']['GetAdditionalSpansRequest'];
-      };
-    };
-    responses: {
-      /** @description A list of spans */
-      200: {
-        headers: {
-          [name: string]: unknown;
-        };
-        content: {
-          'application/json': components['schemas']['SpanNode'][];
+          'application/json': components['schemas']['TracesData'];
         };
       };
     };
   };
 }
 export enum ApiPaths {
-  getTraces = '/traces',
-  getInitialTraceDetail = '/trace/{traceId}/span/{spanId}',
-  getAdditionalSpans = '/trace/{traceId}/span/{spanId}/children',
+  search = '/api/search',
+  queryTrace = '/api/v2/traces/{traceId}',
 }

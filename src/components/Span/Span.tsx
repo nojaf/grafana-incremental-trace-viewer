@@ -1,24 +1,22 @@
 import React from 'react';
 import { Icon } from '@grafana/ui';
-import { type components } from '../../schema.gen';
-import { calculateColourBySpanId, getMillisecondsDifferenceNative } from '../../utils/utils.timeline';
+import { calculateColourBySpanId } from '../../utils/utils.timeline';
+import type { Span as SpanType } from '../../pages/TraceDetail';
 
-type SpanNode = components['schemas']['SpanNode'];
-
-type SpanNodeProps = SpanNode & {
+type SpanNodeProps = SpanType & {
   index: number;
-  loadMore: (index: number, spanId: string, currentLevel: number, skip: number) => void;
+  loadMore: (index: number, spanId: string, currentLevel: number) => void;
+  hasChildren: boolean;
   traceStartTime: number;
   traceDuration: number;
-  onSelect: (span: SpanNode) => void;
+  onSelect: (span: SpanType) => void;
 };
 
 export const Span = (props: SpanNodeProps) => {
-  const offset = ((new Date(props.startTime).getTime() - props.traceStartTime) / props.traceDuration) * 100;
-  const width = (getMillisecondsDifferenceNative(props.startTime, props.endTime) / props.traceDuration) * 100;
+  const offset = ((props.startTimeUnixNano - props.traceStartTime) / props.traceDuration) * 100;
+  const width = ((props.endTimeUnixNano - props.startTimeUnixNano) / props.traceDuration) * 100;
 
-  const hasChildren = props.totalChildrenCount > 0;
-  const canLoadMore = props.currentChildrenCount < props.totalChildrenCount;
+  const canLoadMore = props.hasMore;
 
   return (
     <div
@@ -30,7 +28,7 @@ export const Span = (props: SpanNodeProps) => {
         style={{ paddingLeft: `calc(0.5rem * ${props.level})` }} // Limitation in tailwind dynamic class construction: Check README.md for more details
       >
         <div className="flex items-center gap-1 truncate">
-          {hasChildren ? <Icon name="angle-down" /> : <span className="inline-block w-4"></span>}
+          {props.hasChildren ? <Icon name="angle-down" /> : <span className="inline-block w-4"></span>}
           <span>{props.name}</span>
         </div>
         <div className="flex items-center gap-1">
@@ -41,26 +39,21 @@ export const Span = (props: SpanNodeProps) => {
               title="Load more traces"
               onClick={(e) => {
                 e.stopPropagation();
-                props.loadMore(props.index, props.spanId, props.level, props.currentChildrenCount);
+                props.loadMore(props.index, props.spanId, props.level);
               }}
             />
-          )}
-          {props.totalChildrenCount > 0 && (
-            <span className="text-xs text-gray-500">
-              {props.currentChildrenCount}/{props.totalChildrenCount}
-            </span>
           )}
         </div>
       </div>
       <div
         className="w-2/3 h-full relative border-l-3"
-        style={{ borderColor: calculateColourBySpanId(props.level > 2 ? props.parentSpanId : props.spanId) }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+        style={{ borderColor: calculateColourBySpanId(props.level > 2 ? props.parentSpanId || '' : props.spanId) }} // Limitation in tailwind dynamic class construction: Check README.md for more details
       >
         <div className="h-full relative mx-4">
           <div
             className="bg-blue-500 h-3/4 absolute my-auto top-0 bottom-0 rounded-sm min-[2px]"
             style={{ left: `${offset}%`, width: `${Math.max(width, 0.1)}%` }} // Limitation in tailwind dynamic class construction: Check README.md for more details
-            title={`Duration: ${getMillisecondsDifferenceNative(props.startTime, props.endTime)}ms`}
+            title={`Duration: ${props.endTimeUnixNano - props.startTimeUnixNano}ns`}
           ></div>
         </div>
       </div>

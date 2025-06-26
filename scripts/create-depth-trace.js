@@ -11,12 +11,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rndFloat = (min, max) => Math.random() * (max - min) + min;
 
 // ---------- parameters ----------
-const NUM_SERVICES = 10;
+const NUM_SERVICES = 2;
 const CHILDREN = 30;
 
 // ---------- tracer provider ----------
 const resource = resourceFromAttributes({
   [ATTR_SERVICE_NAME]: 'my-large-trace-provider',
+  'other-resource-attribute': 'other-resource-attribute-value',
 });
 
 const provider = new NodeTracerProvider({
@@ -33,6 +34,7 @@ async function main() {
   log(`Total spans generated: ${total}`);
 
   const rootSpan = tracer.startSpan('root');
+  rootSpan.setAttribute('root-span-attribute-xyz', 123);
   const rootCtx = trace.setSpan(otContext.active(), rootSpan);
 
   for (let i = 0; i < NUM_SERVICES; i++) {
@@ -40,6 +42,7 @@ async function main() {
     const serviceCtx = trace.setSpan(rootCtx, serviceSpan);
     for (let j = 0; j < CHILDREN; j++) {
       const childSpan = tracer.startSpan(`service_${i}_child_${j}`, undefined, serviceCtx);
+      childSpan.setAttribute('child-span-attribute-xyz', 456);
       await sleep(rndFloat(10, 50));
       childSpan.end();
       log(`Created ${j + 1} spans at depth ${i + 1}`);

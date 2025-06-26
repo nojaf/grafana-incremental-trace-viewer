@@ -1,11 +1,9 @@
 import React from 'react';
 import { IconButton } from '@grafana/ui';
-import { getMillisecondsDifferenceNative } from '../../utils/utils.timeline';
-import { type components } from '../../schema.gen';
 
-type SpanNode = components['schemas']['SpanNode'];
+import type { Span as SpanType } from '../../pages/TraceDetail';
 
-export const SpanDetailPanel = ({ span, onClose }: { span: SpanNode; onClose: () => void }) => {
+export const SpanDetailPanel = ({ span, onClose }: { span: SpanType; onClose: () => void }) => {
   return (
     <div className="p-4 z-10 bg-black">
       <div className="flex justify-between items-center mb-4">
@@ -24,13 +22,13 @@ export const SpanDetailPanel = ({ span, onClose }: { span: SpanNode; onClose: ()
           <pre>{span.traceId}</pre>
         </div>
         <div>
-          <strong>Start Time:</strong> <pre>{span.startTime}</pre>
+          <strong>Start Time:</strong> <pre>{span.startTimeUnixNano}</pre>
         </div>
         <div>
-          <strong>End Time:</strong> <pre>{span.endTime}</pre>
+          <strong>End Time:</strong> <pre>{span.endTimeUnixNano}</pre>
         </div>
         <div>
-          <strong>Duration:</strong> <pre>{getMillisecondsDifferenceNative(span.startTime, span.endTime)}ms</pre>
+          <strong>Duration:</strong> <pre>{span.endTimeUnixNano - span.startTimeUnixNano}ms</pre>
         </div>
       </div>
     </div>
