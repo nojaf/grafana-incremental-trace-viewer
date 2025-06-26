@@ -1,8 +1,5 @@
 import React from 'react';
-import { css } from '@emotion/css';
 import { useParams } from 'react-router-dom';
-import { GrafanaTheme2 } from '@grafana/data';
-import { useStyles2, Button } from '@grafana/ui';
 import { testIds } from '../components/testIds';
 import { getBackendSrv, PluginPage } from '@grafana/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -11,19 +8,25 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { ApiPaths, type components } from '../schema.gen';
 import type { datasource } from './TraceOverview';
 import { BASE_URL } from '../constants';
+import { Span as SpanComponent, SpanDetailPanel } from '../components/Span';
 
 type TraceResponse = components['schemas']['TracesData'];
 type DataSourceInfo = components['schemas']['DataSourceInfo'];
 
-type Span = {
+export type Span = {
   spanId: string;
   parentSpanId: string | null;
+  traceId: string;
   level: number;
   startTimeUnixNano: number;
   endTimeUnixNano: number;
   name: string;
   hasMore: boolean;
 };
+
+function spanIdAsString(spanId: number[]): string {
+  return String.fromCodePoint(...spanId);
+}
 
 /**
  * Maps the span nodes to a list of spans.
@@ -75,6 +78,7 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
     spans.push({
       spanId: spanIdAsString(span.spanId),
       parentSpanId: span.parentSpanId ? spanIdAsString(span.parentSpanId) : null,
+      traceId: spanIdAsString(span.traceId || []),
       level: idToLevelMap.get(spanIdAsString(span.spanId)) || 0,
       startTimeUnixNano: span.startTimeUnixNano || 0,
       endTimeUnixNano: span.endTimeUnixNano || 0,
@@ -86,17 +90,8 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
   return spans;
 }
 
-type SpanNodeProps = Span & {
-  index: number;
-  loadMore: (index: number, spanId: string, currentLevel: number) => void;
-};
-
 // TODO: consider making this configurable by the user.
 const take = 10;
-
-function spanIdAsString(spanId: number[]): string {
-  return String.fromCodePoint(...spanId);
-}
 
 function isIdEqual(id1: number[], id2: number[]): boolean {
   if (id1.length !== id2.length) {
@@ -110,31 +105,6 @@ function isIdEqual(id1: number[], id2: number[]): boolean {
   return true;
 }
 
-const SpanComponent = (props: SpanNodeProps) => {
-  const s = useStyles2(getStyles);
-
-  return (
-    <div className={s.spanContainer} style={{ '--indent-level': props.level } as React.CSSProperties}>
-      <div className={s.spanInfo}>
-        <div className={s.spanField}>
-          <strong>Name:</strong> {props.name}
-        </div>
-        <div className={s.spanField}>
-          <strong>ID:</strong> {props.spanId}
-        </div>
-        <div className={s.spanField}>
-          <strong>Duration:</strong> {(props.endTimeUnixNano || 0) - (props.startTimeUnixNano || 0)}ms
-        </div>
-        {props.hasMore && (
-          <Button size="sm" variant="secondary" onClick={() => props.loadMore(props.index, props.spanId, props.level)}>
-            Load more
-          </Button>
-        )}
-      </div>
-    </div>
-  );
-};
-
 function TraceDetail() {
   const { traceId, datasourceId } = useParams<{ traceId: string; datasourceId: string }>();
   // Should we assert for traceId and datasourceId?
@@ -145,6 +115,7 @@ function TraceDetail() {
   const queryClient = useQueryClient();
   const parentRef = React.useRef(null);
   const queryKey = ['datasource', datasourceId, 'trace', traceId];
+  const [selectedSpan, setSelectedSpan] = React.useState<Span | null>(null);
 
   const idToLevelMap = React.useRef(new Map<string, number>());
 
@@ -185,6 +156,23 @@ function TraceDetail() {
     },
     queryClient
   );
+
+  const traceDuration = React.useMemo(() => {
+    if (!result.isSuccess || result.data.length === 0) {
+      return 0;
+    }
+    const rootSpan = result.data[0];
+    return rootSpan.endTimeUnixNano - rootSpan.startTimeUnixNano;
+  }, [result.isSuccess, result.data]);
+
+  const traceStartTime = React.useMemo(() => {
+    if (!result.isSuccess || result.data.length === 0) {
+      return 0;
+    }
+    const rootSpan = result.data[0];
+    // TODO: not sure if this will work as is in nano seconds.
+    return new Date(rootSpan.startTimeUnixNano).getTime();
+  }, [result.isSuccess, result.data]);
 
   const rowVirtualizer = useVirtualizer({
     count: result.isSuccess ? result.data.length : 0,
@@ -271,89 +259,77 @@ function TraceDetail() {
 
   return (
     <PluginPage>
-      <div data-testid={testIds.pageThree.container}>
-        This is detail page for trace {traceId}
-        <br />
-      </div>
-      {result.isLoading && <div>Loading...</div>}
-      {result.isError && <div>Error: {result.error.message}</div>}
-      {result.isSuccess && (
-        /* The scrollable element for your list */
-        <div
-          ref={parentRef}
-          style={{
-            height: `60vh`,
-            overflow: 'auto',
-          }}
-        >
-          {/* The large inner element to hold all of the items */}
-          <div
-            style={{
-              height: `${rowVirtualizer.getTotalSize()}px`,
-              width: '100%',
-              position: 'relative',
-            }}
-          >
-            {/* Only the visible items in the virtualizer, manually positioned to be in view */}
-            {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-              const span = result.data[virtualItem.index];
-              return (
+      <div className="flex h-[calc(100vh-120px)]">
+        <div className="flex-grow flex flex-col">
+          <div className="flex bg-gray-800 p-2 border-b border-gray-700">
+            <div className="w-1/3 font-bold">Span</div>
+            <div className="w-2/3 font-bold px-4">
+              <div className="w-full relative">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="absolute border-l border-gray-500 h-2 pl-1 text-xs"
+                    style={{
+                      left: `${(i / 4) * 100}%`,
+                    }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+                  >
+                    {((traceDuration / 1000 / 4) * i).toFixed(2)}s
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="flex-grow" data-testid={testIds.pageThree.container}>
+            {result.isLoading && <div>Loading...</div>}
+            {result.isError && <div>Error: {result.error.message}</div>}
+            {result.isSuccess && (
+              <div ref={parentRef} className="h-full overflow-auto">
                 <div
-                  key={virtualItem.key}
                   style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    height: `${virtualItem.size}px`,
-                    transform: `translateY(${virtualItem.start}px)`,
-                  }}
+                    height: `${rowVirtualizer.getTotalSize()}px`,
+                  }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+                  className="w-full relative"
                 >
-                  <SpanComponent key={span.spanId} {...span} index={virtualItem.index} loadMore={loadMore} />
+                  {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                    const span = result.data[virtualItem.index];
+                    const hasChildren =
+                      virtualItem.index !== result.data.length - 1 &&
+                      result.data[virtualItem.index + 1].parentSpanId === span.spanId;
+                    return (
+                      <div
+                        key={virtualItem.key}
+                        className="absolute top-0 left-0 w-full border-b border-[#2d2d2d]"
+                        style={{
+                          height: `${virtualItem.size}px`,
+                          transform: `translateY(${virtualItem.start}px)`,
+                        }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+                      >
+                        <SpanComponent
+                          key={span.spanId}
+                          {...span}
+                          index={virtualItem.index}
+                          loadMore={loadMore}
+                          traceStartTime={traceStartTime}
+                          traceDuration={traceDuration}
+                          onSelect={setSelectedSpan}
+                          hasChildren={hasChildren}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
+              </div>
+            )}
           </div>
         </div>
-      )}
-      <pre>{JSON.stringify(result.data && result.data.length, null, 2)}</pre>
+        {selectedSpan && (
+          <div className="w-1/3 border-l border-gray-700 min-w-[300px]">
+            <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} />
+          </div>
+        )}
+      </div>
     </PluginPage>
   );
 }
 
 export default TraceDetail;
-
-const getStyles = (theme: GrafanaTheme2) => ({
-  spanContainer: css`
-    border-left: 2px solid ${theme.colors.border.weak};
-    padding-left: ${theme.spacing(1)};
-    margin-bottom: ${theme.spacing(1)};
-    margin-left: calc(${theme.spacing(2)} * var(--indent-level, 0));
-    transition: background-color 0.2s ease;
-
-    &:hover {
-      background-color: ${theme.colors.background.secondary};
-    }
-  `,
-  spanInfo: css`
-    display: flex;
-    align-content: center;
-    gap: ${theme.spacing(1)};
-    padding: ${theme.spacing(1)};
-    background-color: ${theme.colors.background.primary};
-    border: 1px solid ${theme.colors.border.weak};
-    border-radius: ${theme.shape.borderRadius()};
-  `,
-  spanField: css`
-    font-size: ${theme.typography.size.sm};
-
-    &:last-child {
-      margin-bottom: 0;
-    }
-
-    strong {
-      color: ${theme.colors.text.primary};
-      margin-right: ${theme.spacing(1)};
-    }
-  `,
-});

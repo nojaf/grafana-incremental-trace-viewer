@@ -136,7 +136,7 @@ const config = async (env: Env): Promise<Configuration> => {
         },
         {
           test: /\.css$/,
-          use: ['style-loader', 'css-loader'],
+          use: ['style-loader', 'css-loader', 'postcss-loader'],
         },
         {
           test: /\.s[ac]ss$/,
