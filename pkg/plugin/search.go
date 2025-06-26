@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/g-research/grafana-incremental-trace-viewer/pkg/opensearch"
 )
@@ -84,7 +85,7 @@ func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, p
 			RootServiceName: &resourceName,
 			RootTraceName:   ptrTo(hit.Source.Name),
 			StartTime:       ptrTo(hit.Source.StartTime),
-			Duration:        ptrTo(string(hit.Source.EndTime.Sub(hit.Source.StartTime).Milliseconds())),
+			Duration:        ptrTo(strconv.FormatInt(hit.Source.EndTime.Sub(hit.Source.StartTime).Milliseconds(), 10)),
 		}
 		traces = append(traces, trace)
 	}
