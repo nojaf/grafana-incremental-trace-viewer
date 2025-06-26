@@ -23,9 +23,9 @@ export type datasource = {
   url: string;
 };
 
-type dataSourceInfo = components['schemas']['DataSourceInfo'];
-type searchResponse = components['schemas']['TempoV1Response'];
-type tempoTrace = components['schemas']['TempoTrace'];
+type DataSourceInfo = components['schemas']['DataSourceInfo'];
+type SearchResponse = components['schemas']['TempoV1Response'];
+type TempoTrace = components['schemas']['TempoTrace'];
 
 function TraceOverview() {
   const queryClient = useQueryClient();
@@ -43,7 +43,7 @@ function TraceOverview() {
 
   const [selectedSource, setSelectedSource] = useState<number | null>(null);
 
-  const result = useQuery<tempoTrace[]>({
+  const result = useQuery<TempoTrace[]>({
     queryKey: ['datasource', selectedSource, 'traces'],
     queryFn: async ({ queryKey }) => {
       const sourceId = queryKey[1];
@@ -56,14 +56,14 @@ function TraceOverview() {
       if (!datasource) {
         throw new Error(`Datasource with id ${sourceId} not found`);
       }
-      const response = getBackendSrv().fetch<searchResponse>({
+      const response = getBackendSrv().fetch<SearchResponse>({
         url: `${BASE_URL}/${ApiPaths.search}`,
         method: 'POST',
         data: {
           url: datasource.url,
           database: datasource.jsonData.database,
           timeField: datasource.jsonData.timeField,
-        } satisfies dataSourceInfo,
+        } satisfies DataSourceInfo,
       });
       const value = await lastValueFrom(response);
       return value.data.traces || [];
@@ -77,6 +77,24 @@ function TraceOverview() {
       description: s.type,
     };
   });
+
+  async function fetchTrace(traceId: string) {
+    const datasource = datasources.data.find((d) => d.id === selectedSource);
+    if (!datasource) {
+      throw new Error(`Datasource with id ${selectedSource} not found`);
+    }
+    const responseObservable = getBackendSrv().fetch<TempoTrace>({
+      url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}`,
+      method: 'POST',
+      data: {
+        url: datasource.url,
+        database: datasource.jsonData.database,
+        timeField: datasource.jsonData.timeField,
+      } satisfies DataSourceInfo,
+    });
+    const value = await lastValueFrom(responseObservable);
+    console.log(value);
+  }
 
   return (
     <PluginPage>
@@ -99,11 +117,14 @@ function TraceOverview() {
           <ul style={{ padding: '2rem' }}>
             {result.data.map((r) => {
               return (
-                <Link key={r.traceId} to={prefixRoute(`${selectedSource}/${ROUTES.TraceDetails}/${r.traceId}`)}>
-                  <li>
-                    {r.rootTraceName} ({r.rootServiceName})
-                  </li>
-                </Link>
+                <>
+                  <Link key={r.traceId} to={prefixRoute(`${selectedSource}/${ROUTES.TraceDetails}/${r.traceId}`)}>
+                    <li>
+                      {r.rootTraceName} ({r.rootServiceName})
+                    </li>
+                  </Link>
+                  <button onClick={() => fetchTrace(r.traceId || '')}>Fetch trace</button>
+                </>
               );
             })}
           </ul>

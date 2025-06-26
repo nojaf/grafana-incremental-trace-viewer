@@ -305,6 +305,8 @@ func getSubsequentTrace(datasourceInfo DataSourceInfo, traceID string, spanID st
 		depth = *params.Depth
 	}
 
+	log.Printf("Fetching spans for trace %s, span %s, skipping %d, taking %d, depth %d", traceID, spanID, skip, take, depth)
+
 	spans, err := fetchChildrenWithDepth(client, datasourceInfo, traceID, spanID, skip, take, 1, depth)
 	if err != nil {
 		return TracesData{}, err
