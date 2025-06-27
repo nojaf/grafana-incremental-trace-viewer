@@ -16,6 +16,17 @@ services:
       - plugins.security.disabled=true
       - OPENSEARCH_INITIAL_ADMIN_PASSWORD=FooBar#123
 
+  tempo:
+    image: grafana/tempo:latest # Or a specific version e.g., grafana/tempo:2.4.1
+    container_name: tempo
+    command: ['-config.file=/etc/tempo/tempo-config.yaml']
+    volumes:
+      - ./tempo-config.yaml:/etc/tempo/tempo-config.yaml
+    ports:
+      # Port for Grafana to query Tempo and for Tempo's API/UI (if any)
+      - '3200:3200'
+      - '9095:9095'
+
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest # Use the contrib image for more exporters/receivers
     container_name: otel-collector

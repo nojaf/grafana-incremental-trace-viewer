@@ -31,14 +31,14 @@ function TraceOverview() {
   const queryClient = useQueryClient();
   const datasources = useSuspenseQuery<datasource[]>({
     queryKey: ['datasources'],
-    queryFn: () =>
-      new Promise(async (resolve, _) => {
-        const response = getBackendSrv().fetch<datasource[]>({
-          url: `/api/datasources`,
-        });
-        const value = await lastValueFrom(response);
-        resolve(value.data);
-      }),
+    queryFn: async () => {
+      const response = getBackendSrv().fetch<datasource[]>({
+        url: `/api/datasources`,
+      });
+      const value = await lastValueFrom(response);
+      const datasource = value.data.filter((d) => d.type === 'tempo' || d.type === 'grafana-opensearch-datasource');
+      return datasource;
+    },
   });
 
   const [selectedSource, setSelectedSource] = useState<number | null>(null);
@@ -56,11 +56,16 @@ function TraceOverview() {
       if (!datasource) {
         throw new Error(`Datasource with id ${sourceId} not found`);
       }
+      const q = encodeURIComponent('{}');
+      const oneWeek = 604800;
+      const start = Math.floor(Date.now() / 1000) - oneWeek;
+      const end = Math.floor(Date.now() / 1000);
       const response = getBackendSrv().fetch<SearchResponse>({
-        url: `${BASE_URL}/${ApiPaths.search}`,
+        url: `${BASE_URL}${ApiPaths.search}?q=${q}&start=${start}&end=${end}`,
         method: 'POST',
         data: {
           url: datasource.url,
+          type: datasource.type,
           database: datasource.jsonData.database,
           timeField: datasource.jsonData.timeField,
         } satisfies DataSourceInfo,
@@ -77,24 +82,6 @@ function TraceOverview() {
       description: s.type,
     };
   });
-
-  async function fetchTrace(traceId: string) {
-    const datasource = datasources.data.find((d) => d.id === selectedSource);
-    if (!datasource) {
-      throw new Error(`Datasource with id ${selectedSource} not found`);
-    }
-    const responseObservable = getBackendSrv().fetch<TempoTrace>({
-      url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}`,
-      method: 'POST',
-      data: {
-        url: datasource.url,
-        database: datasource.jsonData.database,
-        timeField: datasource.jsonData.timeField,
-      } satisfies DataSourceInfo,
-    });
-    const value = await lastValueFrom(responseObservable);
-    console.log(value);
-  }
 
   return (
     <PluginPage>
@@ -118,12 +105,11 @@ function TraceOverview() {
             {result.data.map((r) => {
               return (
                 <>
-                  <Link key={r.traceId} to={prefixRoute(`${selectedSource}/${ROUTES.TraceDetails}/${r.traceId}`)}>
+                  <Link key={r.traceID} to={prefixRoute(`${selectedSource}/${ROUTES.TraceDetails}/${r.traceID}`)}>
                     <li>
                       {r.rootTraceName} ({r.rootServiceName})
                     </li>
                   </Link>
-                  <button onClick={() => fetchTrace(r.traceId || '')}>Fetch trace</button>
                 </>
               );
             })}
