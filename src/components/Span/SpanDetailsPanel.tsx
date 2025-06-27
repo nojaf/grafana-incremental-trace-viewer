@@ -15,7 +15,7 @@ export const SpanDetailPanel = ({ span, onClose }: { span: SpanType; onClose: ()
           <strong>Name:</strong> <pre>{span.name}</pre>
         </div>
         <div>
-          <strong>ID:</strong> <pre>{span.spanId}</pre>
+          <strong>ID:</strong> <pre>{span.spanID}</pre>
         </div>
         <div>
           <strong>Trace ID:</strong>

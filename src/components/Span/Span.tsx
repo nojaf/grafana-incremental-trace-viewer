@@ -39,7 +39,7 @@ export const Span = (props: SpanNodeProps) => {
               title="Load more traces"
               onClick={(e) => {
                 e.stopPropagation();
-                props.loadMore(props.index, props.spanId, props.level);
+                props.loadMore(props.index, props.spanID, props.level);
               }}
             />
           )}
@@ -47,7 +47,7 @@ export const Span = (props: SpanNodeProps) => {
       </div>
       <div
         className="w-2/3 h-full relative border-l-3"
-        style={{ borderColor: calculateColourBySpanId(props.level > 2 ? props.parentSpanId || '' : props.spanId) }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+        style={{ borderColor: calculateColourBySpanId(props.level > 2 ? props.parentSpanId || '' : props.spanID) }} // Limitation in tailwind dynamic class construction: Check README.md for more details
       >
         <div className="h-full relative mx-4">
           <div

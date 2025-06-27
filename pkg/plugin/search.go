@@ -88,6 +88,7 @@ func searchOpenSearch(w http.ResponseWriter, request *DataSourceInfo, params Sea
       "traceId",
       "name",
       "parentSpanId",
+      "resource",
       %q
     ]
   }`, timeField, queryTerms, timeField)

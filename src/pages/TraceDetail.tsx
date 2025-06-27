@@ -14,7 +14,7 @@ type TraceResponse = components['schemas']['TracesData'];
 type DataSourceInfo = components['schemas']['DataSourceInfo'];
 
 export type Span = {
-  spanId: string;
+  spanID: string;
   parentSpanId: string | null;
   traceId: string;
   level: number;
@@ -24,8 +24,8 @@ export type Span = {
   hasMore: boolean;
 };
 
-function spanIdAsString(spanId: number[]): string {
-  return String.fromCodePoint(...spanId);
+function spanIdAsString(spanID: number[]): string {
+  return String.fromCodePoint(...spanID);
 }
 
 /**
@@ -43,19 +43,19 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
   const spans: Span[] = [];
   for (let i = 0; i < spanNodes.length; i++) {
     const span = spanNodes[i];
-    if (!span.spanId) {
+    if (!span.spanID) {
       continue;
     }
 
     // Assign the level to the span.
     if (!span.parentSpanId || span.parentSpanId.length === 0) {
-      idToLevelMap.set(spanIdAsString(span.spanId), 0);
+      idToLevelMap.set(spanIdAsString(span.spanID), 0);
     } else {
       let parentLevel = idToLevelMap.get(spanIdAsString(span.parentSpanId));
       if (parentLevel === undefined) {
-        throw new Error(`Parent level not found for ${spanIdAsString(span.spanId)}`);
+        throw new Error(`Parent level not found for ${spanIdAsString(span.spanID)}`);
       }
-      idToLevelMap.set(spanIdAsString(span.spanId), parentLevel + 1);
+      idToLevelMap.set(spanIdAsString(span.spanID), parentLevel + 1);
     }
 
     // Skip the take + 1 elements.
@@ -63,12 +63,12 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
       let parentNode = spanNodes[i - take - 1];
       // If this element is <take> removed from the array, we can skip it.
       // It does indicate that the parent has more children.
-      if (parentNode.spanId && span.parentSpanId && isIdEqual(parentNode.spanId, span.parentSpanId)) {
+      if (parentNode.spanID && span.parentSpanId && isIdEqual(parentNode.spanID, span.parentSpanId)) {
         const parent = spans[spans.length - take - 1];
-        if (parent.spanId === spanIdAsString(parentNode.spanId)) {
+        if (parent.spanID === spanIdAsString(parentNode.spanID)) {
           parent.hasMore = true;
         } else {
-          console.warn(`Parent span ${spanIdAsString(parentNode.spanId)} is not ${take} removed from take + 1 child`);
+          console.warn(`Parent span ${spanIdAsString(parentNode.spanID)} is not ${take} removed from take + 1 child`);
         }
         console.info(`Skipping ${span.name} because`);
         continue;
@@ -76,10 +76,10 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
     }
 
     spans.push({
-      spanId: spanIdAsString(span.spanId),
+      spanID: spanIdAsString(span.spanID),
       parentSpanId: span.parentSpanId ? spanIdAsString(span.parentSpanId) : null,
       traceId: spanIdAsString(span.traceId || []),
-      level: idToLevelMap.get(spanIdAsString(span.spanId)) || 0,
+      level: idToLevelMap.get(spanIdAsString(span.spanID)) || 0,
       startTimeUnixNano: span.startTimeUnixNano || 0,
       endTimeUnixNano: span.endTimeUnixNano || 0,
       name: span.name || '',
@@ -144,6 +144,7 @@ function TraceDetail() {
           url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?depth=3&take=${take + 1}`,
           method: 'POST',
           data: {
+            type: datasource.type,
             url: datasource.url,
             database: datasource.jsonData.database,
             timeField: datasource.jsonData.timeField,
@@ -182,14 +183,14 @@ function TraceDetail() {
     // rangeExtractor: (range) => {}
   });
 
-  const loadMore = (index: number, spanId: string, currentLevel: number) => {
+  const loadMore = (index: number, spanID: string, currentLevel: number) => {
     if (!result.isSuccess) {
       return;
     }
 
     let skip = 0;
     for (let i = index + 1; i < result.data.length; i++) {
-      if (result.data[i].parentSpanId !== spanId) {
+      if (result.data[i].parentSpanId !== spanID) {
         break;
       }
       skip++;
@@ -202,11 +203,12 @@ function TraceDetail() {
       }
 
       const responses = getBackendSrv().fetch<TraceResponse>({
-        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanId=${spanId}&depth=3&take=${
+        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanID=${spanID}&depth=3&take=${
           take + 1
         }&skip=${skip}`,
         method: 'POST',
         data: {
+          type: datasource.type,
           url: datasource.url,
           database: datasource.jsonData.database,
           timeField: datasource.jsonData.timeField,
@@ -235,7 +237,7 @@ function TraceDetail() {
             // Add the new spans before the next span with the same level.
             let directChildrenCount = 0; // increment each span that has the same parentSpanId
             for (let c = 0; c < spans.length; c++) {
-              if (spans[c].parentSpanId === spanId) {
+              if (spans[c].parentSpanId === spanID) {
                 directChildrenCount++;
               }
               nextSpans.push(spans[c]);
@@ -294,7 +296,7 @@ function TraceDetail() {
                     const span = result.data[virtualItem.index];
                     const hasChildren =
                       virtualItem.index !== result.data.length - 1 &&
-                      result.data[virtualItem.index + 1].parentSpanId === span.spanId;
+                      result.data[virtualItem.index + 1].parentSpanId === span.spanID;
                     return (
                       <div
                         key={virtualItem.key}
@@ -305,7 +307,7 @@ function TraceDetail() {
                         }} // Limitation in tailwind dynamic class construction: Check README.md for more details
                       >
                         <SpanComponent
-                          key={span.spanId}
+                          key={span.spanID}
                           {...span}
                           index={virtualItem.index}
                           loadMore={loadMore}

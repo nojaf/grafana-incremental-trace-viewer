@@ -18,7 +18,7 @@ async function main() {
           },
           {
             term: {
-              'parentSpanId.keyword': '',
+              parentSpanId: '',
             },
           },
         ],
