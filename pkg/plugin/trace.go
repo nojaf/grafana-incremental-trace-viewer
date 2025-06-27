@@ -129,6 +129,11 @@ func convertHitToSpan(hit opensearch.Hit) Span {
 }
 
 func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID string, spanID string, skip int, take int) ([]Span, error) {
+	timeField := "@timestamp"
+	if datasourceInfo.TimeField != nil {
+		timeField = *datasourceInfo.TimeField
+	}
+
 	query := fmt.Sprintf(`{
 	"size": %d,
 	"from": %d,
@@ -141,7 +146,7 @@ func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID
 		}
 	},
 	"sort": [ { %q: { "order": "asc" } }]
-}`, take, skip, traceID, spanID, datasourceInfo.TimeField)
+}`, take, skip, traceID, spanID, timeField)
 
 	openSearchResponse, err := opensearch.Search(client, datasourceInfo.Database, query)
 	if err != nil {
