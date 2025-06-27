@@ -3,6 +3,7 @@ package plugin
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -14,28 +15,59 @@ func ptrTo[T any](v T) *T {
 	return &v
 }
 
-func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, params SearchParams) {
-	log.Println("Processing search request")
-
-	var request DataSourceInfo
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		log.Printf("Failed to decode request: %v", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	client, err := opensearch.GetOpenSearchClient(request.URL)
+func proxySearch(w http.ResponseWriter, datasource *DataSourceInfo, params SearchParams) {
+	url := fmt.Sprintf("%s/api/search?start=%d&end=%d&q=%s", datasource.URL, params.Start, params.End, params.Q)
+	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		log.Printf("Failed to create OpenSearch client: %v", err)
+		log.Printf("Failed to create request for tempo search %s: %v", url, err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	noParentSpan := `{ "term": { "parentSpanId": { "value": "" } } }`
-	timeRange := ""
-	if params.Start != nil && params.End != nil {
-		timeRange = fmt.Sprintf(`{ "range": { "%s": { "gte": %d, "lte": %d } } }`, request.TimeField, *params.Start, *params.End)
+	request.Header.Add("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		log.Printf("Failed to proxy tempo search %s: %v", url, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+
+	defer resp.Body.Close()
+
+	// Copy headers from the response
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Set the status code
+	w.WriteHeader(resp.StatusCode)
+
+	// Copy the response body
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		log.Printf("Failed to copy response body: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func searchOpenSearch(w http.ResponseWriter, request *DataSourceInfo, params SearchParams) bool {
+	client, err := opensearch.GetOpenSearchClient(request.URL)
+	if err != nil {
+		log.Printf("Failed to create OpenSearch client: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return true
+	}
+
+	noParentSpan := `{ "term": { "parentSpanId": { "value": "" } } }`
+	timeField := "@timestamp"
+	if request.TimeField != nil {
+		timeField = *request.TimeField
+	}
+	timeRange := fmt.Sprintf(`{ "range": { "%s": { "gte": %d, "lte": %d } } }`, timeField, params.Start, params.End)
+
 	queryTerms := noParentSpan
 	if timeRange != "" {
 		queryTerms = noParentSpan + "," + timeRange
@@ -56,16 +88,17 @@ func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, p
       "traceId",
       "name",
       "parentSpanId",
+      "resource",
       %q
     ]
-  }`, request.TimeField, queryTerms, request.TimeField)
+  }`, timeField, queryTerms, timeField)
 
 	// Parse the response into our structured format
 	osResponse, err := opensearch.Search(client, request.Database, openSearchQuery)
 	if err != nil {
 		log.Printf("Failed to execute OpenSearch query: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return true
 	}
 
 	// Log the number of hits
@@ -98,8 +131,28 @@ func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, p
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		log.Printf("Failed to encode response to JSON: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
+		return true
 	}
 	log.Printf("Successfully returned %d traces", len(traces))
 	w.WriteHeader(http.StatusOK)
+	return false
+}
+
+func (siw *ServerInterfaceImpl) Search(w http.ResponseWriter, r *http.Request, params SearchParams) {
+	log.Println("Processing search request")
+
+	var request DataSourceInfo
+	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
+		log.Printf("Failed to decode request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if request.Type == "tempo" {
+		proxySearch(w, &request, params)
+		return
+	}
+
+	// Else, assume OpenSearch
+	searchOpenSearch(w, &request, params)
 }

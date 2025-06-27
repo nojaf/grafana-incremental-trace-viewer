@@ -49,7 +49,8 @@ export interface components {
     DataSourceInfo: {
       url: string;
       database: string;
-      timeField: string;
+      timeField?: string;
+      type: string;
     };
     AnyValue: {
       stringValue?: string | null;
@@ -122,7 +123,7 @@ export interface components {
     };
     Span: {
       traceId?: number[] | null;
-      spanId?: number[] | null;
+      spanID?: number[] | null;
       traceState?: string | null;
       parentSpanId?: number[] | null;
       /** Format: int32 */
@@ -176,7 +177,7 @@ export interface components {
       tags?: string[] | null;
     };
     TempoTrace: {
-      traceId?: string | null;
+      traceID?: string | null;
       rootServiceName?: string | null;
       rootTraceName?: string | null;
       /** Format: date-time */
@@ -221,10 +222,10 @@ export type $defs = Record<string, never>;
 export interface operations {
   search: {
     parameters: {
-      query?: {
-        q?: string;
-        start?: number;
-        end?: number;
+      query: {
+        q: string;
+        start: number;
+        end: number;
         spss?: number;
       };
       header?: never;

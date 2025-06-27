@@ -129,6 +129,11 @@ func convertHitToSpan(hit opensearch.Hit) Span {
 }
 
 func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID string, spanID string, skip int, take int) ([]Span, error) {
+	timeField := "@timestamp"
+	if datasourceInfo.TimeField != nil {
+		timeField = *datasourceInfo.TimeField
+	}
+
 	query := fmt.Sprintf(`{
 	"size": %d,
 	"from": %d,
@@ -141,7 +146,7 @@ func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID
 		}
 	},
 	"sort": [ { %q: { "order": "asc" } }]
-}`, take, skip, traceID, spanID, datasourceInfo.TimeField)
+}`, take, skip, traceID, spanID, timeField)
 
 	openSearchResponse, err := opensearch.Search(client, datasourceInfo.Database, query)
 	if err != nil {
@@ -323,21 +328,12 @@ func getSubsequentTrace(datasourceInfo DataSourceInfo, traceID string, spanID st
 	}, nil
 }
 
-func (siw *ServerInterfaceImpl) QueryTrace(w http.ResponseWriter, req *http.Request, traceID string, params QueryTraceParams) {
-	log.Println("Processing trace query request for trace", traceID)
-
-	var request DataSourceInfo
-	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
-		log.Printf("Failed to decode request: %v", err)
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
+func getTraceFromOpenSearch(w http.ResponseWriter, datasourceInfo DataSourceInfo, traceID string, params QueryTraceParams) {
 	var trace TracesData
 
 	if params.SpanID == nil {
 		log.Println("Processing initial trace query request for traceId", traceID)
-		t, err := getInitialTrace(request, traceID, params)
+		t, err := getInitialTrace(datasourceInfo, traceID, params)
 		if err != nil {
 			log.Printf("Failed to get initial trace: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -346,7 +342,7 @@ func (siw *ServerInterfaceImpl) QueryTrace(w http.ResponseWriter, req *http.Requ
 		trace = t
 	} else {
 		log.Println("Processing subsequent trace query request for traceId", traceID, "and spanId", *params.SpanID)
-		t, err := getSubsequentTrace(request, traceID, *params.SpanID, params)
+		t, err := getSubsequentTrace(datasourceInfo, traceID, *params.SpanID, params)
 		if err != nil {
 			log.Printf("Failed to get subsequent trace: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -362,4 +358,23 @@ func (siw *ServerInterfaceImpl) QueryTrace(w http.ResponseWriter, req *http.Requ
 		return
 	}
 	log.Printf("Successfully returned trace for traceId: %s", traceID)
+}
+
+func (siw *ServerInterfaceImpl) QueryTrace(w http.ResponseWriter, req *http.Request, traceID string, params QueryTraceParams) {
+	log.Println("Processing trace query request for trace", traceID)
+
+	var request DataSourceInfo
+	if err := json.NewDecoder(req.Body).Decode(&request); err != nil {
+		log.Printf("Failed to decode request: %v", err)
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if request.Type == "tempo" {
+		log.Printf("Cannot proxy tempo trace query request: %v", request)
+		http.Error(w, "The tempo API doesn't support optimized trace queries", http.StatusBadRequest)
+		return
+	} else {
+		getTraceFromOpenSearch(w, request, traceID, params)
+	}
 }

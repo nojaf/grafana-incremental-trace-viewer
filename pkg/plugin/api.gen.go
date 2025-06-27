@@ -63,9 +63,10 @@ type ArrayValue struct {
 // This has the OpenSearch specific fields to connect to the datasource.
 // It will later have the exactly Tempo API information.
 type DataSourceInfo struct {
-	Database  string `json:"database"`
-	TimeField string `json:"timeField"`
-	URL       string `json:"url"`
+	Database  string  `json:"database"`
+	TimeField *string `json:"timeField,omitempty"`
+	Type      string  `json:"type"`
+	URL       string  `json:"url"`
 }
 
 // EntityRef defines model for EntityRef.
@@ -147,7 +148,7 @@ type Span struct {
 	Links                  *[]Link     `json:"links"`
 	Name                   *string     `json:"name"`
 	ParentSpanID           *[]int32    `json:"parentSpanId"`
-	SpanID                 *[]int32    `json:"spanId"`
+	SpanID                 *[]int32    `json:"spanID"`
 	StartTimeUnixNano      *int64      `json:"startTimeUnixNano,omitempty"`
 	Status                 *Status     `json:"status,omitempty"`
 	TraceID                *[]int32    `json:"traceId"`
@@ -186,7 +187,7 @@ type TempoTrace struct {
 	RootTraceName   *string    `json:"rootTraceName"`
 	SpanSets        *[]SpanSet `json:"spanSets"`
 	StartTime       *time.Time `json:"startTime,omitempty"`
-	TraceID         *string    `json:"traceId"`
+	TraceID         *string    `json:"traceID"`
 }
 
 // TempoV1Response defines model for TempoV1Response.
@@ -207,10 +208,10 @@ type ValueOneofCase string
 
 // SearchParams defines parameters for Search.
 type SearchParams struct {
-	Q     *string `form:"q,omitempty" json:"q,omitempty"`
-	Start *int    `form:"start,omitempty" json:"start,omitempty"`
-	End   *int    `form:"end,omitempty" json:"end,omitempty"`
-	Spss  *int32  `form:"spss,omitempty" json:"spss,omitempty"`
+	Q     string `form:"q" json:"q"`
+	Start int    `form:"start" json:"start"`
+	End   int    `form:"end" json:"end"`
+	Spss  *int32 `form:"spss,omitempty" json:"spss,omitempty"`
 }
 
 // QueryTraceParams defines parameters for QueryTrace.
@@ -271,25 +272,46 @@ func (siw *ServerInterfaceWrapper) Search(w http.ResponseWriter, r *http.Request
 	// Parameter object where we will unmarshal all parameters from the context
 	var params SearchParams
 
-	// ------------- Optional query parameter "q" -------------
+	// ------------- Required query parameter "q" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "q", r.URL.Query(), &params.Q)
+	if paramValue := r.URL.Query().Get("q"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "q"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "q", r.URL.Query(), &params.Q)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "q", Err: err})
 		return
 	}
 
-	// ------------- Optional query parameter "start" -------------
+	// ------------- Required query parameter "start" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "start", r.URL.Query(), &params.Start)
+	if paramValue := r.URL.Query().Get("start"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "start"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "start", r.URL.Query(), &params.Start)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "start", Err: err})
 		return
 	}
 
-	// ------------- Optional query parameter "end" -------------
+	// ------------- Required query parameter "end" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "end", r.URL.Query(), &params.End)
+	if paramValue := r.URL.Query().Get("end"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "end"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "end", r.URL.Query(), &params.End)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "end", Err: err})
 		return

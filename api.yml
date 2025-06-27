@@ -15,14 +15,17 @@ paths:
           schema:
             type: string
           in: query
+          required: true
         - name: start
           schema:
             type: integer # unix epoch seconds
           in: query
+          required: true
         - name: end
           schema:
             type: integer # unix epoch seconds
           in: query
+          required: true
         - name: spss
           in: query
           schema:
@@ -119,10 +122,12 @@ components:
           type: string
         timeField:
           type: string
+        type:
+          type: string
       required:
+        - type
         - url
         - database
-        - timeField
     AnyValue:
       type: object
       properties:
@@ -328,7 +333,7 @@ components:
             type: integer
             format: int32
           nullable: true
-        spanId:
+        spanID:
           type: array
           items:
             type: integer
@@ -471,7 +476,7 @@ components:
     TempoTrace:
       type: object
       properties:
-        traceId:
+        traceID:
           type: string
           nullable: true
         rootServiceName:

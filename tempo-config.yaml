@@ -1,0 +1,59 @@
+server:
+  http_listen_port: 3200
+  grpc_listen_port: 9095 # Main gRPC port
+  # Allows the Ingester to SEND large messages to the Querier
+  # Allows the Querier to SEND large messages to Grafana
+  grpc_server_max_send_msg_size: 2500000000 # Approx 238 MiB
+  # Allows the Querier to RECEIVE large messages from Grafana
+  # Allows the Ingester to RECEIVE large messages from Distributor
+  grpc_server_max_recv_msg_size: 2500000000 # Approx 238 MiB
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+ingester:
+  trace_idle_period: 10s
+  max_block_duration: 5m
+  # In a monolithic setup, the Ingester uses the top-level 'server:' config
+  # for its gRPC server settings when communicating with the Querier.
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /tmp/tempo/blocks
+
+compactor:
+  compaction:
+    compaction_window: 1h
+    block_retention: 24h
+
+overrides:
+  defaults:
+    ingestion:
+      burst_size_bytes: 2000000000
+      rate_limit_bytes: 1500000000
+      max_traces_per_user: 0
+    global:
+      max_bytes_per_trace: 5000000000 # Tempo application limit, not gRPC
+
+querier:
+  # In a monolithic setup, the Querier uses the top-level 'server:' config
+  # for its gRPC server settings when Grafana communicates with it.
+
+  # This 'frontend_worker' block configures the Querier's gRPC CLIENT
+  # when it fetches data from Ingesters.
+  frontend_worker:
+    grpc_client_config:
+      # This is the CRITICAL setting for the error you're seeing.
+      # It allows the Querier (as a client) to receive large messages from Ingesters.
+      max_recv_msg_size: 2500000000 # Approx 238 MiB
+      max_send_msg_size: 2500000000 # Good practice to set symmetrically
+
+stream_over_http_enabled: true
