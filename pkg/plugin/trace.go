@@ -3,6 +3,7 @@ package plugin
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 
@@ -360,6 +361,91 @@ func getTraceFromOpenSearch(w http.ResponseWriter, datasourceInfo DataSourceInfo
 	log.Printf("Successfully returned trace for traceId: %s", traceID)
 }
 
+func proxyTrace(w http.ResponseWriter, datasourceInfo DataSourceInfo, traceID string, params QueryTraceParams) {
+	depth := 5
+	if params.Depth != nil {
+		depth = *params.Depth
+	}
+
+	childrenLimit := 10
+	if params.ChildrenLimit != nil {
+		childrenLimit = *params.ChildrenLimit
+	}
+
+	var url string
+
+	if params.SpanID == nil {
+		url = fmt.Sprintf(
+			"%s/api/v2/traces/%s?start=%d&end=%d&spanId=%s&depth=%d&childrenLimit=%d",
+			datasourceInfo.URL,
+			traceID,
+			params.Start,
+			params.End,
+			*params.SpanID,
+			depth,
+			childrenLimit,
+		)
+	} else {
+		skip := 0
+		if params.Skip != nil {
+			skip = *params.Skip
+		}
+
+		take := 10
+		if params.Take != nil {
+			take = *params.Take
+		}
+
+		url = fmt.Sprintf(
+			"%s/api/v2/traces/%s?start=%d&end=%d&spanId=%s&depth=%d&childrenLimit=%d&skip=%d&take=%d",
+			datasourceInfo.URL,
+			traceID,
+			params.Start,
+			params.End,
+			*params.SpanID,
+			depth,
+			childrenLimit,
+			skip,
+			take,
+		)
+	}
+
+	request, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		log.Printf("Failed to create request for tempo search %s: %v", url, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	request.Header.Add("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(request)
+	if err != nil {
+		log.Printf("Failed to proxy tempo search %s: %v", url, err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	defer resp.Body.Close()
+
+	// Copy headers from the response
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Set the status code
+	w.WriteHeader(resp.StatusCode)
+
+	// Copy the response body
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		log.Printf("Failed to copy response body: %v", err)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func (siw *ServerInterfaceImpl) QueryTrace(w http.ResponseWriter, req *http.Request, traceID string, params QueryTraceParams) {
 	log.Println("Processing trace query request for trace", traceID)
 
@@ -371,9 +457,8 @@ func (siw *ServerInterfaceImpl) QueryTrace(w http.ResponseWriter, req *http.Requ
 	}
 
 	if request.Type == "tempo" {
-		log.Printf("Cannot proxy tempo trace query request: %v", request)
-		http.Error(w, "The tempo API doesn't support optimized trace queries", http.StatusBadRequest)
-		return
+		// This only works for a custom Tempo api that supports optimized trace queries.
+		proxyTrace(w, request, traceID, params)
 	} else {
 		getTraceFromOpenSearch(w, request, traceID, params)
 	}
