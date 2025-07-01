@@ -1,1 +1,16 @@
 @import 'tailwindcss';
+
+/* Some custom style to hide parts of the query editor */
+.query-editor {
+  & > div:last-child {
+    /* hide query type selection */
+    > div > div:first-child {
+      display: none;
+    }
+
+    /* hide search options */
+    > div > div:last-child {
+      display: none;
+    }
+  }
+}

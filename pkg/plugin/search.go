@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/g-research/grafana-incremental-trace-viewer/pkg/opensearch"
@@ -16,7 +17,8 @@ func ptrTo[T any](v T) *T {
 }
 
 func proxySearch(w http.ResponseWriter, datasource *DataSourceInfo, params SearchParams) {
-	url := fmt.Sprintf("%s/api/search?start=%d&end=%d&q=%s", datasource.URL, params.Start, params.End, params.Q)
+	url := fmt.Sprintf("%s/api/search?start=%d&end=%d&q=%s", datasource.URL, params.Start, params.End, url.QueryEscape(params.Q))
+	log.Printf("Proxying tempo search to %s", url)
 	request, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		log.Printf("Failed to create request for tempo search %s: %v", url, err)
