@@ -9,7 +9,7 @@ import { ApiPaths, type components } from '../schema.gen';
 import type { datasource } from './TraceOverview';
 import { BASE_URL } from '../constants';
 import { Span as SpanComponent, SpanDetailPanel } from '../components/Span';
-import { mkMilisecondsFromNano, mkMilisecondsFromNanoSeconds } from 'utils/utils.timeline';
+import { mkMilisecondsFromNanoSeconds } from 'utils/utils.timeline';
 
 type TraceResponse = components['schemas']['TraceDetailResponse'];
 type DataSourceInfo = components['schemas']['DataSourceInfo'];
