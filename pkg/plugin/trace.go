@@ -62,11 +62,21 @@ func convertKeyValues(keyValues map[string]interface{}) []KeyValue {
 	return kv
 }
 
-func convertHitToSpan(hit opensearch.Hit) Span {
-	spanAttributes := make([]KeyValue, 0, len(hit.Source.Attributes))
+func convertHitToSpan(hit opensearch.Hit, childrenCount int) Span {
+	spanAttributes := make([]KeyValue, 1, len(hit.Source.Attributes)+1)
 	for k, v := range hit.Source.Attributes {
 		spanAttributes = append(spanAttributes, convertKeyValue(k, v))
 	}
+
+	childrenCountInt64 := int64(childrenCount)
+
+	spanAttributes = append(spanAttributes, KeyValue{
+		Key: ptrTo("childrenCount"),
+		Value: &AnyValue{
+			IntValue:  &childrenCountInt64,
+			ValueCase: ptrTo(ValueOneofCaseIntValue),
+		},
+	})
 
 	events := make([]Event, 0, len(hit.Source.Events))
 	for _, event := range hit.Source.Events {
@@ -113,6 +123,57 @@ func convertHitToSpan(hit opensearch.Hit) Span {
 	}
 }
 
+func fetchSpanChildrenCount(client *os.Client, datasourceInfo DataSourceInfo, traceID string, spanIDs []string) (map[string]int, error) {
+	// Convert spanIDs slice to JSON array string
+	spanIDsJSON, err := json.Marshal(spanIDs)
+	if err != nil {
+		log.Printf("Failed to marshal spanIDs: %v", err)
+		return nil, err
+	}
+
+	query := fmt.Sprintf(`{
+	"size": 0,
+	"query": {
+		"bool": {
+			"must": [
+				{ "term": { "traceId": %q } },
+				{ "terms": { "parentSpanId": %s } }
+			]
+		}
+	},
+	"aggs": {
+		"child_counts_by_parent": {
+			"terms": {
+				"field": "parentSpanId",
+				"size": %d
+			}
+		}
+	}
+}`, traceID, string(spanIDsJSON), len(spanIDs))
+
+	response, err := opensearch.SearchChildCounts(client, datasourceInfo.Database, query)
+	if err != nil {
+		log.Printf("Failed to execute child count query: %v", err)
+		return nil, err
+	}
+
+	// Build the result map
+	childCounts := make(map[string]int)
+	for _, bucket := range response.Aggregations.ChildCountsByParent.Buckets {
+		childCounts[bucket.Key] = bucket.DocCount
+	}
+
+	// Ensure all requested spanIDs are in the result (with 0 if no children)
+	for _, spanID := range spanIDs {
+		if _, exists := childCounts[spanID]; !exists {
+			childCounts[spanID] = 0
+		}
+	}
+
+	log.Printf("Found child counts for %d spans", len(childCounts))
+	return childCounts, nil
+}
+
 func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID string, spanID string) ([]Span, error) {
 	timeField := "@timestamp"
 	if datasourceInfo.TimeField != nil {
@@ -120,7 +181,7 @@ func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID
 	}
 
 	query := fmt.Sprintf(`{
-	"size": 0,
+	"size": 1000,
 	"query": {
 		"bool": {
 			"must": [
@@ -140,9 +201,20 @@ func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID
 
 	log.Printf("Found %d spans for trace %s and span %s", len(openSearchResponse.Hits.Hits), traceID, spanID)
 
+	spanIDs := make([]string, 0, len(openSearchResponse.Hits.Hits))
+	for _, hit := range openSearchResponse.Hits.Hits {
+		spanIDs = append(spanIDs, hit.Source.SpanID)
+	}
+
+	childrenCount, err := fetchSpanChildrenCount(client, datasourceInfo, traceID, spanIDs)
+	if err != nil {
+		log.Printf("Failed to fetch span children count: %v", err)
+		return nil, err
+	}
+
 	spans := make([]Span, 0, len(openSearchResponse.Hits.Hits))
 	for _, hit := range openSearchResponse.Hits.Hits {
-		spans = append(spans, convertHitToSpan(hit))
+		spans = append(spans, convertHitToSpan(hit, childrenCount[hit.Source.SpanID]))
 	}
 	return spans, nil
 }
@@ -179,6 +251,17 @@ func getInitialTrace(datasourceInfo DataSourceInfo, traceID string) (TraceDetail
 		return TraceDetail{}, err
 	}
 
+	spanIDs := make([]string, 0, len(openSearchResponse.Hits.Hits))
+	for _, hit := range openSearchResponse.Hits.Hits {
+		spanIDs = append(spanIDs, hit.Source.SpanID)
+	}
+
+	childrenCount, err := fetchSpanChildrenCount(client, datasourceInfo, traceID, spanIDs)
+	if err != nil {
+		log.Printf("Failed to fetch span children count: %v", err)
+		return TraceDetail{}, err
+	}
+
 	resourceSpans := make([]ResourceSpans, 0, len(openSearchResponse.Hits.Hits))
 	for _, hit := range openSearchResponse.Hits.Hits {
 		resourceAttributes := convertKeyValues(hit.Source.Resource)
@@ -187,7 +270,7 @@ func getInitialTrace(datasourceInfo DataSourceInfo, traceID string) (TraceDetail
 			Attributes: &resourceAttributes,
 		}
 
-		span := convertHitToSpan(hit)
+		span := convertHitToSpan(hit, childrenCount[hit.Source.SpanID])
 
 		childSpans, err := fetchSpanChildren(client, datasourceInfo, traceID, hit.Source.SpanID)
 		if err != nil {

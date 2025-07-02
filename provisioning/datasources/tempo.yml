@@ -1,9 +1,5 @@
 apiVersion: 1
 
-deleteDatasources:
-  - name: Tempo
-    orgId: 1
-
 datasources:
   - name: Tempo
     type: tempo

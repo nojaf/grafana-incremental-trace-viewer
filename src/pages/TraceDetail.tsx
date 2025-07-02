@@ -60,22 +60,8 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
       idToLevelMap.set(span.spanId, parentLevel + 1);
     }
 
-    // Skip the take + 1 elements.
-    if (i > take) {
-      let parentNode = spanNodes[i - take - 1];
-      // If this element is <take> removed from the array, we can skip it.
-      // It does indicate that the parent has more children.
-      if (parentNode.spanId && span.parentSpanId && parentNode.spanId === span.parentSpanId) {
-        const parent = spans[spans.length - take - 1];
-        if (parent.spanId === parentNode.spanId) {
-          parent.hasMore = true;
-        } else {
-          console.warn(`Parent span ${parentNode.spanId} is not ${take} removed from take + 1 child`);
-        }
-        console.info(`Skipping ${span.name} because`);
-        continue;
-      }
-    }
+    const childrenCount = span.attributes?.find((a) => a.key === 'childrenCount')?.value?.intValue || 0;
+    const isNotRoot = span.parentSpanId != null && span.parentSpanId.length > 0;
 
     spans.push({
       spanId: span.spanId,
@@ -86,14 +72,11 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
       endTimeUnixNano: span.endTimeUnixNano || 0,
       name: span.name || '',
       // We determine this above.
-      hasMore: false,
+      hasMore: isNotRoot && childrenCount > 0,
     });
   }
   return spans;
 }
-
-// TODO: consider making this configurable by the user.
-const take = 10;
 
 function TraceDetail() {
   const { traceId, datasourceId } = useParams<{ traceId: string; datasourceId: string }>();
@@ -174,7 +157,7 @@ function TraceDetail() {
     // rangeExtractor: (range) => {}
   });
 
-  const loadMore = (index: number, spanId: string, currentLevel: number) => {
+  const loadMore = (index: number, spanId: string) => {
     if (!result.isSuccess) {
       return;
     }
@@ -194,9 +177,7 @@ function TraceDetail() {
       }
 
       const responses = getBackendSrv().fetch<TraceResponse>({
-        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanId=${spanId}&depth=3&take=${
-          take + 1
-        }&skip=${skip}`,
+        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanId=${spanId}`,
         method: 'POST',
         data: {
           type: datasource.type,
@@ -223,18 +204,11 @@ function TraceDetail() {
             continue;
           }
 
-          // Find the next span with the same level, effectively being a sibling of the current span.
-          if (i > index && oldData[i].level === currentLevel) {
-            // Add the new spans before the next span with the same level.
-            let directChildrenCount = 0; // increment each span that has the same parentSpanId
+          if (i === index + 1) {
+            // Add the new spans after their parent span.
             for (let c = 0; c < spans.length; c++) {
-              if (spans[c].parentSpanId === spanId) {
-                directChildrenCount++;
-              }
               nextSpans.push(spans[c]);
             }
-
-            nextSpans[index].hasMore = directChildrenCount > take;
             didAddNewSpans = true;
           }
 
@@ -244,6 +218,8 @@ function TraceDetail() {
         if (!didAddNewSpans) {
           nextSpans.push(...spans);
         }
+
+        nextSpans[index].hasMore = false;
 
         return nextSpans;
       });
