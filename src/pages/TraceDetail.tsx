@@ -9,6 +9,7 @@ import { ApiPaths, type components } from '../schema.gen';
 import type { datasource } from './TraceOverview';
 import { BASE_URL } from '../constants';
 import { Span as SpanComponent, SpanDetailPanel } from '../components/Span';
+import { mkMilisecondsFromNano, mkMilisecondsFromNanoSeconds } from 'utils/utils.timeline';
 
 type TraceResponse = components['schemas']['TraceDetailResponse'];
 type DataSourceInfo = components['schemas']['DataSourceInfo'];
@@ -132,21 +133,23 @@ function TraceDetail() {
     queryClient
   );
 
-  const traceDuration = React.useMemo(() => {
+  const traceDurationInMiliseconds = React.useMemo(() => {
     if (!result.isSuccess || result.data.length === 0) {
       return 0;
     }
     const rootSpan = result.data[0];
-    return rootSpan.endTimeUnixNano - rootSpan.startTimeUnixNano;
+    return (
+      mkMilisecondsFromNanoSeconds(rootSpan.endTimeUnixNano) - mkMilisecondsFromNanoSeconds(rootSpan.startTimeUnixNano)
+    );
   }, [result.isSuccess, result.data]);
 
-  const traceStartTime = React.useMemo(() => {
+  const traceStartTimeInMiliseconds = React.useMemo(() => {
     if (!result.isSuccess || result.data.length === 0) {
       return 0;
     }
     const rootSpan = result.data[0];
     // TODO: not sure if this will work as is in nano seconds.
-    return new Date(rootSpan.startTimeUnixNano).getTime();
+    return new Date(mkMilisecondsFromNanoSeconds(rootSpan.startTimeUnixNano)).getTime();
   }, [result.isSuccess, result.data]);
 
   const rowVirtualizer = useVirtualizer({
@@ -242,7 +245,7 @@ function TraceDetail() {
                       left: `${(i / 4) * 100}%`,
                     }} // Limitation in tailwind dynamic class construction: Check README.md for more details
                   >
-                    {((traceDuration / 1000 / 4) * i).toFixed(2)}s
+                    {((traceDurationInMiliseconds / 1000 / 4) * i).toFixed(2)}s
                   </div>
                 ))}
               </div>
@@ -278,8 +281,8 @@ function TraceDetail() {
                           {...span}
                           index={virtualItem.index}
                           loadMore={loadMore}
-                          traceStartTime={traceStartTime}
-                          traceDuration={traceDuration}
+                          traceStartTimeInMiliseconds={traceStartTimeInMiliseconds}
+                          traceDurationInMiliseconds={traceDurationInMiliseconds}
                           onSelect={setSelectedSpan}
                           hasChildren={hasChildren}
                         />

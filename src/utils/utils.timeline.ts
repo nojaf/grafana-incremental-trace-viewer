@@ -18,3 +18,7 @@ export const calculateColourBySpanId = (spanId: string) => {
   }, 0);
   return `hsl(${hash % 360}, 100%, 50%)`;
 };
+
+export function mkMilisecondsFromNanoSeconds(nanoSeconds: number) {
+  return nanoSeconds / 1000000;
+}

@@ -1,20 +1,26 @@
 import React from 'react';
 import { Icon } from '@grafana/ui';
-import { calculateColourBySpanId } from '../../utils/utils.timeline';
+import { calculateColourBySpanId, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
 import type { Span as SpanType } from '../../pages/TraceDetail';
 
 type SpanNodeProps = SpanType & {
   index: number;
   loadMore: (index: number, spanId: string, currentLevel: number) => void;
   hasChildren: boolean;
-  traceStartTime: number;
-  traceDuration: number;
+  traceStartTimeInMiliseconds: number;
+  traceDurationInMiliseconds: number;
   onSelect: (span: SpanType) => void;
 };
 
 export const Span = (props: SpanNodeProps) => {
-  const offset = ((props.startTimeUnixNano - props.traceStartTime) / props.traceDuration) * 100;
-  const width = ((props.endTimeUnixNano - props.startTimeUnixNano) / props.traceDuration) * 100;
+  const offset =
+    ((mkMilisecondsFromNanoSeconds(props.startTimeUnixNano) - props.traceStartTimeInMiliseconds) /
+      props.traceDurationInMiliseconds) *
+    100;
+  const width =
+    ((mkMilisecondsFromNanoSeconds(props.endTimeUnixNano) - mkMilisecondsFromNanoSeconds(props.startTimeUnixNano)) /
+      props.traceDurationInMiliseconds) *
+    100;
 
   const canLoadMore = props.hasMore;
 
