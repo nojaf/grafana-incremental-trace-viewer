@@ -109,8 +109,8 @@ type Link struct {
 	Attributes             *[]KeyValue `json:"attributes"`
 	DroppedAttributesCount *int32      `json:"droppedAttributesCount,omitempty"`
 	Flags                  *int32      `json:"flags,omitempty"`
-	SpanID                 *[]int32    `json:"spanId"`
-	TraceID                *[]int32    `json:"traceId"`
+	SpanID                 *string     `json:"spanId,omitempty"`
+	TraceID                *string     `json:"traceId,omitempty"`
 	TraceState             *string     `json:"traceState"`
 }
 
@@ -147,22 +147,16 @@ type Span struct {
 	Kind                   *SpanKind   `json:"kind,omitempty"`
 	Links                  *[]Link     `json:"links"`
 	Name                   *string     `json:"name"`
-	ParentSpanID           *[]int32    `json:"parentSpanId"`
-	SpanID                 *[]int32    `json:"spanID"`
+	ParentSpanID           *string     `json:"parentSpanId"`
+	SpanID                 *string     `json:"spanId,omitempty"`
 	StartTimeUnixNano      *int64      `json:"startTimeUnixNano,omitempty"`
 	Status                 *Status     `json:"status,omitempty"`
-	TraceID                *[]int32    `json:"traceId"`
+	TraceID                *string     `json:"traceId,omitempty"`
 	TraceState             *string     `json:"traceState"`
 }
 
 // SpanKind defines model for SpanKind.
 type SpanKind string
-
-// SpanSet defines model for SpanSet.
-type SpanSet struct {
-	Matched *int32  `json:"matched,omitempty"`
-	Spans   *[]Span `json:"spans"`
-}
 
 // Status defines model for Status.
 type Status struct {
@@ -185,7 +179,6 @@ type TempoTrace struct {
 	Duration        *string    `json:"duration,omitempty"`
 	RootServiceName *string    `json:"rootServiceName"`
 	RootTraceName   *string    `json:"rootTraceName"`
-	SpanSets        *[]SpanSet `json:"spanSets"`
 	StartTime       *time.Time `json:"startTime,omitempty"`
 	TraceID         *string    `json:"traceID"`
 }
@@ -198,9 +191,14 @@ type TempoV1Response struct {
 	Traces    *[]TempoTrace `json:"traces"`
 }
 
-// TracesData defines model for TracesData.
-type TracesData struct {
-	ResourceSpans *[]ResourceSpans `json:"resourceSpans"`
+// TraceDetail defines model for TraceDetail.
+type TraceDetail struct {
+	ResourceSpans *[]ResourceSpans `json:"resourceSpans,omitempty"`
+}
+
+// TraceDetailResponse defines model for TraceDetailResponse.
+type TraceDetailResponse struct {
+	Trace *TraceDetail `json:"trace,omitempty"`
 }
 
 // ValueOneofCase defines model for ValueOneofCase.
@@ -219,24 +217,9 @@ type QueryTraceParams struct {
 	Start *int `form:"start,omitempty" json:"start,omitempty"`
 	End   *int `form:"end,omitempty" json:"end,omitempty"`
 
-	// Depth The depth of the query.
-	// If not provided, the default depth will be used.
-	Depth *int `form:"depth,omitempty" json:"depth,omitempty"`
-
-	// ChildrenLimit The maximum number of children to fetch on each level.
-	ChildrenLimit *int `form:"childrenLimit,omitempty" json:"childrenLimit,omitempty"`
-
 	// SpanID The parent span id to start the query from.
 	// If not provided, the root span will be used.
 	SpanID *string `form:"spanId,omitempty" json:"spanId,omitempty"`
-
-	// Skip The number of spans to skip.
-	// Should only be used in combination with spanId.
-	Skip *int `form:"skip,omitempty" json:"skip,omitempty"`
-
-	// Take The number of spans to take.
-	// Should only be used in combination with spanId.
-	Take *int `form:"take,omitempty" json:"take,omitempty"`
 }
 
 // SearchJSONRequestBody defines body for Search for application/json ContentType.
@@ -369,43 +352,11 @@ func (siw *ServerInterfaceWrapper) QueryTrace(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// ------------- Optional query parameter "depth" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "depth", r.URL.Query(), &params.Depth)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "depth", Err: err})
-		return
-	}
-
-	// ------------- Optional query parameter "childrenLimit" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "childrenLimit", r.URL.Query(), &params.ChildrenLimit)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "childrenLimit", Err: err})
-		return
-	}
-
 	// ------------- Optional query parameter "spanId" -------------
 
 	err = runtime.BindQueryParameter("form", true, false, "spanId", r.URL.Query(), &params.SpanID)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "spanId", Err: err})
-		return
-	}
-
-	// ------------- Optional query parameter "skip" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "skip", r.URL.Query(), &params.Skip)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "skip", Err: err})
-		return
-	}
-
-	// ------------- Optional query parameter "take" -------------
-
-	err = runtime.BindQueryParameter("form", true, false, "take", r.URL.Query(), &params.Take)
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "take", Err: err})
 		return
 	}
 

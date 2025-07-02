@@ -62,22 +62,6 @@ func convertKeyValues(keyValues map[string]interface{}) []KeyValue {
 	return kv
 }
 
-func convertIdToBytes(id string) []int32 {
-	bytes := make([]int32, 0, len(id))
-	for _, c := range id {
-		bytes = append(bytes, int32(c))
-	}
-	return bytes
-}
-
-func convertBytesToId(bytes []int32) string {
-	runes := make([]rune, 0, len(bytes))
-	for _, b := range bytes {
-		runes = append(runes, rune(b))
-	}
-	return string(runes)
-}
-
 func convertHitToSpan(hit opensearch.Hit) Span {
 	spanAttributes := make([]KeyValue, 0, len(hit.Source.Attributes))
 	for k, v := range hit.Source.Attributes {
@@ -101,8 +85,8 @@ func convertHitToSpan(hit opensearch.Hit) Span {
 		links = append(links, Link{
 			Attributes:             ptrTo(linkAttributes),
 			DroppedAttributesCount: ptrTo(int32(link.DroppedAttributesCount)),
-			TraceID:                ptrTo(convertIdToBytes(link.TraceID)),
-			SpanID:                 ptrTo(convertIdToBytes(link.SpanID)),
+			TraceID:                ptrTo(link.TraceID),
+			SpanID:                 ptrTo(link.SpanID),
 			TraceState:             ptrTo(link.TraceState),
 		})
 	}
@@ -116,11 +100,11 @@ func convertHitToSpan(hit opensearch.Hit) Span {
 		Kind:                   ptrTo(SpanKind(hit.Source.Kind)),
 		Links:                  ptrTo(links),
 		Name:                   ptrTo(hit.Source.Name),
-		ParentSpanID:           ptrTo(convertIdToBytes(hit.Source.ParentSpanID)),
-		SpanID:                 ptrTo(convertIdToBytes(hit.Source.SpanID)),
+		ParentSpanID:           ptrTo(hit.Source.ParentSpanID),
+		SpanID:                 ptrTo(hit.Source.SpanID),
 		StartTimeUnixNano:      ptrTo(hit.Source.StartTime.UnixNano()),
 		EndTimeUnixNano:        ptrTo(hit.Source.EndTime.UnixNano()),
-		TraceID:                ptrTo(convertIdToBytes(hit.Source.TraceID)),
+		TraceID:                ptrTo(hit.Source.TraceID),
 		TraceState:             ptrTo(hit.Source.TraceState),
 		Status: &Status{
 			Code:    ptrTo(StatusCode(hit.Source.Status.Code)),
@@ -129,15 +113,14 @@ func convertHitToSpan(hit opensearch.Hit) Span {
 	}
 }
 
-func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID string, spanID string, skip int, take int) ([]Span, error) {
+func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID string, spanID string) ([]Span, error) {
 	timeField := "@timestamp"
 	if datasourceInfo.TimeField != nil {
 		timeField = *datasourceInfo.TimeField
 	}
 
 	query := fmt.Sprintf(`{
-	"size": %d,
-	"from": %d,
+	"size": 0,
 	"query": {
 		"bool": {
 			"must": [
@@ -147,7 +130,7 @@ func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID
 		}
 	},
 	"sort": [ { %q: { "order": "asc" } }]
-}`, take, skip, traceID, spanID, timeField)
+}`, traceID, spanID, timeField)
 
 	openSearchResponse, err := opensearch.Search(client, datasourceInfo.Database, query)
 	if err != nil {
@@ -155,7 +138,7 @@ func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID
 		return nil, err
 	}
 
-	log.Printf("Found %d spans for trace %s and span %s, skipping %d and taking %d", len(openSearchResponse.Hits.Hits), traceID, spanID, skip, take)
+	log.Printf("Found %d spans for trace %s and span %s", len(openSearchResponse.Hits.Hits), traceID, spanID)
 
 	spans := make([]Span, 0, len(openSearchResponse.Hits.Hits))
 	for _, hit := range openSearchResponse.Hits.Hits {
@@ -164,39 +147,11 @@ func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID
 	return spans, nil
 }
 
-func fetchChildrenWithDepth(client *os.Client, datasourceInfo DataSourceInfo, traceID string, spanID string, skip int, take int, currentDepth int, maxDepth int) ([]Span, error) {
-	if currentDepth > maxDepth {
-		return make([]Span, 0), nil
-	}
-
-	allSpans := make([]Span, 0)
-
-	currentSpans, err := fetchSpanChildren(client, datasourceInfo, traceID, spanID, skip, take)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, span := range currentSpans {
-		// Add the current span to the list of all spans.
-		allSpans = append(allSpans, span)
-
-		// Fetch the children of the current span, recursively.
-		children, err := fetchChildrenWithDepth(client, datasourceInfo, traceID, convertBytesToId(*span.SpanID) /* don't skip any children */, 0, take, currentDepth+1, maxDepth)
-		if err != nil {
-			return nil, err
-		}
-
-		allSpans = append(allSpans, children...)
-	}
-
-	return allSpans, nil
-}
-
-func getInitialTrace(datasourceInfo DataSourceInfo, traceID string, params QueryTraceParams) (TracesData, error) {
+func getInitialTrace(datasourceInfo DataSourceInfo, traceID string) (TraceDetail, error) {
 	client, err := opensearch.GetOpenSearchClient(datasourceInfo.URL)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
-		return TracesData{}, err
+		return TraceDetail{}, err
 	}
 
 	query := fmt.Sprintf(`{
@@ -221,7 +176,7 @@ func getInitialTrace(datasourceInfo DataSourceInfo, traceID string, params Query
 	openSearchResponse, err := opensearch.Search(client, datasourceInfo.Database, query)
 	if err != nil {
 		log.Printf("Failed to execute OpenSearch query: %v", err)
-		return TracesData{}, err
+		return TraceDetail{}, err
 	}
 
 	resourceSpans := make([]ResourceSpans, 0, len(openSearchResponse.Hits.Hits))
@@ -234,29 +189,10 @@ func getInitialTrace(datasourceInfo DataSourceInfo, traceID string, params Query
 
 		span := convertHitToSpan(hit)
 
-		take := 10
-		if params.Take != nil {
-			take = *params.Take
-		}
-
-		maxDepth := 5
-		if params.Depth != nil {
-			maxDepth = *params.Depth
-		}
-
-		childSpans, err := fetchChildrenWithDepth(
-			client,
-			datasourceInfo,
-			traceID,
-			hit.Source.SpanID,
-			/* skip */ 0,
-			take,
-			/* currentDepth */ 1,
-			maxDepth,
-		)
+		childSpans, err := fetchSpanChildren(client, datasourceInfo, traceID, hit.Source.SpanID)
 		if err != nil {
 			log.Printf("Failed to fetch span children: %v", err)
-			return TracesData{}, err
+			return TraceDetail{}, err
 		}
 
 		spans := make([]Span, 0, 1+len(childSpans))
@@ -284,41 +220,26 @@ func getInitialTrace(datasourceInfo DataSourceInfo, traceID string, params Query
 		})
 	}
 
-	return TracesData{
+	return TraceDetail{
 		ResourceSpans: &resourceSpans,
 	}, nil
 }
 
-func getSubsequentTrace(datasourceInfo DataSourceInfo, traceID string, spanID string, params QueryTraceParams) (TracesData, error) {
+func getSubsequentTrace(datasourceInfo DataSourceInfo, traceID string, spanID string) (TraceDetail, error) {
 	client, err := opensearch.GetOpenSearchClient(datasourceInfo.URL)
 	if err != nil {
 		log.Printf("Failed to create OpenSearch client: %v", err)
-		return TracesData{}, err
+		return TraceDetail{}, err
 	}
 
-	skip := 0
-	if params.Skip != nil {
-		skip = *params.Skip
-	}
+	log.Printf("Fetching spans for trace %s, span %s", traceID, spanID)
 
-	take := 10
-	if params.Take != nil {
-		take = *params.Take
-	}
-
-	depth := 5
-	if params.Depth != nil {
-		depth = *params.Depth
-	}
-
-	log.Printf("Fetching spans for trace %s, span %s, skipping %d, taking %d, depth %d", traceID, spanID, skip, take, depth)
-
-	spans, err := fetchChildrenWithDepth(client, datasourceInfo, traceID, spanID, skip, take, 1, depth)
+	spans, err := fetchSpanChildren(client, datasourceInfo, traceID, spanID)
 	if err != nil {
-		return TracesData{}, err
+		return TraceDetail{}, err
 	}
 
-	return TracesData{
+	return TraceDetail{
 		ResourceSpans: &([]ResourceSpans{
 			{
 				ScopeSpans: &[]ScopeSpans{
@@ -330,30 +251,30 @@ func getSubsequentTrace(datasourceInfo DataSourceInfo, traceID string, spanID st
 }
 
 func getTraceFromOpenSearch(w http.ResponseWriter, datasourceInfo DataSourceInfo, traceID string, params QueryTraceParams) {
-	var trace TracesData
+	traceResponse := TraceDetailResponse{}
 
 	if params.SpanID == nil {
 		log.Println("Processing initial trace query request for traceId", traceID)
-		t, err := getInitialTrace(datasourceInfo, traceID, params)
+		t, err := getInitialTrace(datasourceInfo, traceID)
 		if err != nil {
 			log.Printf("Failed to get initial trace: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		trace = t
+		traceResponse.Trace = &t
 	} else {
 		log.Println("Processing subsequent trace query request for traceId", traceID, "and spanId", *params.SpanID)
-		t, err := getSubsequentTrace(datasourceInfo, traceID, *params.SpanID, params)
+		t, err := getSubsequentTrace(datasourceInfo, traceID, *params.SpanID)
 		if err != nil {
 			log.Printf("Failed to get subsequent trace: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
-		trace = t
+		traceResponse.Trace = &t
 	}
 
 	w.Header().Add("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(trace); err != nil {
+	if err := json.NewEncoder(w).Encode(traceResponse); err != nil {
 		log.Printf("Failed to encode response to JSON: %v", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -362,51 +283,24 @@ func getTraceFromOpenSearch(w http.ResponseWriter, datasourceInfo DataSourceInfo
 }
 
 func proxyTrace(w http.ResponseWriter, datasourceInfo DataSourceInfo, traceID string, params QueryTraceParams) {
-	depth := 5
-	if params.Depth != nil {
-		depth = *params.Depth
-	}
-
-	childrenLimit := 10
-	if params.ChildrenLimit != nil {
-		childrenLimit = *params.ChildrenLimit
-	}
-
 	var url string
 
 	if params.SpanID == nil {
 		url = fmt.Sprintf(
-			"%s/api/v2/traces/%s?start=%d&end=%d&spanId=%s&depth=%d&childrenLimit=%d",
+			"%s/api/v2/traces/%s?start=%d&end=%d",
 			datasourceInfo.URL,
 			traceID,
 			params.Start,
 			params.End,
-			*params.SpanID,
-			depth,
-			childrenLimit,
 		)
 	} else {
-		skip := 0
-		if params.Skip != nil {
-			skip = *params.Skip
-		}
-
-		take := 10
-		if params.Take != nil {
-			take = *params.Take
-		}
-
 		url = fmt.Sprintf(
-			"%s/api/v2/traces/%s?start=%d&end=%d&spanId=%s&depth=%d&childrenLimit=%d&skip=%d&take=%d",
+			"%s/api/v2/traces/%s?start=%d&end=%d&spanId=%s",
 			datasourceInfo.URL,
 			traceID,
 			params.Start,
 			params.End,
 			*params.SpanID,
-			depth,
-			childrenLimit,
-			skip,
-			take,
 		)
 	}
 
@@ -455,6 +349,8 @@ func (siw *ServerInterfaceImpl) QueryTrace(w http.ResponseWriter, req *http.Requ
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	log.Printf("Raw request: %+v", request)
 
 	if request.Type == "tempo" {
 		// This only works for a custom Tempo api that supports optimized trace queries.

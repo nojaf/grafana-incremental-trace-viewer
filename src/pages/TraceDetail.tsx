@@ -10,11 +10,11 @@ import type { datasource } from './TraceOverview';
 import { BASE_URL } from '../constants';
 import { Span as SpanComponent, SpanDetailPanel } from '../components/Span';
 
-type TraceResponse = components['schemas']['TracesData'];
+type TraceResponse = components['schemas']['TraceDetailResponse'];
 type DataSourceInfo = components['schemas']['DataSourceInfo'];
 
 export type Span = {
-  spanID: string;
+  spanId: string;
   parentSpanId: string | null;
   traceId: string;
   level: number;
@@ -23,10 +23,6 @@ export type Span = {
   name: string;
   hasMore: boolean;
 };
-
-function spanIdAsString(spanID: number[]): string {
-  return String.fromCodePoint(...spanID);
-}
 
 /**
  * Maps the span nodes to a list of spans.
@@ -38,24 +34,30 @@ function spanIdAsString(spanID: number[]): string {
  * @returns Span[]
  */
 function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResponse): Span[] {
-  const spanNodes = responseData.resourceSpans?.flatMap((r) => r.scopeSpans?.flatMap((s) => s.spans || []) || []) || [];
+  const spanNodes =
+    responseData.trace?.resourceSpans?.flatMap((r) => r.scopeSpans?.flatMap((s) => s.spans || []) || []) || [];
+  spanNodes.sort((a, b) => {
+    const start = (a.startTimeUnixNano || 0) - (b.startTimeUnixNano || 0);
+    const end = (b.endTimeUnixNano || 0) - (a.endTimeUnixNano || 0);
+    return start || end;
+  });
 
   const spans: Span[] = [];
   for (let i = 0; i < spanNodes.length; i++) {
     const span = spanNodes[i];
-    if (!span.spanID) {
+    if (!span.spanId) {
       continue;
     }
 
     // Assign the level to the span.
     if (!span.parentSpanId || span.parentSpanId.length === 0) {
-      idToLevelMap.set(spanIdAsString(span.spanID), 0);
+      idToLevelMap.set(span.spanId, 0);
     } else {
-      let parentLevel = idToLevelMap.get(spanIdAsString(span.parentSpanId));
+      let parentLevel = idToLevelMap.get(span.parentSpanId);
       if (parentLevel === undefined) {
-        throw new Error(`Parent level not found for ${spanIdAsString(span.spanID)}`);
+        throw new Error(`Parent level not found for ${span.spanId}`);
       }
-      idToLevelMap.set(spanIdAsString(span.spanID), parentLevel + 1);
+      idToLevelMap.set(span.spanId, parentLevel + 1);
     }
 
     // Skip the take + 1 elements.
@@ -63,12 +65,12 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
       let parentNode = spanNodes[i - take - 1];
       // If this element is <take> removed from the array, we can skip it.
       // It does indicate that the parent has more children.
-      if (parentNode.spanID && span.parentSpanId && isIdEqual(parentNode.spanID, span.parentSpanId)) {
+      if (parentNode.spanId && span.parentSpanId && parentNode.spanId === span.parentSpanId) {
         const parent = spans[spans.length - take - 1];
-        if (parent.spanID === spanIdAsString(parentNode.spanID)) {
+        if (parent.spanId === parentNode.spanId) {
           parent.hasMore = true;
         } else {
-          console.warn(`Parent span ${spanIdAsString(parentNode.spanID)} is not ${take} removed from take + 1 child`);
+          console.warn(`Parent span ${parentNode.spanId} is not ${take} removed from take + 1 child`);
         }
         console.info(`Skipping ${span.name} because`);
         continue;
@@ -76,10 +78,10 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
     }
 
     spans.push({
-      spanID: spanIdAsString(span.spanID),
-      parentSpanId: span.parentSpanId ? spanIdAsString(span.parentSpanId) : null,
-      traceId: spanIdAsString(span.traceId || []),
-      level: idToLevelMap.get(spanIdAsString(span.spanID)) || 0,
+      spanId: span.spanId,
+      parentSpanId: span.parentSpanId ? span.parentSpanId : null,
+      traceId: span.traceId || '',
+      level: idToLevelMap.get(span.spanId) || 0,
       startTimeUnixNano: span.startTimeUnixNano || 0,
       endTimeUnixNano: span.endTimeUnixNano || 0,
       name: span.name || '',
@@ -92,18 +94,6 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
 
 // TODO: consider making this configurable by the user.
 const take = 10;
-
-function isIdEqual(id1: number[], id2: number[]): boolean {
-  if (id1.length !== id2.length) {
-    return false;
-  }
-  for (let i = 0; i < id1.length; i++) {
-    if (id1[i] !== id2[i]) {
-      return false;
-    }
-  }
-  return true;
-}
 
 function TraceDetail() {
   const { traceId, datasourceId } = useParams<{ traceId: string; datasourceId: string }>();
@@ -141,7 +131,7 @@ function TraceDetail() {
         }
 
         const responses = getBackendSrv().fetch<TraceResponse>({
-          url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?depth=3&take=${take + 1}`,
+          url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}`,
           method: 'POST',
           data: {
             type: datasource.type,
@@ -151,6 +141,7 @@ function TraceDetail() {
           } satisfies DataSourceInfo,
         });
         const response = await lastValueFrom(responses);
+        console.log(response.data);
         const spans: Span[] = extractSpans(idToLevelMap.current, response.data);
         return spans;
       },
@@ -183,14 +174,14 @@ function TraceDetail() {
     // rangeExtractor: (range) => {}
   });
 
-  const loadMore = (index: number, spanID: string, currentLevel: number) => {
+  const loadMore = (index: number, spanId: string, currentLevel: number) => {
     if (!result.isSuccess) {
       return;
     }
 
     let skip = 0;
     for (let i = index + 1; i < result.data.length; i++) {
-      if (result.data[i].parentSpanId !== spanID) {
+      if (result.data[i].parentSpanId !== spanId) {
         break;
       }
       skip++;
@@ -203,7 +194,7 @@ function TraceDetail() {
       }
 
       const responses = getBackendSrv().fetch<TraceResponse>({
-        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanID=${spanID}&depth=3&take=${
+        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanId=${spanId}&depth=3&take=${
           take + 1
         }&skip=${skip}`,
         method: 'POST',
@@ -237,7 +228,7 @@ function TraceDetail() {
             // Add the new spans before the next span with the same level.
             let directChildrenCount = 0; // increment each span that has the same parentSpanId
             for (let c = 0; c < spans.length; c++) {
-              if (spans[c].parentSpanId === spanID) {
+              if (spans[c].parentSpanId === spanId) {
                 directChildrenCount++;
               }
               nextSpans.push(spans[c]);
@@ -296,7 +287,7 @@ function TraceDetail() {
                     const span = result.data[virtualItem.index];
                     const hasChildren =
                       virtualItem.index !== result.data.length - 1 &&
-                      result.data[virtualItem.index + 1].parentSpanId === span.spanID;
+                      result.data[virtualItem.index + 1].parentSpanId === span.spanId;
                     return (
                       <div
                         key={virtualItem.key}
@@ -307,7 +298,7 @@ function TraceDetail() {
                         }} // Limitation in tailwind dynamic class construction: Check README.md for more details
                       >
                         <SpanComponent
-                          key={span.spanID}
+                          key={span.spanId}
                           {...span}
                           index={virtualItem.index}
                           loadMore={loadMore}

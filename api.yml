@@ -60,39 +60,19 @@ paths:
           schema:
             type: integer # unix epoch seconds
           in: query
-        - name: depth
-          description: |
-            The depth of the query.
-            If not provided, the default depth will be used.
-          schema:
-            type: integer
-          in: query
-        - name: childrenLimit
-          description: |
-            The maximum number of children to fetch on each level.
-          schema:
-            type: integer
-          in: query
+        # - name: depth # TODO: to -1 all, 0 none, 1 next level.
+        #   description: |
+        #     The depth of the query.
+        #     If not provided, the default depth will be used.
+        #   schema:
+        #     type: integer
+        #   in: query
         - name: spanId
           description: |
             The parent span id to start the query from.
             If not provided, the root span will be used.
           schema:
             type: string
-          in: query
-        - name: skip
-          description: |
-            The number of spans to skip.
-            Should only be used in combination with spanId.
-          schema:
-            type: integer
-          in: query
-        - name: take
-          description: |
-            The number of spans to take.
-            Should only be used in combination with spanId.
-          schema:
-            type: integer
           in: query
       requestBody:
         content:
@@ -105,7 +85,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TracesData'
+                $ref: '#/components/schemas/TraceDetailResponse'
 
 components:
   schemas:
@@ -248,17 +228,9 @@ components:
       type: object
       properties:
         traceId:
-          type: array
-          items:
-            type: integer
-            format: int32
-          nullable: true
+          type: string
         spanId:
-          type: array
-          items:
-            type: integer
-            format: int32
-          nullable: true
+          type: string
         traceState:
           type: string
           nullable: true
@@ -328,25 +300,14 @@ components:
       type: object
       properties:
         traceId:
-          type: array
-          items:
-            type: integer
-            format: int32
-          nullable: true
-        spanID:
-          type: array
-          items:
-            type: integer
-            format: int32
-          nullable: true
+          type: string
+        spanId:
+          type: string
         traceState:
           type: string
           nullable: true
         parentSpanId:
-          type: array
-          items:
-            type: integer
-            format: int32
+          type: string
           nullable: true
         flags:
           type: integer
@@ -491,11 +452,6 @@ components:
         duration:
           type: string
           format: date-span
-        spanSets:
-          type: array
-          items:
-            $ref: '#/components/schemas/SpanSet'
-          nullable: true
       additionalProperties: false
     TempoV1Response:
       type: object
@@ -539,15 +495,21 @@ components:
             $ref: '#/components/schemas/TagValue'
           nullable: true
       additionalProperties: false
-    TracesData:
+    TraceDetail:
       type: object
       properties:
         resourceSpans:
           type: array
           items:
             $ref: '#/components/schemas/ResourceSpans'
-          nullable: true
+          nullable: false
           readOnly: true
+      additionalProperties: false
+    TraceDetailResponse:
+      type: object
+      properties:
+        trace:
+          $ref: '#/components/schemas/TraceDetail'
       additionalProperties: false
     ValueOneofCase:
       enum:

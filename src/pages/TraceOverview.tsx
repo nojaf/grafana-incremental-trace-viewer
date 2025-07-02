@@ -8,6 +8,7 @@ import { PluginPage, getBackendSrv, getDataSourceSrv } from '@grafana/runtime';
 import { Combobox, Field, Stack, Button, Icon, TimeRangeInput } from '@grafana/ui';
 import { DataSourceApi, DataSourceJsonData, dateTime, TimeRange } from '@grafana/data';
 import { DataQuery } from '@grafana/schema';
+import { TempoQuery } from '@grafana/schema/dist/esm/raw/composable/tempo/dataquery/x/TempoDataQuery_types.gen';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { type components, ApiPaths } from '../schema.gen';
@@ -207,8 +208,7 @@ function TraceOverview() {
                               query={query}
                               onChange={(newQuery: DataQuery) => {
                                 setQuery(newQuery);
-                                // query is a TempoQuery, but I'm not sure where that type should come from.
-                                const tempoQuery = newQuery as any;
+                                const tempoQuery = newQuery as TempoQuery;
                                 if (tempoQuery.query) {
                                   updateTraceQL(tempoQuery.query);
                                 }

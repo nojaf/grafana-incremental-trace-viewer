@@ -11,12 +11,12 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rndFloat = (min, max) => Math.random() * (max - min) + min;
 
 // ---------- parameters ----------
-const NUM_SERVICES = 2;
-const CHILDREN = 30;
+const NUM_SERVICES = 1;
+const CHILDREN = 3;
 
 // ---------- tracer provider ----------
 const resource = resourceFromAttributes({
-  [ATTR_SERVICE_NAME]: 'my-large-trace-provider',
+  [ATTR_SERVICE_NAME]: `my-large-trace-provider-${new Date().toISOString()}`,
   'other-resource-attribute': 'other-resource-attribute-value',
 });
 
