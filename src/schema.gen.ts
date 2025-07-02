@@ -96,8 +96,8 @@ export interface components {
       readonly values?: components['schemas']['KeyValue'][] | null;
     };
     Link: {
-      traceId?: number[] | null;
-      spanId?: number[] | null;
+      traceId?: string;
+      spanId?: string;
       traceState?: string | null;
       readonly attributes?: components['schemas']['KeyValue'][] | null;
       /** Format: int32 */
@@ -122,10 +122,10 @@ export interface components {
       schemaUrl?: string | null;
     };
     Span: {
-      traceId?: number[] | null;
-      spanID?: number[] | null;
+      traceId?: string;
+      spanId?: string;
       traceState?: string | null;
-      parentSpanId?: number[] | null;
+      parentSpanId?: string | null;
       /** Format: int32 */
       flags?: number;
       name?: string | null;
@@ -184,7 +184,6 @@ export interface components {
       startTime?: string;
       /** Format: date-span */
       duration?: string;
-      spanSets?: components['schemas']['SpanSet'][] | null;
     };
     TempoV1Response: {
       metrics?: components['schemas']['TempoMetrics'];
@@ -198,8 +197,11 @@ export interface components {
       scopes?: components['schemas']['TempoScope'][] | null;
       tagValues?: components['schemas']['TagValue'][] | null;
     };
-    TracesData: {
-      readonly resourceSpans?: components['schemas']['ResourceSpans'][] | null;
+    TraceDetail: {
+      readonly resourceSpans?: components['schemas']['ResourceSpans'][];
+    };
+    TraceDetailResponse: {
+      trace?: components['schemas']['TraceDetail'];
     };
     /** @enum {string} */
     ValueOneofCase:
@@ -254,25 +256,10 @@ export interface operations {
       query?: {
         start?: number;
         end?: number;
-        /** @description The depth of the query.
-         *     If not provided, the default depth will be used.
-         *      */
-        depth?: number;
-        /** @description The maximum number of children to fetch on each level.
-         *      */
-        childrenLimit?: number;
         /** @description The parent span id to start the query from.
          *     If not provided, the root span will be used.
          *      */
         spanId?: string;
-        /** @description The number of spans to skip.
-         *     Should only be used in combination with spanId.
-         *      */
-        skip?: number;
-        /** @description The number of spans to take.
-         *     Should only be used in combination with spanId.
-         *      */
-        take?: number;
       };
       header?: never;
       path: {
@@ -292,7 +279,7 @@ export interface operations {
           [name: string]: unknown;
         };
         content: {
-          'application/json': components['schemas']['TracesData'];
+          'application/json': components['schemas']['TraceDetailResponse'];
         };
       };
     };

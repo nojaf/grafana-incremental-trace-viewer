@@ -8,6 +8,7 @@ import { PluginPage, getBackendSrv, getDataSourceSrv } from '@grafana/runtime';
 import { Combobox, Field, Stack, Button, Icon, TimeRangeInput } from '@grafana/ui';
 import { DataSourceApi, DataSourceJsonData, dateTime, TimeRange } from '@grafana/data';
 import { DataQuery } from '@grafana/schema';
+import { TempoQuery } from '@grafana/schema/dist/esm/raw/composable/tempo/dataquery/x/TempoDataQuery_types.gen';
 import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
 import { type components, ApiPaths } from '../schema.gen';
@@ -177,57 +178,58 @@ function TraceOverview() {
             </div>
 
             {/* Filters */}
-            <div className="mb-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium">Filters</h3>
-                {hasActiveFilters && (
-                  <Button variant="secondary" size="sm" onClick={handleClearFilters} icon="times">
-                    Clear Filters
-                  </Button>
-                )}
-              </div>
-
-              <Stack direction="column">
-                {/* Time Range Filter */}
-                <Field label="Time Range" className="self-start">
-                  <TimeRangeInput value={getTimeRangeValue()} onChange={handleTimeRangeChange} showIcon />
-                </Field>
-
-                {/* Query Editor - dynamically loaded */}
-                {selectedDatasource &&
-                  selectedDatasource.type === 'tempo' &&
-                  selectedDatasource.components?.QueryEditor && (
-                    <Field label="Query" className="query-editor">
-                      {(() => {
-                        try {
-                          const QueryEditor = selectedDatasource.components.QueryEditor;
-                          return (
-                            <QueryEditor
-                              datasource={selectedDatasource}
-                              query={query}
-                              onChange={(newQuery: DataQuery) => {
-                                setQuery(newQuery);
-                                // query is a TempoQuery, but I'm not sure where that type should come from.
-                                const tempoQuery = newQuery as any;
-                                if (tempoQuery.query) {
-                                  updateTraceQL(tempoQuery.query);
-                                }
-                                console.log('Query changed:', newQuery);
-                              }}
-                              onRunQuery={() => {
-                                console.log('Run query requested');
-                              }}
-                            />
-                          );
-                        } catch (error) {
-                          console.error('Failed to render QueryEditor:', error);
-                          return <div>Unable to load query editor</div>;
-                        }
-                      })()}
-                    </Field>
+            {filters.datasource !== undefined && (
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-medium">Filters</h3>
+                  {hasActiveFilters && (
+                    <Button variant="secondary" size="sm" onClick={handleClearFilters} icon="times">
+                      Clear Filters
+                    </Button>
                   )}
-              </Stack>
-            </div>
+                </div>
+
+                <Stack direction="column">
+                  {/* Time Range Filter */}
+                  <Field label="Time Range" className="self-start">
+                    <TimeRangeInput value={getTimeRangeValue()} onChange={handleTimeRangeChange} showIcon />
+                  </Field>
+
+                  {/* Query Editor - dynamically loaded */}
+                  {selectedDatasource &&
+                    selectedDatasource.type === 'tempo' &&
+                    selectedDatasource.components?.QueryEditor && (
+                      <Field label="Query" className="query-editor">
+                        {(() => {
+                          try {
+                            const QueryEditor = selectedDatasource.components.QueryEditor;
+                            return (
+                              <QueryEditor
+                                datasource={selectedDatasource}
+                                query={query}
+                                onChange={(newQuery: DataQuery) => {
+                                  setQuery(newQuery);
+                                  const tempoQuery = newQuery as TempoQuery;
+                                  if (tempoQuery.query) {
+                                    updateTraceQL(tempoQuery.query);
+                                  }
+                                  console.log('Query changed:', newQuery);
+                                }}
+                                onRunQuery={() => {
+                                  console.log('Run query requested');
+                                }}
+                              />
+                            );
+                          } catch (error) {
+                            console.error('Failed to render QueryEditor:', error);
+                            return <div>Unable to load query editor</div>;
+                          }
+                        })()}
+                      </Field>
+                    )}
+                </Stack>
+              </div>
+            )}
           </Stack>
           {/* Results */}
           {result.isLoading && (
@@ -244,7 +246,7 @@ function TraceOverview() {
             </div>
           )}
 
-          {result.isSuccess && (
+          {result.isSuccess && filters.datasource !== undefined && (
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium">Traces</h3>

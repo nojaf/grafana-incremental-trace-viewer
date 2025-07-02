@@ -1,20 +1,26 @@
 import React from 'react';
 import { Icon } from '@grafana/ui';
-import { calculateColourBySpanId } from '../../utils/utils.timeline';
+import { calculateColourBySpanId, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
 import type { Span as SpanType } from '../../pages/TraceDetail';
 
 type SpanNodeProps = SpanType & {
   index: number;
   loadMore: (index: number, spanId: string, currentLevel: number) => void;
   hasChildren: boolean;
-  traceStartTime: number;
-  traceDuration: number;
+  traceStartTimeInMiliseconds: number;
+  traceDurationInMiliseconds: number;
   onSelect: (span: SpanType) => void;
 };
 
 export const Span = (props: SpanNodeProps) => {
-  const offset = ((props.startTimeUnixNano - props.traceStartTime) / props.traceDuration) * 100;
-  const width = ((props.endTimeUnixNano - props.startTimeUnixNano) / props.traceDuration) * 100;
+  const offset =
+    ((mkMilisecondsFromNanoSeconds(props.startTimeUnixNano) - props.traceStartTimeInMiliseconds) /
+      props.traceDurationInMiliseconds) *
+    100;
+  const width =
+    ((mkMilisecondsFromNanoSeconds(props.endTimeUnixNano) - mkMilisecondsFromNanoSeconds(props.startTimeUnixNano)) /
+      props.traceDurationInMiliseconds) *
+    100;
 
   const canLoadMore = props.hasMore;
 
@@ -39,7 +45,7 @@ export const Span = (props: SpanNodeProps) => {
               title="Load more traces"
               onClick={(e) => {
                 e.stopPropagation();
-                props.loadMore(props.index, props.spanID, props.level);
+                props.loadMore(props.index, props.spanId, props.level);
               }}
             />
           )}
@@ -47,7 +53,7 @@ export const Span = (props: SpanNodeProps) => {
       </div>
       <div
         className="w-2/3 h-full relative border-l-3"
-        style={{ borderColor: calculateColourBySpanId(props.level > 2 ? props.parentSpanId || '' : props.spanID) }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+        style={{ borderColor: calculateColourBySpanId(props.level > 2 ? props.parentSpanId || '' : props.spanId) }} // Limitation in tailwind dynamic class construction: Check README.md for more details
       >
         <div className="h-full relative mx-4">
           <div

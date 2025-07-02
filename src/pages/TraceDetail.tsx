@@ -9,12 +9,13 @@ import { ApiPaths, type components } from '../schema.gen';
 import type { datasource } from './TraceOverview';
 import { BASE_URL } from '../constants';
 import { Span as SpanComponent, SpanDetailPanel } from '../components/Span';
+import { mkMilisecondsFromNanoSeconds } from 'utils/utils.timeline';
 
-type TraceResponse = components['schemas']['TracesData'];
+type TraceResponse = components['schemas']['TraceDetailResponse'];
 type DataSourceInfo = components['schemas']['DataSourceInfo'];
 
 export type Span = {
-  spanID: string;
+  spanId: string;
   parentSpanId: string | null;
   traceId: string;
   level: number;
@@ -23,10 +24,6 @@ export type Span = {
   name: string;
   hasMore: boolean;
 };
-
-function spanIdAsString(spanID: number[]): string {
-  return String.fromCodePoint(...spanID);
-}
 
 /**
  * Maps the span nodes to a list of spans.
@@ -38,71 +35,48 @@ function spanIdAsString(spanID: number[]): string {
  * @returns Span[]
  */
 function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResponse): Span[] {
-  const spanNodes = responseData.resourceSpans?.flatMap((r) => r.scopeSpans?.flatMap((s) => s.spans || []) || []) || [];
+  const spanNodes =
+    responseData.trace?.resourceSpans?.flatMap((r) => r.scopeSpans?.flatMap((s) => s.spans || []) || []) || [];
+  spanNodes.sort((a, b) => {
+    const start = (a.startTimeUnixNano || 0) - (b.startTimeUnixNano || 0);
+    const end = (b.endTimeUnixNano || 0) - (a.endTimeUnixNano || 0);
+    return start || end;
+  });
 
   const spans: Span[] = [];
   for (let i = 0; i < spanNodes.length; i++) {
     const span = spanNodes[i];
-    if (!span.spanID) {
+    if (!span.spanId) {
       continue;
     }
 
     // Assign the level to the span.
     if (!span.parentSpanId || span.parentSpanId.length === 0) {
-      idToLevelMap.set(spanIdAsString(span.spanID), 0);
+      idToLevelMap.set(span.spanId, 0);
     } else {
-      let parentLevel = idToLevelMap.get(spanIdAsString(span.parentSpanId));
+      let parentLevel = idToLevelMap.get(span.parentSpanId);
       if (parentLevel === undefined) {
-        throw new Error(`Parent level not found for ${spanIdAsString(span.spanID)}`);
+        throw new Error(`Parent level not found for ${span.spanId}`);
       }
-      idToLevelMap.set(spanIdAsString(span.spanID), parentLevel + 1);
+      idToLevelMap.set(span.spanId, parentLevel + 1);
     }
 
-    // Skip the take + 1 elements.
-    if (i > take) {
-      let parentNode = spanNodes[i - take - 1];
-      // If this element is <take> removed from the array, we can skip it.
-      // It does indicate that the parent has more children.
-      if (parentNode.spanID && span.parentSpanId && isIdEqual(parentNode.spanID, span.parentSpanId)) {
-        const parent = spans[spans.length - take - 1];
-        if (parent.spanID === spanIdAsString(parentNode.spanID)) {
-          parent.hasMore = true;
-        } else {
-          console.warn(`Parent span ${spanIdAsString(parentNode.spanID)} is not ${take} removed from take + 1 child`);
-        }
-        console.info(`Skipping ${span.name} because`);
-        continue;
-      }
-    }
+    const childrenCount = span.attributes?.find((a) => a.key === 'childrenCount')?.value?.intValue || 0;
+    const isNotRoot = span.parentSpanId != null && span.parentSpanId.length > 0;
 
     spans.push({
-      spanID: spanIdAsString(span.spanID),
-      parentSpanId: span.parentSpanId ? spanIdAsString(span.parentSpanId) : null,
-      traceId: spanIdAsString(span.traceId || []),
-      level: idToLevelMap.get(spanIdAsString(span.spanID)) || 0,
+      spanId: span.spanId,
+      parentSpanId: span.parentSpanId ? span.parentSpanId : null,
+      traceId: span.traceId || '',
+      level: idToLevelMap.get(span.spanId) || 0,
       startTimeUnixNano: span.startTimeUnixNano || 0,
       endTimeUnixNano: span.endTimeUnixNano || 0,
       name: span.name || '',
       // We determine this above.
-      hasMore: false,
+      hasMore: isNotRoot && childrenCount > 0,
     });
   }
   return spans;
-}
-
-// TODO: consider making this configurable by the user.
-const take = 10;
-
-function isIdEqual(id1: number[], id2: number[]): boolean {
-  if (id1.length !== id2.length) {
-    return false;
-  }
-  for (let i = 0; i < id1.length; i++) {
-    if (id1[i] !== id2[i]) {
-      return false;
-    }
-  }
-  return true;
 }
 
 function TraceDetail() {
@@ -141,7 +115,7 @@ function TraceDetail() {
         }
 
         const responses = getBackendSrv().fetch<TraceResponse>({
-          url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?depth=3&take=${take + 1}`,
+          url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}`,
           method: 'POST',
           data: {
             type: datasource.type,
@@ -151,6 +125,7 @@ function TraceDetail() {
           } satisfies DataSourceInfo,
         });
         const response = await lastValueFrom(responses);
+        console.log(response.data);
         const spans: Span[] = extractSpans(idToLevelMap.current, response.data);
         return spans;
       },
@@ -158,21 +133,23 @@ function TraceDetail() {
     queryClient
   );
 
-  const traceDuration = React.useMemo(() => {
+  const traceDurationInMiliseconds = React.useMemo(() => {
     if (!result.isSuccess || result.data.length === 0) {
       return 0;
     }
     const rootSpan = result.data[0];
-    return rootSpan.endTimeUnixNano - rootSpan.startTimeUnixNano;
+    return (
+      mkMilisecondsFromNanoSeconds(rootSpan.endTimeUnixNano) - mkMilisecondsFromNanoSeconds(rootSpan.startTimeUnixNano)
+    );
   }, [result.isSuccess, result.data]);
 
-  const traceStartTime = React.useMemo(() => {
+  const traceStartTimeInMiliseconds = React.useMemo(() => {
     if (!result.isSuccess || result.data.length === 0) {
       return 0;
     }
     const rootSpan = result.data[0];
     // TODO: not sure if this will work as is in nano seconds.
-    return new Date(rootSpan.startTimeUnixNano).getTime();
+    return new Date(mkMilisecondsFromNanoSeconds(rootSpan.startTimeUnixNano)).getTime();
   }, [result.isSuccess, result.data]);
 
   const rowVirtualizer = useVirtualizer({
@@ -183,14 +160,14 @@ function TraceDetail() {
     // rangeExtractor: (range) => {}
   });
 
-  const loadMore = (index: number, spanID: string, currentLevel: number) => {
+  const loadMore = (index: number, spanId: string) => {
     if (!result.isSuccess) {
       return;
     }
 
     let skip = 0;
     for (let i = index + 1; i < result.data.length; i++) {
-      if (result.data[i].parentSpanId !== spanID) {
+      if (result.data[i].parentSpanId !== spanId) {
         break;
       }
       skip++;
@@ -203,9 +180,7 @@ function TraceDetail() {
       }
 
       const responses = getBackendSrv().fetch<TraceResponse>({
-        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanID=${spanID}&depth=3&take=${
-          take + 1
-        }&skip=${skip}`,
+        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanId=${spanId}`,
         method: 'POST',
         data: {
           type: datasource.type,
@@ -232,18 +207,11 @@ function TraceDetail() {
             continue;
           }
 
-          // Find the next span with the same level, effectively being a sibling of the current span.
-          if (i > index && oldData[i].level === currentLevel) {
-            // Add the new spans before the next span with the same level.
-            let directChildrenCount = 0; // increment each span that has the same parentSpanId
+          if (i === index + 1) {
+            // Add the new spans after their parent span.
             for (let c = 0; c < spans.length; c++) {
-              if (spans[c].parentSpanId === spanID) {
-                directChildrenCount++;
-              }
               nextSpans.push(spans[c]);
             }
-
-            nextSpans[index].hasMore = directChildrenCount > take;
             didAddNewSpans = true;
           }
 
@@ -253,6 +221,8 @@ function TraceDetail() {
         if (!didAddNewSpans) {
           nextSpans.push(...spans);
         }
+
+        nextSpans[index].hasMore = false;
 
         return nextSpans;
       });
@@ -275,7 +245,7 @@ function TraceDetail() {
                       left: `${(i / 4) * 100}%`,
                     }} // Limitation in tailwind dynamic class construction: Check README.md for more details
                   >
-                    {((traceDuration / 1000 / 4) * i).toFixed(2)}s
+                    {((traceDurationInMiliseconds / 1000 / 4) * i).toFixed(2)}s
                   </div>
                 ))}
               </div>
@@ -296,7 +266,7 @@ function TraceDetail() {
                     const span = result.data[virtualItem.index];
                     const hasChildren =
                       virtualItem.index !== result.data.length - 1 &&
-                      result.data[virtualItem.index + 1].parentSpanId === span.spanID;
+                      result.data[virtualItem.index + 1].parentSpanId === span.spanId;
                     return (
                       <div
                         key={virtualItem.key}
@@ -307,12 +277,12 @@ function TraceDetail() {
                         }} // Limitation in tailwind dynamic class construction: Check README.md for more details
                       >
                         <SpanComponent
-                          key={span.spanID}
+                          key={span.spanId}
                           {...span}
                           index={virtualItem.index}
                           loadMore={loadMore}
-                          traceStartTime={traceStartTime}
-                          traceDuration={traceDuration}
+                          traceStartTimeInMiliseconds={traceStartTimeInMiliseconds}
+                          traceDurationInMiliseconds={traceDurationInMiliseconds}
                           onSelect={setSelectedSpan}
                           hasChildren={hasChildren}
                         />

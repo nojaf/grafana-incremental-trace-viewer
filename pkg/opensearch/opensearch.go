@@ -138,6 +138,28 @@ type TopHitsHits struct {
 	Hits []Hit `json:"hits"`
 }
 
+// Child count aggregation response structures
+type ChildCountResponse struct {
+	Took         int            `json:"took"`
+	TimedOut     bool           `json:"timed_out"`
+	Shards       Shards         `json:"_shards"`
+	Hits         Hits           `json:"hits"`
+	Aggregations ChildCountAggs `json:"aggregations"`
+}
+
+type ChildCountAggs struct {
+	ChildCountsByParent ChildCountsByParent `json:"child_counts_by_parent"`
+}
+
+type ChildCountsByParent struct {
+	Buckets []ChildCountBucket `json:"buckets"`
+}
+
+type ChildCountBucket struct {
+	Key      string `json:"key"`
+	DocCount int    `json:"doc_count"`
+}
+
 func GetOpenSearchClient(url string) (*opensearch.Client, error) {
 	client, err := opensearch.NewClient(opensearch.Config{
 		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}},
@@ -168,4 +190,25 @@ func Search(client *opensearch.Client, index string, body string) (*OpenSearchRe
 	}
 
 	return &osResponse, nil
+}
+
+func SearchChildCounts(client *opensearch.Client, index string, body string) (*ChildCountResponse, error) {
+	search := opensearchapi.SearchRequest{
+		Index: []string{index},
+		Body:  strings.NewReader(body),
+	}
+
+	searchResponse, err := search.Do(context.Background(), client)
+	if err != nil {
+		return nil, err
+	}
+	defer searchResponse.Body.Close()
+
+	var response ChildCountResponse
+	if err := json.NewDecoder(searchResponse.Body).Decode(&response); err != nil {
+		log.Printf("Failed to decode child count OpenSearch response: %v", err)
+		return nil, err
+	}
+
+	return &response, nil
 }
