@@ -43,3 +43,6 @@ ci/
 
 # Local history plugin
 .history/
+
+# Plugin zip archive
+gresearch-grafanaincrementaltraceviewer-app-*.zip

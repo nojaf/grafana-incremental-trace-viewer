@@ -3,6 +3,7 @@
   "type": "app",
   "name": "Grafana-Incremental-Trace-Viewer",
   "id": "gresearch-grafanaincrementaltraceviewer-app",
+  "version": "0.1.0",
   "backend": true,
   "executable": "gpx_grafana_incremental_trace_viewer",
   "info": {

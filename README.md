@@ -178,3 +178,15 @@ bun run generate-api
 ## Styling with Tailwind CSS
 
 This project uses [Tailwind CSS](https://tailwindcss.com/) for styling. Note that Tailwind cannot detect dynamically constructed class names, so we use inline `style` tags for truly dynamic values. For more details, see the [Tailwind CSS documentation on dynamic class names](https://tailwindcss.com/docs/detecting-classes-in-source-files#dynamic-class-names).
+
+## Packaging and installing the plugin
+
+Run `bun run package` to create a plugin zip archive.
+
+```shell
+# Install via the grafana cli
+./bin/grafana cli -pluginUrl ../gresearch-grafanaincrementaltraceviewer-app-0.1.0.zip plugins install "gresearch-grafanaincrementaltraceviewer-app"
+```
+
+Afterward you need to start Grafana, if you are using Docker, just restart the container.
+Once that is done, you need to enable the plugin via the UI.

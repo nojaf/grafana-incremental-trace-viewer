@@ -16,7 +16,8 @@
     "fmt:check": "prettier --check . && go fmt ./pkg/...",
     "generate-api:go": "go tool oapi-codegen --config pkg/plugin/apiconfig.yml ./api.yml > pkg/plugin/api.gen.go",
     "generate-api:ts": "openapi-typescript ./api.yml -o src/schema.gen.ts --make-paths-enum",
-    "generate-api": "bun run generate-api:go && bun run generate-api:ts"
+    "generate-api": "bun run generate-api:go && bun run generate-api:ts",
+    "package": "bun run scripts/package-plugin.js"
   },
   "author": "G research",
   "license": "Apache-2.0",
