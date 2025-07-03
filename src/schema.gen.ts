@@ -256,6 +256,11 @@ export interface operations {
       query?: {
         start?: number;
         end?: number;
+        /** @description The depth of the query.
+         *     If not provided, the entire trace will be returned.
+         *     Should be a positive integer.
+         *      */
+        depth?: number;
         /** @description The parent span id to start the query from.
          *     If not provided, the root span will be used.
          *      */

@@ -115,7 +115,7 @@ function TraceDetail() {
         }
 
         const responses = getBackendSrv().fetch<TraceResponse>({
-          url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}`,
+          url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?depth=1`,
           method: 'POST',
           data: {
             type: datasource.type,
@@ -180,7 +180,7 @@ function TraceDetail() {
       }
 
       const responses = getBackendSrv().fetch<TraceResponse>({
-        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanId=${spanId}`,
+        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanId=${spanId}&depth=1`,
         method: 'POST',
         data: {
           type: datasource.type,

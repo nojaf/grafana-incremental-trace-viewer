@@ -60,17 +60,19 @@ paths:
           schema:
             type: integer # unix epoch seconds
           in: query
-        # - name: depth # TODO: to -1 all, 0 none, 1 next level.
-        #   description: |
-        #     The depth of the query.
-        #     If not provided, the default depth will be used.
-        #   schema:
-        #     type: integer
-        #   in: query
+        - name: depth
+          description: |
+            The depth of the query.
+            If not provided, the entire trace will be returned.
+            Should be a positive integer.
+          schema:
+            type: integer
+          in: query
         - name: spanId
           description: |
             The parent span id to start the query from.
             If not provided, the root span will be used.
+            Requires depth to be present.
           schema:
             type: string
           in: query
