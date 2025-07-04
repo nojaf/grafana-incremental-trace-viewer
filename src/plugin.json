@@ -35,5 +35,6 @@
       "role": "Admin",
       "addToNav": true
     }
-  ]
+  ],
+  "dependencies": []
 }
