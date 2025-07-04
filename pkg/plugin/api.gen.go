@@ -217,6 +217,11 @@ type QueryTraceParams struct {
 	Start *int `form:"start,omitempty" json:"start,omitempty"`
 	End   *int `form:"end,omitempty" json:"end,omitempty"`
 
+	// Depth The depth of the query.
+	// If not provided, the entire trace will be returned.
+	// Should be a positive integer.
+	Depth *int `form:"depth,omitempty" json:"depth,omitempty"`
+
 	// SpanID The parent span id to start the query from.
 	// If not provided, the root span will be used.
 	SpanID *string `form:"spanId,omitempty" json:"spanId,omitempty"`
@@ -349,6 +354,14 @@ func (siw *ServerInterfaceWrapper) QueryTrace(w http.ResponseWriter, r *http.Req
 	err = runtime.BindQueryParameter("form", true, false, "end", r.URL.Query(), &params.End)
 	if err != nil {
 		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "end", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "depth" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "depth", r.URL.Query(), &params.Depth)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "depth", Err: err})
 		return
 	}
 

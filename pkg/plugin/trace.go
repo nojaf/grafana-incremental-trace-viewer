@@ -219,6 +219,109 @@ func fetchSpanChildren(client *os.Client, datasourceInfo DataSourceInfo, traceID
 	return spans, nil
 }
 
+func getEntireTrace(datasourceInfo DataSourceInfo, traceID string) (TraceDetail, error) {
+	client, err := opensearch.GetOpenSearchClient(datasourceInfo.URL)
+	if err != nil {
+		log.Printf("Failed to create OpenSearch client: %v", err)
+		return TraceDetail{}, err
+	}
+
+	timeField := "@timestamp"
+	if datasourceInfo.TimeField != nil {
+		timeField = *datasourceInfo.TimeField
+	}
+
+	// First, get the root span to extract resource information
+	rootQuery := fmt.Sprintf(`{
+  "size": 1,
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "term": {
+            "traceId": %q
+          }
+        },
+        {
+          "term": {
+            "parentSpanId": ""
+          }
+        }
+      ]
+    }
+  }
+}`, traceID)
+
+	rootResponse, err := opensearch.Search(client, datasourceInfo.Database, rootQuery)
+	if err != nil {
+		log.Printf("Failed to execute root span query: %v", err)
+		return TraceDetail{}, err
+	}
+
+	if len(rootResponse.Hits.Hits) == 0 {
+		log.Printf("No root span found for trace %s", traceID)
+		return TraceDetail{}, fmt.Errorf("no root span found for trace %s", traceID)
+	}
+
+	rootSpan := rootResponse.Hits.Hits[0]
+	resourceAttributes := convertKeyValues(rootSpan.Source.Resource)
+	resource := Resource{
+		Attributes: &resourceAttributes,
+	}
+
+	// Now get all spans for the trace
+	query := fmt.Sprintf(`{
+  "size": 10000,
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "term": {
+            "traceId": %q
+          }
+        }
+      ]
+    }
+  },
+  "sort": [ { %q: { "order": "asc" } }]
+}`, traceID, timeField)
+
+	openSearchResponse, err := opensearch.Search(client, datasourceInfo.Database, query)
+	if err != nil {
+		log.Printf("Failed to execute OpenSearch query: %v", err)
+		return TraceDetail{}, err
+	}
+
+	spanIDs := make([]string, 0, len(openSearchResponse.Hits.Hits))
+	for _, hit := range openSearchResponse.Hits.Hits {
+		spanIDs = append(spanIDs, hit.Source.SpanID)
+	}
+
+	childrenCount, err := fetchSpanChildrenCount(client, datasourceInfo, traceID, spanIDs)
+	if err != nil {
+		log.Printf("Failed to fetch span children count: %v", err)
+		return TraceDetail{}, err
+	}
+
+	spans := make([]Span, 0, len(openSearchResponse.Hits.Hits))
+	for _, hit := range openSearchResponse.Hits.Hits {
+		spans = append(spans, convertHitToSpan(hit, childrenCount[hit.Source.SpanID]))
+	}
+
+	scopeSpans := ScopeSpans{
+		Spans: &spans,
+	}
+
+	resourceSpan := ResourceSpans{
+		Resource:   &resource,
+		ScopeSpans: &[]ScopeSpans{scopeSpans},
+	}
+
+	return TraceDetail{
+		ResourceSpans: &[]ResourceSpans{resourceSpan},
+	}, nil
+}
+
 func getInitialTrace(datasourceInfo DataSourceInfo, traceID string) (TraceDetail, error) {
 	client, err := opensearch.GetOpenSearchClient(datasourceInfo.URL)
 	if err != nil {
@@ -338,7 +441,14 @@ func getTraceFromOpenSearch(w http.ResponseWriter, datasourceInfo DataSourceInfo
 
 	if params.SpanID == nil {
 		log.Println("Processing initial trace query request for traceId", traceID)
-		t, err := getInitialTrace(datasourceInfo, traceID)
+		var t TraceDetail
+		var err error
+		if params.Depth == nil {
+			t, err = getEntireTrace(datasourceInfo, traceID)
+		} else {
+			t, err = getInitialTrace(datasourceInfo, traceID)
+		}
+
 		if err != nil {
 			log.Printf("Failed to get initial trace: %v", err)
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -346,6 +456,17 @@ func getTraceFromOpenSearch(w http.ResponseWriter, datasourceInfo DataSourceInfo
 		}
 		traceResponse.Trace = &t
 	} else {
+		if params.Depth == nil {
+			log.Printf("depth is required when spanID is provided")
+			http.Error(w, "?depth is required when spanID is provided", http.StatusBadRequest)
+			return
+		}
+
+		if *params.Depth != 1 {
+			http.Error(w, "The OpenSearch query only supports depth=1 for now", http.StatusBadRequest)
+			return
+		}
+
 		log.Println("Processing subsequent trace query request for traceId", traceID, "and spanId", *params.SpanID)
 		t, err := getSubsequentTrace(datasourceInfo, traceID, *params.SpanID)
 		if err != nil {
