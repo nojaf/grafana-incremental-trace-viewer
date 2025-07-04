@@ -35,16 +35,5 @@
       "role": "Admin",
       "addToNav": true
     }
-  ],
-  "dependencies": {
-    "grafanaDependency": ">=10.4.0",
-    "plugins": [
-      {
-        "type": "datasource",
-        "id": "grafana-opensearch-datasource",
-        "name": "OpenSearch",
-        "version": "^2.0.0"
-      }
-    ]
-  }
+  ]
 }
