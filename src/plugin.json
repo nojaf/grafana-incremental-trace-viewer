@@ -36,5 +36,7 @@
       "addToNav": true
     }
   ],
-  "dependencies": {}
+  "dependencies": {
+    "grafanaDependency": ">=10.4.0"
+  }
 }
