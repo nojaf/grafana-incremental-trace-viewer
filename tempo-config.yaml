@@ -57,3 +57,7 @@ querier:
       max_send_msg_size: 2500000000 # Good practice to set symmetrically
 
 stream_over_http_enabled: true
+
+query_frontend:
+  search:
+    max_spans_per_span_set: 0

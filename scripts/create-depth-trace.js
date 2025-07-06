@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { context as otContext, trace } from '@opentelemetry/api';
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-grpc';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
@@ -11,8 +12,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rndFloat = (min, max) => Math.random() * (max - min) + min;
 
 // ---------- parameters ----------
-const NUM_SERVICES = 1;
-const CHILDREN = 3;
+const NUM_SERVICES = 2;
+const CHILDREN = 5;
 
 // ---------- tracer provider ----------
 const resource = resourceFromAttributes({
@@ -44,6 +45,8 @@ async function main() {
       const childSpan = tracer.startSpan(`service_${i}_child_${j}`, undefined, serviceCtx);
       childSpan.setAttribute('child-span-attribute-xyz', 456);
       await sleep(rndFloat(10, 50));
+      childSpan.setAttribute('foo', 'bar');
+      childSpan.setAttribute('yozora', crypto.randomUUID());
       childSpan.end();
       log(`Created ${j + 1} spans at depth ${i + 1}`);
     }
