@@ -80,9 +80,9 @@ function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResp
 }
 
 function TraceDetail() {
-  const { traceId, datasourceId } = useParams<{ traceId: string; datasourceId: string }>();
+  const { traceId, datasourceUid } = useParams<{ traceId: string; datasourceUid: string }>();
   // Should we assert for traceId and datasourceId?
-  if (!traceId || !datasourceId) {
+  if (!traceId || !datasourceUid) {
     throw new Error('traceId and datasourceId are required');
   }
 
