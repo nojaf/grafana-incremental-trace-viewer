@@ -62,7 +62,7 @@ start = nanoSecondsToUnixEpoch(rootSpan.startTimeUnixNano);
 end = nanoSecondsToUnixEpoch(rootSpan.endTimeUnixNano);
 console.log(start, end);
 
-const q2 = '{ span:id = "9777756fa98d005e" }';
+const q2 = `{ span:id = "${base64ToHex(rootSpan.spanId)}" }`;
 const tagSearch = await fetch(
   `http://localhost:3200/api/v2/search/tags?q=${encodeURIComponent(q2)}&start=${start}&end=${end}`,
   {
@@ -92,3 +92,16 @@ const spanDetails = await fetch(
 
 json = await spanDetails.json();
 console.log(inspect(json, { depth: 10, colors: true }));
+
+console.log('--------------------------------');
+
+end = start + trace.durationMs;
+const q4 = `{ span:parentID = "${base64ToHex(rootSpan.spanId)}" }`;
+console.log(q4);
+const children = await fetch(`http://localhost:3200/api/search?q=${encodeURIComponent(q4)}&start=${start}&end=${end}`, {
+  method: 'GET',
+  headers: { 'Content-Type': 'application/json' },
+});
+
+json = await children.json();
+console.log('children', inspect(json, { depth: 10, colors: true }));
