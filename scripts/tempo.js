@@ -19,8 +19,8 @@ function base64ToHex(base64Str) {
   }
 }
 
-const q = '{ span:id = "9777756fa98d005e" }';
-let start = Math.floor(Date.now() / 1000) - 360000;
+const q = '{}';
+let start = Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 7;
 let end = Math.floor(Date.now() / 1000);
 
 const resSearch = await fetch(
@@ -42,8 +42,9 @@ console.log('--------------------------------');
 start = nanoSecondsToUnixEpoch(trace.startTimeUnixNano);
 // Just do + 1 to get find the start span (the one without parentID)
 end = start + 1;
+const q1 = `{ trace:id = "${trace.traceID}" && nestedSetParent = -1 } | select (span:parentID)`;
 
-const resTrace = await fetch(`http://localhost:3200/api/v2/traces/${trace.traceID}?start=${start}&end=${end}`, {
+const resTrace = await fetch(`http://localhost:3200/api/search?q=${encodeURIComponent(q1)}&start=${start}&end=${end}`, {
   method: 'GET', // GET also works with bodies, but ES docs use POST
   headers: { 'Content-Type': 'application/json' },
 });
@@ -53,16 +54,22 @@ console.log(inspect(json, { depth: 10, colors: true }));
 
 console.log('--------------------------------');
 
-const rootSpan = json.trace.resourceSpans[0].scopeSpans
-  .flatMap((scopeSpans) => scopeSpans.spans)
-  .find((span) => !span.parentSpanId);
+const rootSpan = json.traces[0].spanSets
+  .flatMap((ss) => ss.spans)
+  .find((span) => {
+    return span.attributes.some((a) => a.key === 'span:parentID' && a.value.stringValue === '0000000000000000');
+  });
+
 console.log('Root span:', rootSpan);
 
 start = nanoSecondsToUnixEpoch(rootSpan.startTimeUnixNano);
-end = nanoSecondsToUnixEpoch(rootSpan.endTimeUnixNano);
+end = start + nanoSecondsToUnixEpoch(rootSpan.durationNanos);
+if (end === start) {
+  end = start + 1;
+}
 console.log(start, end);
 
-const q2 = `{ span:id = "${base64ToHex(rootSpan.spanId)}" }`;
+const q2 = `{ span:id = "${rootSpan.spanID}" }`;
 const tagSearch = await fetch(
   `http://localhost:3200/api/v2/search/tags?q=${encodeURIComponent(q2)}&start=${start}&end=${end}`,
   {
@@ -80,7 +87,7 @@ const tags = json.scopes.find((s) => s.name === 'span').tags;
 
 // Get details could be fetched by the search tags
 // { span:id = "9777756fa98d005e" } | select (span.child-span-attribute-xyz, span.foo, span.root-span-attribute-xyz, span.yozora)
-const q3 = `{ span:id = "${base64ToHex(rootSpan.spanId)}" } | select (${tags.map((t) => `span.${t}`).join(', ')})`;
+const q3 = `{ span:id = "${rootSpan.spanID}" } | select (${tags.map((t) => `span.${t}`).join(', ')})`;
 console.log(q3);
 const spanDetails = await fetch(
   `http://localhost:3200/api/search?q=${encodeURIComponent(q3)}&start=${start}&end=${end}&spss=1`,
@@ -96,7 +103,7 @@ console.log(inspect(json, { depth: 10, colors: true }));
 console.log('--------------------------------');
 
 end = start + trace.durationMs;
-const q4 = `{ span:parentID = "${base64ToHex(rootSpan.spanId)}" }`;
+const q4 = `{ span:parentID = "${rootSpan.spanID}" }`;
 console.log(q4);
 const children = await fetch(`http://localhost:3200/api/search?q=${encodeURIComponent(q4)}&start=${start}&end=${end}`, {
   method: 'GET',
