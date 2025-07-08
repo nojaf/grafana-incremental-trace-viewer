@@ -1,20 +1,15 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { testIds } from '../components/testIds';
-import { getBackendSrv, PluginPage } from '@grafana/runtime';
+import { PluginPage } from '@grafana/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { lastValueFrom } from 'rxjs';
+
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ApiPaths, type components } from '../schema.gen';
-import type { datasource } from './TraceOverview';
-import { BASE_URL } from '../constants';
 import { Span as SpanComponent, SpanDetailPanel } from '../components/Span';
-import { mkMilisecondsFromNanoSeconds } from 'utils/utils.timeline';
+import { mkMilisecondsFromNanoSeconds, mkUnixEpochFromNanoSeconds } from 'utils/utils.timeline';
+import { search, SearchResponse, Span } from 'utils/utils.api';
 
-type TraceResponse = components['schemas']['TraceDetailResponse'];
-type DataSourceInfo = components['schemas']['DataSourceInfo'];
-
-export type Span = {
+export type SpanInfo = {
   spanId: string;
   parentSpanId: string | null;
   traceId: string;
@@ -25,6 +20,29 @@ export type Span = {
   hasMore: boolean;
 };
 
+function getParentSpanId(span: Span): string | null {
+  const attributes = span.attributes;
+  if (!attributes) {
+    return null;
+  }
+  const parentSpanId = attributes.find((a) => a.key === 'span:parentID')?.value?.stringValue;
+  return parentSpanId || null;
+}
+
+async function hasChildren(
+  datasourceUid: string,
+  traceId: string,
+  spanId: string,
+  startTimeUnixNano: number,
+  endTimeUnixNano: number
+): Promise<boolean> {
+  const q = `{ trace:id = "${traceId}" && span:parentID = "${spanId}" } | count() > 0`;
+  const start = mkUnixEpochFromNanoSeconds(startTimeUnixNano);
+  const end = mkUnixEpochFromNanoSeconds(endTimeUnixNano);
+  const data = await search(datasourceUid, q, start, end, 1);
+  return (data.traces && data.traces.length > 0) || false;
+}
+
 /**
  * Maps the span nodes to a list of spans.
  * It also assigns the level to the span.
@@ -34,99 +52,97 @@ export type Span = {
  * @param idToLevelMap
  * @returns Span[]
  */
-function extractSpans(idToLevelMap: Map<string, number>, responseData: TraceResponse): Span[] {
-  const spanNodes =
-    responseData.trace?.resourceSpans?.flatMap((r) => r.scopeSpans?.flatMap((s) => s.spans || []) || []) || [];
+async function extractSpans(
+  idToLevelMap: Map<string, number>,
+  traceId: string,
+  datasourceUid: string,
+  responseData: SearchResponse
+): Promise<SpanInfo[]> {
+  const trace = responseData.traces?.find((t) => t.traceID === traceId);
+  if (!trace) {
+    throw new Error(`Trace not found for ${traceId}`);
+  }
+
+  let spanNodes = trace.spanSets?.flatMap((r) => r.spans || []) || [];
+
   spanNodes.sort((a, b) => {
-    const start = (a.startTimeUnixNano || 0) - (b.startTimeUnixNano || 0);
-    const end = (b.endTimeUnixNano || 0) - (a.endTimeUnixNano || 0);
+    const start = parseInt(a.startTimeUnixNano || '0', 10) - parseInt(b.startTimeUnixNano || '0', 10);
+    const end = parseInt(b.durationNanos || '0', 10) - parseInt(a.durationNanos || '0', 10);
     return start || end;
   });
 
-  const spans: Span[] = [];
+  console.log(spanNodes);
+
+  const spans: SpanInfo[] = [];
   for (let i = 0; i < spanNodes.length; i++) {
     const span = spanNodes[i];
-    if (!span.spanId) {
+    if (!span.spanID) {
       continue;
     }
 
+    const parentSpanId = getParentSpanId(span);
+
     // Assign the level to the span.
-    if (!span.parentSpanId || span.parentSpanId.length === 0) {
-      idToLevelMap.set(span.spanId, 0);
+    if (parentSpanId === null) {
+      idToLevelMap.set(span.spanID, 0);
     } else {
-      let parentLevel = idToLevelMap.get(span.parentSpanId);
+      let parentLevel = idToLevelMap.get(parentSpanId);
       if (parentLevel === undefined) {
-        throw new Error(`Parent level not found for ${span.spanId}`);
+        throw new Error(`Parent level not found for ${span.spanID}`);
       }
-      idToLevelMap.set(span.spanId, parentLevel + 1);
+      idToLevelMap.set(span.spanID, parentLevel + 1);
     }
 
-    const childrenCount = span.attributes?.find((a) => a.key === 'childrenCount')?.value?.intValue || 0;
-    const isNotRoot = span.parentSpanId != null && span.parentSpanId.length > 0;
+    const startTimeUnixNano = parseInt(span.startTimeUnixNano || '0', 10);
+    const durationNanos = parseInt(span.durationNanos || '0', 10);
+    const endTimeUnixNano = startTimeUnixNano + durationNanos;
+    // This is a rather expensive call.
+    // We need to call this for every span.
+    const hasMore = await hasChildren(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
 
     spans.push({
-      spanId: span.spanId,
-      parentSpanId: span.parentSpanId ? span.parentSpanId : null,
-      traceId: span.traceId || '',
-      level: idToLevelMap.get(span.spanId) || 0,
-      startTimeUnixNano: span.startTimeUnixNano || 0,
-      endTimeUnixNano: span.endTimeUnixNano || 0,
+      spanId: span.spanID,
+      parentSpanId: parentSpanId,
+      traceId: traceId,
+      level: idToLevelMap.get(span.spanID) || 0,
+      startTimeUnixNano: startTimeUnixNano,
+      endTimeUnixNano: endTimeUnixNano,
       name: span.name || '',
-      // We determine this above.
-      hasMore: isNotRoot && childrenCount > 0,
+      hasMore: hasMore,
     });
   }
   return spans;
 }
 
 function TraceDetail() {
-  const { traceId, datasourceId } = useParams<{ traceId: string; datasourceId: string }>();
+  const { traceId, datasourceUid, startTime } = useParams<{
+    traceId: string;
+    datasourceUid: string;
+    startTime: string;
+  }>();
   // Should we assert for traceId and datasourceId?
-  if (!traceId || !datasourceId) {
+  if (!traceId || !datasourceUid) {
     throw new Error('traceId and datasourceId are required');
   }
 
   const queryClient = useQueryClient();
   const parentRef = React.useRef(null);
-  const queryKey = ['datasource', datasourceId, 'trace', traceId];
-  const [selectedSpan, setSelectedSpan] = React.useState<Span | null>(null);
+  const queryKey = ['datasource', datasourceUid, 'trace', traceId];
+  const [selectedSpan, setSelectedSpan] = React.useState<SpanInfo | null>(null);
 
   const idToLevelMap = React.useRef(new Map<string, number>());
 
-  const result = useQuery<Span[]>(
+  const result = useQuery<SpanInfo[]>(
     {
       queryKey,
       staleTime: 5000,
       queryFn: async () => {
-        const backendSrv = getBackendSrv();
-
-        // If the user came from the overview page, the datasource is already in the query client.
-        let datasource = queryClient.getQueryData<datasource>(['datasource', datasourceId]);
-        // If not, gets it from the API.
-        if (datasource === undefined) {
-          datasource = await lastValueFrom(
-            backendSrv.fetch<datasource>({ url: `/api/datasources/${datasourceId}` })
-          ).then((res) => res.data);
-          queryClient.setQueryData<datasource>(['datasource', datasourceId], datasource);
-        }
-        // If the datasource is still undefined, throw an error.
-        if (datasource === undefined) {
-          throw new Error(`Datasource not found for ${datasourceId}`);
-        }
-
-        const responses = getBackendSrv().fetch<TraceResponse>({
-          url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?depth=1`,
-          method: 'POST',
-          data: {
-            type: datasource.type,
-            url: datasource.url,
-            database: datasource.jsonData.database,
-            timeField: datasource.jsonData.timeField,
-          } satisfies DataSourceInfo,
-        });
-        const response = await lastValueFrom(responses);
-        console.log(response.data);
-        const spans: Span[] = extractSpans(idToLevelMap.current, response.data);
+        const start = parseInt(startTime || '0', 10);
+        const end = start + 1;
+        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name)`;
+        const data = await search(datasourceUid, q, start, end);
+        const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
+        console.log(spans);
         return spans;
       },
     },
@@ -160,44 +176,24 @@ function TraceDetail() {
     // rangeExtractor: (range) => {}
   });
 
-  const loadMore = (index: number, spanId: string) => {
+  const loadMore = (index: number, span: SpanInfo) => {
     if (!result.isSuccess) {
       return;
     }
 
-    let skip = 0;
-    for (let i = index + 1; i < result.data.length; i++) {
-      if (result.data[i].parentSpanId !== spanId) {
-        break;
-      }
-      skip++;
-    }
-
     new Promise(async () => {
-      const datasource = queryClient.getQueryData<datasource>(['datasource', datasourceId]);
-      if (!datasource) {
-        throw new Error(`Datasource not found for ${datasourceId}`);
-      }
+      const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } | select (span:parentID, span:name)`;
+      const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
+      const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano);
+      const data = await search(datasourceUid, q, start, end);
+      const spans = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
 
-      const responses = getBackendSrv().fetch<TraceResponse>({
-        url: `${BASE_URL}${ApiPaths.queryTrace.replace('{traceId}', traceId)}?spanId=${spanId}&depth=1`,
-        method: 'POST',
-        data: {
-          type: datasource.type,
-          url: datasource.url,
-          database: datasource.jsonData.database,
-          timeField: datasource.jsonData.timeField,
-        } satisfies DataSourceInfo,
-      });
-      const response = await lastValueFrom(responses);
-      const spans = extractSpans(idToLevelMap.current, response.data);
-
-      queryClient.setQueryData<Span[]>(queryKey, (oldData) => {
+      queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
         if (!oldData) {
           return spans;
         }
 
-        let nextSpans: Span[] = [];
+        let nextSpans: SpanInfo[] = [];
         let didAddNewSpans = false;
 
         for (let i = 0; i < oldData.length; i++) {
@@ -296,7 +292,7 @@ function TraceDetail() {
         </div>
         {selectedSpan && (
           <div className="w-1/3 border-l border-gray-700 min-w-[300px]">
-            <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} />
+            <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} datasourceUid={datasourceUid} />
           </div>
         )}
       </div>

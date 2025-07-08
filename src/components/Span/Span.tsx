@@ -1,15 +1,15 @@
 import React from 'react';
 import { Icon } from '@grafana/ui';
 import { calculateColourBySpanId, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
-import type { Span as SpanType } from '../../pages/TraceDetail';
+import type { SpanInfo } from '../../pages/TraceDetail';
 
-type SpanNodeProps = SpanType & {
+type SpanNodeProps = SpanInfo & {
   index: number;
-  loadMore: (index: number, spanId: string, currentLevel: number) => void;
+  loadMore: (index: number, span: SpanInfo) => void;
   hasChildren: boolean;
   traceStartTimeInMiliseconds: number;
   traceDurationInMiliseconds: number;
-  onSelect: (span: SpanType) => void;
+  onSelect: (span: SpanInfo) => void;
 };
 
 export const Span = (props: SpanNodeProps) => {
@@ -45,7 +45,7 @@ export const Span = (props: SpanNodeProps) => {
               title="Load more traces"
               onClick={(e) => {
                 e.stopPropagation();
-                props.loadMore(props.index, props.spanId, props.level);
+                props.loadMore(props.index, props);
               }}
             />
           )}

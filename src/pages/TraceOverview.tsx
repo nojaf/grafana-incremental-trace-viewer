@@ -1,7 +1,7 @@
 import React from 'react';
 import { prefixRoute } from '../utils/utils.routing';
-import { useTraceFilters } from '../utils/utils.url';
-import { BASE_URL, ROUTES } from '../constants';
+import { TraceFilters, useTraceFilters } from '../utils/utils.url';
+import { ROUTES } from '../constants';
 import { testIds } from '../components/testIds';
 import { lastValueFrom } from 'rxjs';
 import { PluginPage, getBackendSrv, getDataSourceSrv } from '@grafana/runtime';
@@ -10,8 +10,10 @@ import { DataSourceApi, DataSourceJsonData, dateTime, TimeRange } from '@grafana
 import { DataQuery } from '@grafana/schema';
 import { TempoQuery } from '@grafana/schema/dist/esm/raw/composable/tempo/dataquery/x/TempoDataQuery_types.gen';
 import { Link } from 'react-router-dom';
-import { useQuery, useQueryClient, useSuspenseQuery } from '@tanstack/react-query';
-import { type components, ApiPaths } from '../schema.gen';
+import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { mkUnixEpochFromNanoSeconds } from 'utils/utils.timeline';
+
+import { search, type Trace } from 'utils/utils.api';
 
 export type datasource = {
   id: number;
@@ -27,10 +29,6 @@ export type datasource = {
   url: string;
 };
 
-type DataSourceInfo = components['schemas']['DataSourceInfo'];
-type SearchResponse = components['schemas']['TempoV1Response'];
-type TempoTrace = components['schemas']['TempoTrace'];
-
 const debounce = <T extends (...args: any[]) => void>(func: T, delay: number) => {
   let timeout: ReturnType<typeof setTimeout>;
   return function (this: ThisParameterType<T>, ...args: Parameters<T>) {
@@ -41,7 +39,6 @@ const debounce = <T extends (...args: any[]) => void>(func: T, delay: number) =>
 };
 
 function TraceOverview() {
-  const queryClient = useQueryClient();
   const [filters, updateFilters] = useTraceFilters();
   const updateTraceQL = debounce(function (query: string) {
     updateFilters({ query });
@@ -59,64 +56,51 @@ function TraceOverview() {
         url: `/api/datasources`,
       });
       const value = await lastValueFrom(response);
-      const datasource = value.data.filter((d) => d.type === 'tempo' || d.type === 'grafana-opensearch-datasource');
+      const datasource = value.data.filter((d) => d.type === 'tempo');
       return datasource;
     },
   });
 
-  const selectedSource = filters.datasource ? parseInt(filters.datasource, 10) : null;
   React.useEffect(() => {
-    if (selectedSource) {
+    if (filters.datasourceUid) {
       new Promise(async () => {
-        const datasource = datasources.data.find((d) => d.id === selectedSource);
-        if (datasource) {
-          try {
-            const datasourceInstance = await getDataSourceSrv().get(datasource.uid);
-            setSelectedDatasource(datasourceInstance);
-          } catch (error) {
-            console.error('Failed to get datasource instance:', error);
-          }
+        try {
+          const datasourceInstance = await getDataSourceSrv().get(filters.datasourceUid);
+          setSelectedDatasource(datasourceInstance);
+        } catch (error) {
+          console.error('Failed to get datasource instance:', error);
         }
       });
     }
-  }, [selectedSource, datasources.data]);
+  }, [filters.datasourceUid, datasources.data]);
 
-  const result = useQuery<TempoTrace[]>({
-    queryKey: ['datasource', selectedSource, 'traces', filters],
+  const result = useQuery<Trace[]>({
+    queryKey: ['datasource', 'traces', filters],
     queryFn: async ({ queryKey }) => {
-      const sourceId = queryKey[1];
+      console.log(queryKey);
+      const filters: TraceFilters = queryKey[2] as TraceFilters;
 
-      if (sourceId === null) {
+      if (filters.datasourceUid === undefined) {
+        console.log('no datasource uid');
         return [];
       }
 
-      const datasource = datasources.data.find((d) => d.id === sourceId);
+      const datasource = datasources.data.find((d) => d.uid === filters.datasourceUid);
       if (!datasource) {
-        throw new Error(`Datasource with id ${sourceId} not found`);
+        throw new Error(`Datasource with id ${filters.datasourceUid} not found`);
       }
-      const q = encodeURIComponent(filters.query || '{}');
+      const q = filters.query || '{}';
       const start = filters.start ? parseInt(filters.start, 10) : new Date().getTime() / 1000;
       const end = filters.end ? parseInt(filters.end, 10) : new Date().getTime() / 1000;
-
-      const response = getBackendSrv().fetch<SearchResponse>({
-        url: `${BASE_URL}${ApiPaths.search}?q=${q}&start=${start}&end=${end}`,
-        method: 'POST',
-        data: {
-          url: datasource.url,
-          type: datasource.type,
-          database: datasource.jsonData.database,
-          timeField: datasource.jsonData.timeField,
-        } satisfies DataSourceInfo,
-      });
-      const value = await lastValueFrom(response);
-      return value.data.traces || [];
+      const data = await search(filters.datasourceUid, q, start, end);
+      return data.traces || [];
     },
   });
 
   const options = datasources.data.map((s) => {
     return {
       label: s.name,
-      value: s.id,
+      value: s.uid,
       description: s.type,
     };
   });
@@ -126,11 +110,11 @@ function TraceOverview() {
       start: undefined,
       end: undefined,
       query: undefined,
-      datasource: undefined,
+      datasourceUid: undefined,
     });
   };
 
-  const hasActiveFilters = filters.query || filters.datasource;
+  const hasActiveFilters = filters.query || filters.datasourceUid;
 
   const handleTimeRangeChange = (timeRange: TimeRange) => {
     updateFilters({
@@ -165,20 +149,17 @@ function TraceOverview() {
                 <Combobox
                   options={options}
                   placeholder="Select a datasource"
-                  value={selectedSource ? options.find((o) => o.value === selectedSource) : undefined}
+                  value={filters.datasourceUid}
                   onChange={async (o) => {
-                    const datasource = datasources.data.find((d) => d.id === o.value);
-                    if (datasource) {
-                      queryClient.setQueryData<datasource[]>(['datasource', o.value], datasources.data, {});
-                      updateFilters({ datasource: o.value.toString() });
-                    }
+                    //queryClient.setQueryData<datasource[]>(['datasource', o.value], datasources.data, {});
+                    updateFilters({ datasourceUid: o.value });
                   }}
                 />
               </Field>
             </div>
 
             {/* Filters */}
-            {filters.datasource !== undefined && (
+            {filters.datasourceUid !== undefined && (
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-medium">Filters</h3>
@@ -246,7 +227,7 @@ function TraceOverview() {
             </div>
           )}
 
-          {result.isSuccess && filters.datasource !== undefined && (
+          {result.isSuccess && filters.datasourceUid !== undefined && (
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-medium">Traces</h3>
@@ -263,8 +244,12 @@ function TraceOverview() {
               ) : (
                 <ul className="space-y-2">
                   {result.data.map((r) => {
+                    const startTime = mkUnixEpochFromNanoSeconds(parseInt(r.startTimeUnixNano || '0', 10));
                     return (
-                      <Link key={r.traceID} to={prefixRoute(`${selectedSource}/${ROUTES.TraceDetails}/${r.traceID}`)}>
+                      <Link
+                        key={r.traceID}
+                        to={prefixRoute(`${filters.datasourceUid}/${ROUTES.TraceDetails}/${r.traceID}/${startTime}`)}
+                      >
                         <li className="p-3 hover:bg-gray-500 transition-colors">
                           <div className="flex items-center justify-between">
                             <div>
@@ -272,8 +257,8 @@ function TraceOverview() {
                                 {r.rootTraceName} ({r.rootServiceName})
                               </span>
                             </div>
-                            {r.startTime && (
-                              <div className="text-sm text-gray-500">{new Date(r.startTime).toLocaleString()}</div>
+                            {startTime && (
+                              <div className="text-sm text-gray-500">{new Date(startTime).toLocaleString()}</div>
                             )}
                           </div>
                         </li>

@@ -5,7 +5,6 @@ import packageJson from '../package.json';
 
 // Build the plugin
 await $`bun run build`;
-await $`mage`;
 
 // Move the built plugin to the plugin directory
 if (!(await exists(`./${pluginJson.id}`))) {

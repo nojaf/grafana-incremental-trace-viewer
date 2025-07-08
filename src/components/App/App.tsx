@@ -12,7 +12,7 @@ function App(props: AppRootProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <Routes>
-        <Route path={`:datasourceId/${ROUTES.TraceDetails}/:traceId`} element={<TraceDetail />} />
+        <Route path={`:datasourceUid/${ROUTES.TraceDetails}/:traceId/:startTime`} element={<TraceDetail />} />
         {/* Default page */}
         <Route path="*" element={<TraceOverview />} />
       </Routes>

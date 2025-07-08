@@ -22,3 +22,7 @@ export const calculateColourBySpanId = (spanId: string) => {
 export function mkMilisecondsFromNanoSeconds(nanoSeconds: number) {
   return nanoSeconds / 1000000;
 }
+
+export function mkUnixEpochFromNanoSeconds(nanoSeconds: number) {
+  return Math.floor(nanoSeconds / Math.pow(10, 9));
+}

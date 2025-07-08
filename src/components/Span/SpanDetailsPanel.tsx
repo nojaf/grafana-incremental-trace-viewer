@@ -1,9 +1,40 @@
 import React from 'react';
 import { IconButton } from '@grafana/ui';
 
-import type { Span as SpanType } from '../../pages/TraceDetail';
+import type { SpanInfo } from '../../pages/TraceDetail';
+import { mkUnixEpochFromNanoSeconds } from 'utils/utils.timeline';
+import { useQuery } from '@tanstack/react-query';
+import { searchTags, search } from 'utils/utils.api';
 
-export const SpanDetailPanel = ({ span, onClose }: { span: SpanType; onClose: () => void }) => {
+export const SpanDetailPanel = ({
+  span,
+  onClose,
+  datasourceUid,
+}: {
+  span: SpanInfo;
+  onClose: () => void;
+  datasourceUid: string;
+}) => {
+  const result = useQuery<Record<string, any>>({
+    queryKey: ['trace', span.traceId, 'span', span.spanId, 'details'],
+    queryFn: async () => {
+      const qTags = `{ trace:id = "${span.traceId}" && span:id = "${span.spanId}" }`;
+      const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
+      const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano);
+      const tags = await searchTags(datasourceUid, qTags, start, end);
+      console.log('TAGS', tags);
+      const q = `{ trace:id = "${span.traceId}" && span:id = "${span.spanId}" } | select (${tags
+        .map((t) => `span.${t}`)
+        .join(', ')})`;
+      const data = await search(datasourceUid, q, start, end, 1);
+      if (data.traces?.[0]?.spanSets?.[0]?.spans?.[0]) {
+        return data.traces[0].spanSets[0].spans[0].attributes;
+      }
+
+      return {};
+    },
+  });
+
   return (
     <div className="p-4 z-10 bg-black">
       <div className="flex justify-between items-center mb-4">
@@ -30,6 +61,7 @@ export const SpanDetailPanel = ({ span, onClose }: { span: SpanType; onClose: ()
         <div>
           <strong>Duration:</strong> <pre>{span.endTimeUnixNano - span.startTimeUnixNano}ms</pre>
         </div>
+        {JSON.stringify(result.data)}
       </div>
     </div>
   );

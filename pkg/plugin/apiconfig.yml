@@ -1,6 +1,0 @@
-package: plugin
-generate:
-  std-http-server: true
-  models: true
-output-options:
-  name-normalizer: ToCamelCaseWithInitialisms
