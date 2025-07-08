@@ -1,13 +1,14 @@
 import React from 'react';
 import { useParams } from 'react-router-dom';
 import { testIds } from '../components/testIds';
-import { getBackendSrv, PluginPage } from '@grafana/runtime';
+import { PluginPage } from '@grafana/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { lastValueFrom } from 'rxjs';
+
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { ApiPaths, type components } from '../schema.gen';
+import { type components } from '../schema.gen';
 import { Span as SpanComponent, SpanDetailPanel } from '../components/Span';
 import { mkMilisecondsFromNanoSeconds, mkUnixEpochFromNanoSeconds } from 'utils/utils.timeline';
+import { search } from 'utils/utils.api';
 
 type SearchResponse = components['schemas']['TempoV1Response'];
 type Span = components['schemas']['Span'];
@@ -30,24 +31,6 @@ function getParentSpanId(span: Span): string | null {
   }
   const parentSpanId = attributes.find((a) => a.key === 'span:parentID')?.value?.stringValue;
   return parentSpanId || null;
-}
-
-async function search(
-  datasourceUid: string,
-  query: string,
-  start: number,
-  end: number,
-  spss?: number
-): Promise<SearchResponse> {
-  const validEnd = start < end ? end : end + 1;
-  const responses = getBackendSrv().fetch<SearchResponse>({
-    url: `/api/datasources/proxy/uid/${datasourceUid}${ApiPaths.search}?q=${encodeURIComponent(
-      query
-    )}&start=${start}&end=${validEnd}${spss ? `&spss=${spss}` : ''}`,
-    method: 'GET',
-  });
-  const response = await lastValueFrom(responses);
-  return response.data;
 }
 
 async function hasChildren(
@@ -124,7 +107,7 @@ async function extractSpans(
     spans.push({
       spanId: span.spanID,
       parentSpanId: parentSpanId,
-      traceId: span.traceId || '',
+      traceId: traceId,
       level: idToLevelMap.get(span.spanID) || 0,
       startTimeUnixNano: startTimeUnixNano,
       endTimeUnixNano: endTimeUnixNano,
@@ -313,7 +296,7 @@ function TraceDetail() {
         </div>
         {selectedSpan && (
           <div className="w-1/3 border-l border-gray-700 min-w-[300px]">
-            <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} />
+            <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} datasourceUid={datasourceUid} />
           </div>
         )}
       </div>
