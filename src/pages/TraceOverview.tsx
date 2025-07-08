@@ -12,6 +12,7 @@ import { TempoQuery } from '@grafana/schema/dist/esm/raw/composable/tempo/dataqu
 import { Link } from 'react-router-dom';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
 import { type components, ApiPaths } from '../schema.gen';
+import { mkUnixEpochFromNanoSeconds } from 'utils/utils.timeline';
 
 export type datasource = {
   id: number;
@@ -95,7 +96,7 @@ function TraceOverview() {
       const end = filters.end ? parseInt(filters.end, 10) : new Date().getTime() / 1000;
 
       const response = getBackendSrv().fetch<SearchResponse>({
-        url: `/api/datasources/proxy/uid/${filters.datasourceUid}${ApiPaths.search}?q=${q}&start=${start}&end=${end}`,
+        url: `/api/datasources/proxy/uid/${filters.datasourceUid}${ApiPaths.search}?q=${q}&start=${start}&end=${end}&spss=1`,
         method: 'GET',
       });
       const value = await lastValueFrom(response);
@@ -250,10 +251,11 @@ function TraceOverview() {
               ) : (
                 <ul className="space-y-2">
                   {result.data.map((r) => {
+                    const startTime = mkUnixEpochFromNanoSeconds(parseInt(r.startTimeUnixNano || '0', 10));
                     return (
                       <Link
                         key={r.traceID}
-                        to={prefixRoute(`${filters.datasourceUid}/${ROUTES.TraceDetails}/${r.traceID}`)}
+                        to={prefixRoute(`${filters.datasourceUid}/${ROUTES.TraceDetails}/${r.traceID}/${startTime}`)}
                       >
                         <li className="p-3 hover:bg-gray-500 transition-colors">
                           <div className="flex items-center justify-between">
@@ -262,8 +264,8 @@ function TraceOverview() {
                                 {r.rootTraceName} ({r.rootServiceName})
                               </span>
                             </div>
-                            {r.startTime && (
-                              <div className="text-sm text-gray-500">{new Date(r.startTime).toLocaleString()}</div>
+                            {startTime && (
+                              <div className="text-sm text-gray-500">{new Date(startTime).toLocaleString()}</div>
                             )}
                           </div>
                         </li>

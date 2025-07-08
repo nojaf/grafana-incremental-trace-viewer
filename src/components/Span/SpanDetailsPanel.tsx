@@ -1,9 +1,9 @@
 import React from 'react';
 import { IconButton } from '@grafana/ui';
 
-import type { Span as SpanType } from '../../pages/TraceDetail';
+import type { SpanInfo } from '../../pages/TraceDetail';
 
-export const SpanDetailPanel = ({ span, onClose }: { span: SpanType; onClose: () => void }) => {
+export const SpanDetailPanel = ({ span, onClose }: { span: SpanInfo; onClose: () => void }) => {
   return (
     <div className="p-4 z-10 bg-black">
       <div className="flex justify-between items-center mb-4">

@@ -303,12 +303,9 @@ components:
       properties:
         traceId:
           type: string
-        spanId:
+        spanID:
           type: string
         traceState:
-          type: string
-          nullable: true
-        parentSpanId:
           type: string
           nullable: true
         flags:
@@ -320,10 +317,10 @@ components:
         kind:
           $ref: '#/components/schemas/SpanKind'
         startTimeUnixNano:
-          type: integer
+          type: string
           format: int64
-        endTimeUnixNano:
-          type: integer
+        durationNanos:
+          type: string
           format: int64
         attributes:
           type: array
@@ -448,12 +445,18 @@ components:
         rootTraceName:
           type: string
           nullable: true
-        startTime:
+        startTimeUnixNano:
           type: string
-          format: date-time
-        duration:
+          format: int64
+        durationMs:
           type: string
-          format: date-span
+          format: int64
+        spanSets:
+          type: array
+          items:
+            $ref: '#/components/schemas/SpanSet'
+          nullable: true
+          readOnly: true
       additionalProperties: false
     TempoV1Response:
       type: object

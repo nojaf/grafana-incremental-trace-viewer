@@ -123,17 +123,16 @@ export interface components {
     };
     Span: {
       traceId?: string;
-      spanId?: string;
+      spanID?: string;
       traceState?: string | null;
-      parentSpanId?: string | null;
       /** Format: int32 */
       flags?: number;
       name?: string | null;
       kind?: components['schemas']['SpanKind'];
       /** Format: int64 */
-      startTimeUnixNano?: number;
+      startTimeUnixNano?: string;
       /** Format: int64 */
-      endTimeUnixNano?: number;
+      durationNanos?: string;
       readonly attributes?: components['schemas']['KeyValue'][] | null;
       /** Format: int32 */
       droppedAttributesCount?: number;
@@ -180,10 +179,11 @@ export interface components {
       traceID?: string | null;
       rootServiceName?: string | null;
       rootTraceName?: string | null;
-      /** Format: date-time */
-      startTime?: string;
-      /** Format: date-span */
-      duration?: string;
+      /** Format: int64 */
+      startTimeUnixNano?: string;
+      /** Format: int64 */
+      durationMs?: string;
+      readonly spanSets?: components['schemas']['SpanSet'][] | null;
     };
     TempoV1Response: {
       metrics?: components['schemas']['TempoMetrics'];
@@ -263,6 +263,7 @@ export interface operations {
         depth?: number;
         /** @description The parent span id to start the query from.
          *     If not provided, the root span will be used.
+         *     Requires depth to be present.
          *      */
         spanId?: string;
       };

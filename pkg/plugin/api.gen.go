@@ -8,7 +8,6 @@ package plugin
 import (
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/oapi-codegen/runtime"
 )
@@ -141,15 +140,14 @@ type Span struct {
 	DroppedAttributesCount *int32      `json:"droppedAttributesCount,omitempty"`
 	DroppedEventsCount     *int32      `json:"droppedEventsCount,omitempty"`
 	DroppedLinksCount      *int32      `json:"droppedLinksCount,omitempty"`
-	EndTimeUnixNano        *int64      `json:"endTimeUnixNano,omitempty"`
+	DurationNanos          *string     `json:"durationNanos,omitempty"`
 	Events                 *[]Event    `json:"events"`
 	Flags                  *int32      `json:"flags,omitempty"`
 	Kind                   *SpanKind   `json:"kind,omitempty"`
 	Links                  *[]Link     `json:"links"`
 	Name                   *string     `json:"name"`
-	ParentSpanID           *string     `json:"parentSpanId"`
-	SpanID                 *string     `json:"spanId,omitempty"`
-	StartTimeUnixNano      *int64      `json:"startTimeUnixNano,omitempty"`
+	SpanID                 *string     `json:"spanID,omitempty"`
+	StartTimeUnixNano      *string     `json:"startTimeUnixNano,omitempty"`
 	Status                 *Status     `json:"status,omitempty"`
 	TraceID                *string     `json:"traceId,omitempty"`
 	TraceState             *string     `json:"traceState"`
@@ -157,6 +155,12 @@ type Span struct {
 
 // SpanKind defines model for SpanKind.
 type SpanKind string
+
+// SpanSet defines model for SpanSet.
+type SpanSet struct {
+	Matched *int32  `json:"matched,omitempty"`
+	Spans   *[]Span `json:"spans"`
+}
 
 // Status defines model for Status.
 type Status struct {
@@ -176,11 +180,12 @@ type TempoMetrics struct {
 
 // TempoTrace defines model for TempoTrace.
 type TempoTrace struct {
-	Duration        *string    `json:"duration,omitempty"`
-	RootServiceName *string    `json:"rootServiceName"`
-	RootTraceName   *string    `json:"rootTraceName"`
-	StartTime       *time.Time `json:"startTime,omitempty"`
-	TraceID         *string    `json:"traceID"`
+	DurationMs        *string    `json:"durationMs,omitempty"`
+	RootServiceName   *string    `json:"rootServiceName"`
+	RootTraceName     *string    `json:"rootTraceName"`
+	SpanSets          *[]SpanSet `json:"spanSets"`
+	StartTimeUnixNano *string    `json:"startTimeUnixNano,omitempty"`
+	TraceID           *string    `json:"traceID"`
 }
 
 // TempoV1Response defines model for TempoV1Response.
@@ -224,6 +229,7 @@ type QueryTraceParams struct {
 
 	// SpanID The parent span id to start the query from.
 	// If not provided, the root span will be used.
+	// Requires depth to be present.
 	SpanID *string `form:"spanId,omitempty" json:"spanId,omitempty"`
 }
 
