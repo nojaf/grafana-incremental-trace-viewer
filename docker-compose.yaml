@@ -6,16 +6,6 @@ services:
     environment:
       GF_INSTALL_PLUGINS: grafana-opensearch-datasource
 
-  opensearch:
-    image: opensearchproject/opensearch:3
-    container_name: opensearch
-    ports:
-      - '9200:9200'
-    environment:
-      - discovery.type=single-node
-      - plugins.security.disabled=true
-      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=FooBar#123
-
   tempo:
     image: grafana/tempo:latest # Or a specific version e.g., grafana/tempo:2.4.1
     container_name: tempo

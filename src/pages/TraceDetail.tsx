@@ -5,13 +5,9 @@ import { PluginPage } from '@grafana/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { type components } from '../schema.gen';
 import { Span as SpanComponent, SpanDetailPanel } from '../components/Span';
 import { mkMilisecondsFromNanoSeconds, mkUnixEpochFromNanoSeconds } from 'utils/utils.timeline';
-import { search } from 'utils/utils.api';
-
-type SearchResponse = components['schemas']['TempoV1Response'];
-type Span = components['schemas']['Span'];
+import { search, SearchResponse, Span } from 'utils/utils.api';
 
 export type SpanInfo = {
   spanId: string;
@@ -70,8 +66,8 @@ async function extractSpans(
   let spanNodes = trace.spanSets?.flatMap((r) => r.spans || []) || [];
 
   spanNodes.sort((a, b) => {
-    const start = parseInt(a.startTimeUnixNano || '0') - parseInt(b.startTimeUnixNano || '0');
-    const end = parseInt(b.durationNanos || '0') - parseInt(a.durationNanos || '0');
+    const start = parseInt(a.startTimeUnixNano || '0', 10) - parseInt(b.startTimeUnixNano || '0', 10);
+    const end = parseInt(b.durationNanos || '0', 10) - parseInt(a.durationNanos || '0', 10);
     return start || end;
   });
 
@@ -97,8 +93,8 @@ async function extractSpans(
       idToLevelMap.set(span.spanID, parentLevel + 1);
     }
 
-    const startTimeUnixNano = parseInt(span.startTimeUnixNano || '0');
-    const durationNanos = parseInt(span.durationNanos || '0');
+    const startTimeUnixNano = parseInt(span.startTimeUnixNano || '0', 10);
+    const durationNanos = parseInt(span.durationNanos || '0', 10);
     const endTimeUnixNano = startTimeUnixNano + durationNanos;
     // This is a rather expensive call.
     // We need to call this for every span.

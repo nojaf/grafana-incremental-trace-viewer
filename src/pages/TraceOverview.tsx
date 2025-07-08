@@ -11,8 +11,9 @@ import { DataQuery } from '@grafana/schema';
 import { TempoQuery } from '@grafana/schema/dist/esm/raw/composable/tempo/dataquery/x/TempoDataQuery_types.gen';
 import { Link } from 'react-router-dom';
 import { useQuery, useSuspenseQuery } from '@tanstack/react-query';
-import { type components, ApiPaths } from '../schema.gen';
 import { mkUnixEpochFromNanoSeconds } from 'utils/utils.timeline';
+
+import { search, type Trace } from 'utils/utils.api';
 
 export type datasource = {
   id: number;
@@ -27,9 +28,6 @@ export type datasource = {
   };
   url: string;
 };
-
-type SearchResponse = components['schemas']['TempoV1Response'];
-type TempoTrace = components['schemas']['TempoTrace'];
 
 const debounce = <T extends (...args: any[]) => void>(func: T, delay: number) => {
   let timeout: ReturnType<typeof setTimeout>;
@@ -76,7 +74,7 @@ function TraceOverview() {
     }
   }, [filters.datasourceUid, datasources.data]);
 
-  const result = useQuery<TempoTrace[]>({
+  const result = useQuery<Trace[]>({
     queryKey: ['datasource', 'traces', filters],
     queryFn: async ({ queryKey }) => {
       console.log(queryKey);
@@ -91,16 +89,11 @@ function TraceOverview() {
       if (!datasource) {
         throw new Error(`Datasource with id ${filters.datasourceUid} not found`);
       }
-      const q = encodeURIComponent(filters.query || '{}');
+      const q = filters.query || '{}';
       const start = filters.start ? parseInt(filters.start, 10) : new Date().getTime() / 1000;
       const end = filters.end ? parseInt(filters.end, 10) : new Date().getTime() / 1000;
-
-      const response = getBackendSrv().fetch<SearchResponse>({
-        url: `/api/datasources/proxy/uid/${filters.datasourceUid}${ApiPaths.search}?q=${q}&start=${start}&end=${end}&spss=1`,
-        method: 'GET',
-      });
-      const value = await lastValueFrom(response);
-      return value.data.traces || [];
+      const data = await search(filters.datasourceUid, q, start, end);
+      return data.traces || [];
     },
   });
 
