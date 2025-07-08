@@ -121,14 +121,13 @@ jobs:
           retention-days: 5
 
   resolve-versions:
-    if: false
     name: Resolve e2e images
     runs-on: ubuntu-latest
     permissions:
       contents: read
     timeout-minutes: 3
     needs: build
-    if: ${{ needs.build.outputs.has-e2e == 'true' }}
+    if: false #${{ needs.build.outputs.has-e2e == 'true' }}
     outputs:
       matrix: ${{ steps.resolve-versions.outputs.matrix }}
     steps:
