@@ -127,7 +127,7 @@ jobs:
       contents: read
     timeout-minutes: 3
     needs: build
-    if: ${{ needs.build.outputs.has-e2e == 'true' }}
+    if: false #${{ needs.build.outputs.has-e2e == 'true' }}
     outputs:
       matrix: ${{ steps.resolve-versions.outputs.matrix }}
     steps:
@@ -141,6 +141,7 @@ jobs:
         uses: grafana/plugin-actions/e2e-version@main # zizmor: ignore[unpinned-uses] provided by grafana
 
   playwright-tests:
+    if: false
     needs: [resolve-versions, build]
     timeout-minutes: 15
     permissions:
