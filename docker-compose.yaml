@@ -3,8 +3,6 @@ services:
     extends:
       file: .config/docker-compose-base.yaml
       service: grafana
-    environment:
-      GF_INSTALL_PLUGINS: grafana-opensearch-datasource
 
   tempo:
     image: grafana/tempo:latest # Or a specific version e.g., grafana/tempo:2.4.1
@@ -29,7 +27,7 @@ services:
       - '55679:55679'
       - '9464:9464'
     depends_on:
-      - opensearch
+      - tempo
 
 networks:
   default:
