@@ -45,4 +45,4 @@ ci/
 .history/
 
 # Plugin zip archive
-gresearch-grafanaincrementaltraceviewer-app-*.zip
+gresearch-grafanaincrementaltraceviewer-*.zip

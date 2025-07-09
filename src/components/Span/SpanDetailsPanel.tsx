@@ -1,7 +1,7 @@
 import React from 'react';
 import { IconButton } from '@grafana/ui';
 
-import type { SpanInfo } from '../../pages/TraceDetail';
+import type { SpanInfo } from '../TraceDetail';
 import { mkUnixEpochFromNanoSeconds } from 'utils/utils.timeline';
 import { useQuery } from '@tanstack/react-query';
 import { searchTags, search } from 'utils/utils.api';

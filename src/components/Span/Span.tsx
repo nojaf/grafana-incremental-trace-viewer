@@ -1,7 +1,7 @@
 import React from 'react';
 import { Icon } from '@grafana/ui';
 import { calculateColourBySpanId, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
-import type { SpanInfo } from '../../pages/TraceDetail';
+import type { SpanInfo } from '../TraceDetail';
 
 type SpanNodeProps = SpanInfo & {
   index: number;

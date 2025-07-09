@@ -1,7 +1,7 @@
 services:
   grafana:
     user: root
-    container_name: 'gresearch-grafanaincrementaltraceviewer-app'
+    container_name: 'gresearch-grafanaincrementaltraceviewer-viewer'
 
     build:
       context: .
@@ -19,13 +19,13 @@ services:
     cap_add:
       - SYS_PTRACE
     volumes:
-      - ../dist:/var/lib/grafana/plugins/gresearch-grafanaincrementaltraceviewer-app
+      - ../dist:/var/lib/grafana/plugins/gresearch-grafanaincrementaltraceviewer-panel
       - ../provisioning:/etc/grafana/provisioning
-      - ..:/root/gresearch-grafanaincrementaltraceviewer-app
+      - ..:/root/gresearch-grafanaincrementaltraceviewer-panel
 
     environment:
       NODE_ENV: development
       GF_LOG_FILTERS: plugin.gresearch-grafanaincrementaltraceviewer-app:debug
       GF_LOG_LEVEL: debug
       GF_DATAPROXY_LOGGING: 1
-      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: gresearch-grafanaincrementaltraceviewer-app
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: gresearch-grafanaincrementaltraceviewer-panel
