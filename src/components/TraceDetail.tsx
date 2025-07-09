@@ -1,13 +1,16 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
-import { testIds } from '../components/testIds';
-import { PluginPage } from '@grafana/runtime';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Span as SpanComponent, SpanDetailPanel } from '../components/Span';
-import { mkMilisecondsFromNanoSeconds, mkUnixEpochFromNanoSeconds } from 'utils/utils.timeline';
-import { search, SearchResponse, Span } from 'utils/utils.api';
+
+import { testIds } from './testIds';
+import { Span as SpanComponent, SpanDetailPanel } from './Span';
+import {
+  mkMilisecondsFromNanoSeconds,
+  mkUnixEpochFromNanoSeconds,
+  mkUnixEpochFromMiliseconds,
+} from '../utils/utils.timeline';
+import { search, SearchResponse, Span } from '../utils/utils.api';
+import type { QueryInfo as TraceDetailProps } from './TraceViewerPanel';
 
 export type SpanInfo = {
   spanId: string;
@@ -114,12 +117,7 @@ async function extractSpans(
   return spans;
 }
 
-function TraceDetail() {
-  const { traceId, datasourceUid, startTime } = useParams<{
-    traceId: string;
-    datasourceUid: string;
-    startTime: string;
-  }>();
+function TraceDetail({ traceId, datasourceUid, startTimeInMs }: TraceDetailProps): React.JSX.Element {
   // Should we assert for traceId and datasourceId?
   if (!traceId || !datasourceUid) {
     throw new Error('traceId and datasourceId are required');
@@ -137,7 +135,7 @@ function TraceDetail() {
       queryKey,
       staleTime: 5000,
       queryFn: async () => {
-        const start = parseInt(startTime || '0', 10);
+        const start = mkUnixEpochFromMiliseconds(startTimeInMs);
         const end = start + 1;
         const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name)`;
         const data = await search(datasourceUid, q, start, end);
@@ -226,77 +224,75 @@ function TraceDetail() {
   };
 
   return (
-    <PluginPage>
-      <div className="flex h-[calc(100vh-120px)]">
-        <div className="flex-grow flex flex-col">
-          <div className="flex bg-gray-800 p-2 border-b border-gray-700">
-            <div className="w-1/3 font-bold">Span</div>
-            <div className="w-2/3 font-bold px-4">
-              <div className="w-full relative">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="absolute border-l border-gray-500 h-2 pl-1 text-xs"
-                    style={{
-                      left: `${(i / 4) * 100}%`,
-                    }} // Limitation in tailwind dynamic class construction: Check README.md for more details
-                  >
-                    {((traceDurationInMiliseconds / 1000 / 4) * i).toFixed(2)}s
-                  </div>
-                ))}
-              </div>
+    <div className="flex h-[calc(100vh-120px)]">
+      <div className="flex-grow flex flex-col">
+        <div className="flex bg-gray-800 p-2 border-b border-gray-700">
+          <div className="w-1/3 font-bold">Span</div>
+          <div className="w-2/3 font-bold px-4">
+            <div className="w-full relative">
+              {Array.from({ length: 5 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute border-l border-gray-500 h-2 pl-1 text-xs"
+                  style={{
+                    left: `${(i / 4) * 100}%`,
+                  }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+                >
+                  {((traceDurationInMiliseconds / 1000 / 4) * i).toFixed(2)}s
+                </div>
+              ))}
             </div>
           </div>
-          <div className="flex-grow" data-testid={testIds.pageThree.container}>
-            {result.isLoading && <div>Loading...</div>}
-            {result.isError && <div>Error: {result.error.message}</div>}
-            {result.isSuccess && (
-              <div ref={parentRef} className="h-full overflow-auto">
-                <div
-                  style={{
-                    height: `${rowVirtualizer.getTotalSize()}px`,
-                  }} // Limitation in tailwind dynamic class construction: Check README.md for more details
-                  className="w-full relative"
-                >
-                  {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                    const span = result.data[virtualItem.index];
-                    const hasChildren =
-                      virtualItem.index !== result.data.length - 1 &&
-                      result.data[virtualItem.index + 1].parentSpanId === span.spanId;
-                    return (
-                      <div
-                        key={virtualItem.key}
-                        className="absolute top-0 left-0 w-full border-b border-[#2d2d2d]"
-                        style={{
-                          height: `${virtualItem.size}px`,
-                          transform: `translateY(${virtualItem.start}px)`,
-                        }} // Limitation in tailwind dynamic class construction: Check README.md for more details
-                      >
-                        <SpanComponent
-                          key={span.spanId}
-                          {...span}
-                          index={virtualItem.index}
-                          loadMore={loadMore}
-                          traceStartTimeInMiliseconds={traceStartTimeInMiliseconds}
-                          traceDurationInMiliseconds={traceDurationInMiliseconds}
-                          onSelect={setSelectedSpan}
-                          hasChildren={hasChildren}
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
         </div>
-        {selectedSpan && (
-          <div className="w-1/3 border-l border-gray-700 min-w-[300px]">
-            <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} datasourceUid={datasourceUid} />
-          </div>
-        )}
+        <div className="flex-grow" data-testid={testIds.pageThree.container}>
+          {result.isLoading && <div>Loading...</div>}
+          {result.isError && <div>Error: {result.error.message}</div>}
+          {result.isSuccess && (
+            <div ref={parentRef} className="h-full overflow-auto">
+              <div
+                style={{
+                  height: `${rowVirtualizer.getTotalSize()}px`,
+                }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+                className="w-full relative"
+              >
+                {rowVirtualizer.getVirtualItems().map((virtualItem) => {
+                  const span = result.data[virtualItem.index];
+                  const hasChildren =
+                    virtualItem.index !== result.data.length - 1 &&
+                    result.data[virtualItem.index + 1].parentSpanId === span.spanId;
+                  return (
+                    <div
+                      key={virtualItem.key}
+                      className="absolute top-0 left-0 w-full border-b border-[#2d2d2d]"
+                      style={{
+                        height: `${virtualItem.size}px`,
+                        transform: `translateY(${virtualItem.start}px)`,
+                      }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+                    >
+                      <SpanComponent
+                        key={span.spanId}
+                        {...span}
+                        index={virtualItem.index}
+                        loadMore={loadMore}
+                        traceStartTimeInMiliseconds={traceStartTimeInMiliseconds}
+                        traceDurationInMiliseconds={traceDurationInMiliseconds}
+                        onSelect={setSelectedSpan}
+                        hasChildren={hasChildren}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    </PluginPage>
+      {selectedSpan && (
+        <div className="w-1/3 border-l border-gray-700 min-w-[300px]">
+          <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} datasourceUid={datasourceUid} />
+        </div>
+      )}
+    </div>
   );
 }
 

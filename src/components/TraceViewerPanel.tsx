@@ -1,10 +1,14 @@
 import React from 'react';
 import { PanelProps } from '@grafana/data';
 import { PanelDataErrorView } from '@grafana/runtime';
+import TraceDetail from './TraceDetail';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+const queryClient = new QueryClient();
 
 interface Props extends PanelProps<{}> {}
 
-type QueryInfo = {
+export type QueryInfo = {
   datasourceUid: string;
   query: string;
   traceId: string;
@@ -48,24 +52,20 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
     }
   }
 
-  console.table(queries);
-
   if (data.series.length === 0) {
     return <PanelDataErrorView fieldConfig={fieldConfig} panelId={id} data={data} needsStringField />;
   }
 
   return (
-    <div>
-      Plugin panel here.
-      <ul>
-        {queries.map((queryInfo) => {
-          return (
-            <li key={queryInfo.traceId}>
-              <pre> {JSON.stringify(queryInfo, undefined, 2)}</pre>
-            </li>
-          );
-        })}
-      </ul>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <div>
+        Plugin panel here.
+        <ul>
+          {queries.map((queryInfo) => {
+            return <TraceDetail key={queryInfo.traceId} {...queryInfo} />;
+          })}
+        </ul>
+      </div>
+    </QueryClientProvider>
   );
 };

@@ -26,3 +26,7 @@ export function mkMilisecondsFromNanoSeconds(nanoSeconds: number) {
 export function mkUnixEpochFromNanoSeconds(nanoSeconds: number) {
   return Math.floor(nanoSeconds / Math.pow(10, 9));
 }
+
+export function mkUnixEpochFromMiliseconds(miliseconds: number) {
+  return Math.floor(miliseconds / 1000);
+}
