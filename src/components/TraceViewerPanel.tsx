@@ -15,10 +15,27 @@ export type QueryInfo = {
   traceName: string;
   startTimeInMs: number;
   durationInMs: number;
+  panelWidth?: number;
 };
 
 export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id }) => {
   console.log('data', data);
+  console.log('width', width);
+  console.log('height', height);
+  // Check if panel size meets minimum requirements
+  if (width < 600 || height < 300) {
+    return (
+      <div className="flex items-center justify-center h-full p-4 text-center">
+        <div className="text-red-500">
+          <h3 className="text-lg font-semibold mb-2">⚠️ Panel too small for trace visualization</h3>
+          <p>This panel requires a minimum size of 600x300 pixels.</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Current size: {width}x{height} pixels
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   let queries: QueryInfo[] = [];
   // if (data.request?.targets.length === 0 || data.series.length === 0 || data.request?.targets.length !== data.series.length) {
@@ -58,10 +75,9 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div>
-        Plugin panel here.
+      <div className="relative overflow-y-scroll max-h-full">
         {queries.map((queryInfo) => {
-          return <TraceDetail key={queryInfo.traceId} {...queryInfo} />;
+          return <TraceDetail key={queryInfo.traceId} {...queryInfo} panelWidth={width} />;
         })}
       </div>
     </QueryClientProvider>

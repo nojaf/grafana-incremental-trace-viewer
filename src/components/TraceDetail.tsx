@@ -11,6 +11,7 @@ import {
 } from '../utils/utils.timeline';
 import { search, SearchResponse, Span } from '../utils/utils.api';
 import type { QueryInfo as TraceDetailProps } from './TraceViewerPanel';
+import { SpanOverlayDrawer } from './Span/SpanOverlayDrawer';
 
 export type SpanInfo = {
   spanId: string;
@@ -117,7 +118,7 @@ async function extractSpans(
   return spans;
 }
 
-function TraceDetail({ traceId, datasourceUid, startTimeInMs }: TraceDetailProps): React.JSX.Element {
+function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: TraceDetailProps): React.JSX.Element {
   // Should we assert for traceId and datasourceId?
   if (!traceId || !datasourceUid) {
     throw new Error('traceId and datasourceId are required');
@@ -224,7 +225,7 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs }: TraceDetailProps
   };
 
   return (
-    <div className="flex h-[calc(100vh-120px)]">
+    <div className="flex h-[calc(100vh-120px)] relative">
       <div className="flex-grow flex flex-col">
         <div className="flex bg-gray-800 p-2 border-b border-gray-700">
           <div className="w-1/3 font-bold">Span</div>
@@ -287,11 +288,16 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs }: TraceDetailProps
           )}
         </div>
       </div>
-      {selectedSpan && (
-        <div className="w-1/3 border-l border-gray-700 min-w-[300px]">
+      <SpanOverlayDrawer
+        isOpen={!!selectedSpan}
+        onClose={() => setSelectedSpan(null)}
+        title="Span Details"
+        panelWidth={panelWidth || window.innerWidth}
+      >
+        {selectedSpan && (
           <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} datasourceUid={datasourceUid} />
-        </div>
-      )}
+        )}
+      </SpanOverlayDrawer>
     </div>
   );
 }

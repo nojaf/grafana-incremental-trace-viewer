@@ -4,8 +4,8 @@
   "name": "Grafana-Incremental-Trace-Viewer",
   "id": "gresearch-grafanaincrementaltraceviewer-panel",
   "info": {
-    "keywords": ["panel"],
-    "description": "",
+    "keywords": ["panel", "trace", "viewer"],
+    "description": "A trace viewer panel for visualizing distributed tracing data. Recommended minimum panel size: 600x400 pixels for optimal viewing experience.",
     "author": {
       "name": "G-Research"
     },
