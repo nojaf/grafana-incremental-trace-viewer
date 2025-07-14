@@ -54,7 +54,14 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
 
     for (let j = 0; j < traceIds.length; j++) {
       const traceId = traceIds[j];
-      const startTime = startTimes[j];
+      // It still is hard to tell what unit start time is.
+      console.log('raw start time', startTimes[j]);
+      const startTimeAsString = (startTimes[j] || 0).toString().replace('.', '');
+      const startTime = parseInt(
+        startTimeAsString.length > 13 ? startTimeAsString.substring(0, 13) : startTimeAsString,
+        10
+      );
+      console.log('startTime', startTime);
       const traceName = traceNames[j];
       const traceDuration = traceDurations[j];
       console.log('traceId', traceId, startTime);
