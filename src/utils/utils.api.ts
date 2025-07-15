@@ -19,7 +19,7 @@ type KeyValueList = {
   readonly values?: KeyValue[] | null;
 };
 
-type AnyValue = {
+export type AnyValue = {
   stringValue?: string | null;
   boolValue?: boolean;
   intValue?: number;
@@ -30,7 +30,7 @@ type AnyValue = {
   valueCase?: ValueOneofCase;
 };
 
-type KeyValue = {
+export type KeyValue = {
   key?: string | null;
   value?: AnyValue;
 };
