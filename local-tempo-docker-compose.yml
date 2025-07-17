@@ -1,0 +1,9 @@
+services:
+  grafana:
+    extends:
+      file: .config/docker-compose-base.yaml
+      service: grafana
+    network_mode: host
+
+networks:
+  default:

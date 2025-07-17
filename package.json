@@ -11,6 +11,7 @@
     "lint:fix": "bun run lint --fix && prettier --write --list-different .",
     "e2e": "playwright test",
     "server": "docker compose up --build",
+    "server:local": "docker compose -f ./local-tempo-docker-compose.yml up --build",
     "sign": "bunx --yes @grafana/sign-plugin@latest",
     "fmt": "prettier --write --list-different .",
     "fmt:check": "prettier --check .",
