@@ -279,6 +279,7 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
                         traceDurationInMiliseconds={traceDurationInMiliseconds}
                         onSelect={setSelectedSpan}
                         hasChildren={hasChildren}
+                        isSelected={selectedSpan?.spanId === span.spanId}
                       />
                     </div>
                   );

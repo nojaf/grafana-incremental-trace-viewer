@@ -10,6 +10,7 @@ type SpanNodeProps = SpanInfo & {
   traceStartTimeInMiliseconds: number;
   traceDurationInMiliseconds: number;
   onSelect: (span: SpanInfo) => void;
+  isSelected?: boolean;
 };
 
 export const Span = (props: SpanNodeProps) => {
@@ -26,7 +27,9 @@ export const Span = (props: SpanNodeProps) => {
 
   return (
     <div
-      className="flex items-center hover:bg-gray-700 cursor-pointer h-full text-sm"
+      className={`flex items-center hover:bg-gray-700 cursor-pointer h-full text-sm ${
+        props.isSelected ? 'bg-gray-600 hover:bg-gray-700 z-1000' : ''
+      }`}
       onClick={() => props.onSelect(props)}
     >
       <div
@@ -57,8 +60,11 @@ export const Span = (props: SpanNodeProps) => {
       >
         <div className="h-full relative mx-4">
           <div
-            className="bg-blue-500 h-3/4 absolute my-auto top-0 bottom-0 rounded-sm min-[2px]"
-            style={{ left: `${offset}%`, width: `${Math.max(width, 0.1)}%` }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+            className="bg-blue-500 h-3/4 absolute my-auto top-0 bottom-0 rounded-sm min-w-[2px]"
+            style={{
+              left: `${offset}%`,
+              width: `${Math.max(width, 0.1)}%`,
+            }} // Limitation in tailwind dynamic class construction: Check README.md for more details
             title={`Duration: ${props.endTimeUnixNano - props.startTimeUnixNano}ns`}
           ></div>
         </div>

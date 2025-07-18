@@ -27,14 +27,13 @@ export const SpanOverlayDrawer: React.FC<SpanOverlayDrawerProps> = ({
   return (
     <>
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black opacity-70 z-40" onClick={onClose} style={{ zIndex: 1000 }} />
+      <div className="absolute inset-0 bg-black opacity-20 z-[998]" onClick={onClose} />
 
       {/* Drawer */}
       <div
-        className="absolute top-0 right-0 h-full bg-gray-800 border-l border-gray-700 shadow-lg z-50 overflow-hidden"
+        className="absolute top-0 right-0 h-full bg-gray-800 border-l border-gray-700 shadow-lg overflow-hidden z-[1000]"
         style={{
           width: drawerWidth,
-          zIndex: 1001,
           transform: 'translateX(0)',
           transition: 'transform 0.3s ease-in-out',
         }}
