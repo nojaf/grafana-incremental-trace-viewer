@@ -1,4 +1,4 @@
-ARG grafana_version=latest
+ARG grafana_version=11.6.3-security-01-ubuntu
 ARG grafana_image=grafana-enterprise
 
 FROM grafana/${grafana_image}:${grafana_version}
