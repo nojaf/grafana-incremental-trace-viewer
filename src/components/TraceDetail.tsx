@@ -177,7 +177,6 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
         }
         return allSpans;
       },
-      refetchOnWindowFocus: false,
     },
     queryClient
   );
