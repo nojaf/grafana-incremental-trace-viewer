@@ -44,7 +44,9 @@ async function hasChildren(
 ): Promise<boolean> {
   const q = `{ trace:id = "${traceId}" && span:parentID = "${spanId}" } | count() > 0`;
   const start = mkUnixEpochFromNanoSeconds(startTimeUnixNano);
-  const end = mkUnixEpochFromNanoSeconds(endTimeUnixNano);
+  // As a precaution, we add 1 second to the end time.
+  // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
+  const end = mkUnixEpochFromNanoSeconds(endTimeUnixNano) + 1;
   const data = await search(datasourceUid, q, start, end, 1);
   return (data.traces && data.traces.length > 0) || false;
 }
@@ -186,7 +188,9 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
     new Promise(async () => {
       const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } | select (span:parentID, span:name)`;
       const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
-      const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano);
+      // As a precaution, we add 1 second to the end time.
+      // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
+      const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano) + 1;
       const data = await search(datasourceUid, q, start, end);
       const spans = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
 
