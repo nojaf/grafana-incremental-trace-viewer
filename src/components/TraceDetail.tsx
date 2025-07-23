@@ -1,6 +1,7 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
+import { Icon } from '@grafana/ui';
 
 import { testIds } from './testIds';
 import { Span as SpanComponent, SpanDetailPanel } from './Span';
@@ -12,6 +13,7 @@ import {
 import { search, SearchResponse, Span } from '../utils/utils.api';
 import type { QueryInfo as TraceDetailProps } from './TraceViewerPanel';
 import { SpanOverlayDrawer } from './Span/SpanOverlayDrawer';
+import { HelpModal } from './HelpModal';
 
 export type SpanInfo = {
   spanId: string;
@@ -128,6 +130,7 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
   const parentRef = React.useRef(null);
   const queryKey = ['datasource', datasourceUid, 'trace', traceId];
   const [selectedSpan, setSelectedSpan] = React.useState<SpanInfo | null>(null);
+  const [showHelpModal, setShowHelpModal] = React.useState(false);
 
   const idToLevelMap = React.useRef(new Map<string, number>());
 
@@ -228,7 +231,16 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
     <div className="flex h-[calc(100vh-120px)] relative">
       <div className="flex-grow flex flex-col">
         <div className="flex bg-gray-800 p-2 border-b border-gray-700">
-          <div className="w-1/3 font-bold">Span</div>
+          <div className="w-1/3 font-bold flex items-center justify-between">
+            <span>Span</span>
+            <button
+              onClick={() => setShowHelpModal(true)}
+              className="p-1 rounded hover:bg-gray-700 transition-colors"
+              title="Get help"
+            >
+              <Icon name="info-circle" className="text-gray-400 hover:text-white w-4 h-4" />
+            </button>
+          </div>
           <div className="w-2/3 font-bold px-4">
             <div className="w-full relative">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -299,6 +311,13 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
           <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} datasourceUid={datasourceUid} />
         )}
       </SpanOverlayDrawer>
+      <HelpModal
+        isOpen={showHelpModal}
+        onClose={() => setShowHelpModal(false)}
+        type="general-help"
+        currentWidth={panelWidth}
+        currentHeight={window.innerHeight}
+      />
     </div>
   );
 }

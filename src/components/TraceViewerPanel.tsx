@@ -1,8 +1,9 @@
 import React from 'react';
 import { PanelProps } from '@grafana/data';
-import { PanelDataErrorView } from '@grafana/runtime';
+import { Button } from '@grafana/ui';
 import TraceDetail from './TraceDetail';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { HelpModal } from './HelpModal';
 
 const queryClient = new QueryClient();
 
@@ -22,18 +23,41 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
   console.log('data', data);
   console.log('width', width);
   console.log('height', height);
+
+  const [showHelpModal, setShowHelpModal] = React.useState(false);
+  const [helpModalType, setHelpModalType] = React.useState<'panel-too-small' | 'no-data'>('panel-too-small');
+
   // Check if panel size meets minimum requirements
   if (width < 600 || height < 300) {
     return (
-      <div className="flex items-center justify-center h-full p-4 text-center">
-        <div className="text-red-500">
-          <h3 className="text-lg font-semibold mb-2">⚠️ Panel too small for trace visualization</h3>
-          <p>This panel requires a minimum size of 600x300 pixels.</p>
-          <p className="text-sm text-gray-500 mt-1">
-            Current size: {width}x{height} pixels
-          </p>
+      <>
+        <div className="flex items-center justify-center h-full p-4 text-center">
+          <div className="text-orange-500">
+            <h3 className="text-lg font-semibold mb-2">⚠️ Panel too small for trace visualization</h3>
+            <p>This panel requires a minimum size of 600x300 pixels.</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Current size: {width}x{height} pixels
+            </p>
+            <Button
+              onClick={() => {
+                setHelpModalType('panel-too-small');
+                setShowHelpModal(true);
+              }}
+              variant="primary"
+              className="mt-4"
+            >
+              Get Help
+            </Button>
+          </div>
         </div>
-      </div>
+        <HelpModal
+          isOpen={showHelpModal}
+          onClose={() => setShowHelpModal(false)}
+          type={helpModalType}
+          currentWidth={width}
+          currentHeight={height}
+        />
+      </>
     );
   }
 
@@ -76,8 +100,36 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
     }
   }
 
-  if (data.series.length === 0) {
-    return <PanelDataErrorView fieldConfig={fieldConfig} panelId={id} data={data} needsStringField />;
+  // Check if no traces are available (either no series or no traces found in series)
+  if (data.series.length === 0 || queries.length === 0) {
+    return (
+      <>
+        <div className="flex items-center justify-center h-full p-4 text-center">
+          <div className="text-blue-500">
+            <h3 className="text-lg font-semibold mb-2">📊 No trace data available</h3>
+            <p>The current query returned no trace data.</p>
+            <p className="text-sm text-gray-500 mt-1">Try adjusting your query or time range to see traces.</p>
+            <Button
+              onClick={() => {
+                setHelpModalType('no-data');
+                setShowHelpModal(true);
+              }}
+              variant="primary"
+              className="mt-4"
+            >
+              Get Help
+            </Button>
+          </div>
+        </div>
+        <HelpModal
+          isOpen={showHelpModal}
+          onClose={() => setShowHelpModal(false)}
+          type={helpModalType}
+          currentWidth={width}
+          currentHeight={height}
+        />
+      </>
+    );
   }
 
   return (

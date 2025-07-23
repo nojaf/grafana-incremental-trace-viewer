@@ -3,6 +3,8 @@ services:
     extends:
       file: .config/docker-compose-base.yaml
       service: grafana
+    depends_on:
+      - tempo
 
   tempo:
     image: grafana/tempo:latest # Or a specific version e.g., grafana/tempo:2.4.1

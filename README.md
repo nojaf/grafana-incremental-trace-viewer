@@ -1,6 +1,19 @@
-# Grafana app plugin template
+# Grafana Incremental Trace Viewer
 
-This template is a starting point for building an app plugin for Grafana.
+A Grafana panel plugin for visualizing distributed traces with incremental loading capabilities. This plugin provides an enhanced trace viewing experience with interactive help and user-friendly error handling.
+
+## Features
+
+- **Incremental Trace Loading**: Loads traces progressively for better performance
+- **Interactive Help System**: Contextual help modals for common issues
+- **User-Friendly Error Handling**: Clear guidance for panel size and data issues
+- **Advanced TraceQL Support**: Complex query filtering and search capabilities
+- **Real-time Updates**: Live trace data updates
+- **Responsive Design**: Adapts to different panel sizes
+
+## Help Documentation
+
+For detailed usage instructions and troubleshooting, see [HELP.md](HELP.md).
 
 ## What are Grafana app plugins?
 
