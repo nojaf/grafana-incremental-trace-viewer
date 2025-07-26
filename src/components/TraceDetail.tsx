@@ -119,8 +119,8 @@ async function extractSpans(
       // Assuming that the childCount is set by the backend.
       // We can just use that value to determine if the span has more children.
       const childCount = span.attributes?.find((a) => a.key === 'childCount')?.value?.intValue;
-      if (childCount && childCount > 0) {
-        hasMore = true;
+      if (childCount !== undefined) {
+        hasMore = childCount > 0;
       } else {
         // If not, we need to fetch the children count via additional query.
         hasMore = await hasChildren(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
