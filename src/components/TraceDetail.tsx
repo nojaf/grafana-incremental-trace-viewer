@@ -52,19 +52,23 @@ async function hasChildren(
 }
 
 /**
- * Maps the span nodes to a list of spans.
- * It also assigns the level to the span.
- * It also sets the hasMore flag to true for the parent span if it has more children.
- * Skips the take + 1 elements.
- * @param spanNodes
- * @param idToLevelMap
- * @returns Span[]
+ * Extracts and maps span nodes from the search response to a list of SpanInfo objects.
+ * Assigns a hierarchical level to each span based on its parent-child relationship.
+ * Optionally determines if a span has more children, setting the hasMore flag accordingly.
+ *
+ * @param idToLevelMap - A map tracking the hierarchical level of each span by span ID.
+ * @param traceId - The ID of the trace to extract spans from.
+ * @param datasourceUid - The UID of the datasource to use for fetching additional span information.
+ * @param responseData - The search response containing trace and span data.
+ * @param fixedHasMore - If provided, sets the hasMore flag for all spans to this value instead of checking for children.
+ * @returns Promise<SpanInfo[]>
  */
 async function extractSpans(
   idToLevelMap: Map<string, number>,
   traceId: string,
   datasourceUid: string,
-  responseData: SearchResponse
+  responseData: SearchResponse,
+  fixedHasMore?: boolean
 ): Promise<SpanInfo[]> {
   const trace = responseData.traces?.find((t) => t.traceID === traceId);
   if (!trace) {
@@ -78,8 +82,6 @@ async function extractSpans(
     const end = parseInt(b.durationNanos || '0', 10) - parseInt(a.durationNanos || '0', 10);
     return start || end;
   });
-
-  console.log(spanNodes);
 
   const spans: SpanInfo[] = [];
   for (let i = 0; i < spanNodes.length; i++) {
@@ -106,7 +108,10 @@ async function extractSpans(
     const endTimeUnixNano = startTimeUnixNano + durationNanos;
     // This is a rather expensive call.
     // We need to call this for every span.
-    const hasMore = await hasChildren(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
+    const hasMore =
+      fixedHasMore !== undefined
+        ? fixedHasMore
+        : await hasChildren(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
 
     spans.push({
       spanId: span.spanID,
@@ -120,6 +125,22 @@ async function extractSpans(
     });
   }
   return spans;
+}
+
+async function loadMoreSpans(
+  traceId: string,
+  datasourceUid: string,
+  idToLevelMap: Map<string, number>,
+  span: SpanInfo
+): Promise<SpanInfo[]> {
+  const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } | select (span:parentID, span:name)`;
+  const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
+  // As a precaution, we add 1 second to the end time.
+  // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
+  const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano) + 1;
+  // See https://github.com/grafana/tempo/issues/5435
+  const data = await search(datasourceUid, q, start, end, 4294967295);
+  return await extractSpans(idToLevelMap, traceId, datasourceUid, data);
 }
 
 function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: TraceDetailProps): React.JSX.Element {
@@ -145,9 +166,16 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
         const end = start + 1;
         const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name)`;
         const data = await search(datasourceUid, q, start, end);
-        const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
-        console.log(spans);
-        return spans;
+        // We pass in hasMore: false because we are fetching the first round of children later.
+        const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data, false);
+        const allSpans = [];
+        // We fetch the first round of children for each span.
+        for (const span of spans) {
+          allSpans.push(span);
+          const moreSpans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
+          allSpans.push(...moreSpans);
+        }
+        return allSpans;
       },
     },
     queryClient
@@ -191,7 +219,8 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
       // As a precaution, we add 1 second to the end time.
       // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
       const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano) + 1;
-      const data = await search(datasourceUid, q, start, end);
+      // See https://github.com/grafana/tempo/issues/5435
+      const data = await search(datasourceUid, q, start, end, 4294967295);
       const spans = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
 
       queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
