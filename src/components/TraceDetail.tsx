@@ -228,7 +228,7 @@ function TraceDetail({
   const rowVirtualizer = useVirtualizer({
     count: result.isSuccess ? result.data.length : 0,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 40,
+    estimateSize: () => 28,
     // Potential solution to add sticky headers
     // rangeExtractor: (range) => {}
   });
