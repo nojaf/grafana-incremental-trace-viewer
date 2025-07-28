@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { PanelProps } from '@grafana/data';
 import { Button } from '@grafana/ui';
 import TraceDetail from './TraceDetail';
@@ -17,13 +17,45 @@ export type QueryInfo = {
   startTimeInMs: number;
   durationInMs: number;
   panelWidth?: number;
+  panelHeight?: number;
 };
 
-export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id }) => {
-  console.log('data', data);
-  console.log('width', width);
-  console.log('height', height);
+function extractQueries(data: any): QueryInfo[] {
+  let queries: QueryInfo[] = [];
+  for (let i = 0; i < data.series.length; i++) {
+    const series = data.series[i];
+    const target = data.request?.targets[i];
+    if (!target || !target.datasource?.uid) {
+      continue;
+    }
+    const traceIds = series.fields.find((f) => f.name === 'traceID')?.values || [];
+    const startTimes = series.fields.find((f) => f.name === 'startTime')?.values || [];
+    const traceNames = series.fields.find((f) => f.name === 'traceName')?.values || [];
+    const traceDurations = series.fields.find((f) => f.name === 'traceDuration')?.values || [];
 
+    for (let j = 0; j < traceIds.length; j++) {
+      const traceId = traceIds[j];
+      const startTimeAsString = (startTimes[j] || 0).toString().replace('.', '');
+      const startTime = parseInt(
+        startTimeAsString.length > 13 ? startTimeAsString.substring(0, 13) : startTimeAsString,
+        10
+      );
+      const traceName = traceNames[j];
+      const traceDuration = traceDurations[j];
+      queries.push({
+        datasourceUid: target.datasource.uid,
+        query: (target as any)['query'],
+        traceId,
+        startTimeInMs: startTime,
+        traceName,
+        durationInMs: traceDuration,
+      });
+    }
+  }
+  return queries;
+}
+
+export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id }) => {
   const [showHelpModal, setShowHelpModal] = React.useState(false);
   const [helpModalType, setHelpModalType] = React.useState<'panel-too-small' | 'no-data'>('panel-too-small');
 
@@ -61,44 +93,13 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
     );
   }
 
-  let queries: QueryInfo[] = [];
-  // if (data.request?.targets.length === 0 || data.series.length === 0 || data.request?.targets.length !== data.series.length) {
-  //     return <div>Invalid query data</div>;
-  // }
-  for (let i = 0; i < data.series.length; i++) {
-    const series = data.series[i];
-    const target = data.request?.targets[i];
-    if (!target || !target.datasource?.uid) {
-      continue;
+  const queries = useMemo(() => extractQueries(data), [data]);
+  useEffect(() => {
+    if (queries.length > 1) {
+      const traceIds = queries.map((q) => '- ' + q.traceId).join('\n');
+      console.warn(`Multiple traces found in the query result:\n${traceIds}\nOnly the first trace will be displayed.`);
     }
-    const traceIds = series.fields.find((f) => f.name === 'traceID')?.values || [];
-    const startTimes = series.fields.find((f) => f.name === 'startTime')?.values || [];
-    const traceNames = series.fields.find((f) => f.name === 'traceName')?.values || [];
-    const traceDurations = series.fields.find((f) => f.name === 'traceDuration')?.values || [];
-
-    for (let j = 0; j < traceIds.length; j++) {
-      const traceId = traceIds[j];
-      // It still is hard to tell what unit start time is.
-      console.log('raw start time', startTimes[j]);
-      const startTimeAsString = (startTimes[j] || 0).toString().replace('.', '');
-      const startTime = parseInt(
-        startTimeAsString.length > 13 ? startTimeAsString.substring(0, 13) : startTimeAsString,
-        10
-      );
-      console.log('startTime', startTime);
-      const traceName = traceNames[j];
-      const traceDuration = traceDurations[j];
-      console.log('traceId', traceId, startTime);
-      queries.push({
-        datasourceUid: target.datasource.uid,
-        query: (target as any)['query'],
-        traceId,
-        startTimeInMs: startTime,
-        traceName,
-        durationInMs: traceDuration,
-      });
-    }
-  }
+  }, [queries.length]);
 
   // Check if no traces are available (either no series or no traces found in series)
   if (data.series.length === 0 || queries.length === 0) {
@@ -134,11 +135,7 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="relative overflow-y-scroll max-h-full">
-        {queries.map((queryInfo) => {
-          return <TraceDetail key={queryInfo.traceId} {...queryInfo} panelWidth={width} />;
-        })}
-      </div>
+      <TraceDetail key={queries[0].traceId} {...queries[0]} panelWidth={width} panelHeight={height} />
     </QueryClientProvider>
   );
 };

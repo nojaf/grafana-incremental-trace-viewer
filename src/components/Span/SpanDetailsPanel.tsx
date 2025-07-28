@@ -51,7 +51,6 @@ async function getTagAttributes(
       }
     }
   }
-  console.log('combined', combined);
 
   return combined;
 }
@@ -72,8 +71,6 @@ export const SpanDetailPanel = ({
       const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
       const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano);
       const tags = await searchTags(datasourceUid, qTags, start, end);
-      // TODO: spit this into multiple requests as it can be too big
-      console.log('TAGS', tags);
       return getTagAttributes(datasourceUid, start, end, span.traceId, span.spanId, tags);
     },
   });
