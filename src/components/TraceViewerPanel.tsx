@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react';
-import { PanelProps } from '@grafana/data';
+import { PanelData, PanelProps } from '@grafana/data';
 import { Button } from '@grafana/ui';
 import TraceDetail from './TraceDetail';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -20,7 +20,7 @@ export type QueryInfo = {
   panelHeight?: number;
 };
 
-function extractQueries(data: any): QueryInfo[] {
+function extractQueries(data: PanelData): QueryInfo[] {
   let queries: QueryInfo[] = [];
   for (let i = 0; i < data.series.length; i++) {
     const series = data.series[i];
@@ -59,20 +59,26 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
   const [showHelpModal, setShowHelpModal] = React.useState(false);
   const [helpModalType, setHelpModalType] = React.useState<'panel-too-small' | 'no-data'>('panel-too-small');
 
-  // Check if panel size meets minimum requirements
-  if (width < 600 || height < 300) {
+  const queries = useMemo(() => extractQueries(data), [data]);
+  useEffect(() => {
+    if (queries.length > 1) {
+      const traceIds = queries.map((q) => '- ' + q.traceId).join('\n');
+      console.warn(`Multiple traces found in the query result:\n${traceIds}\nOnly the first trace will be displayed.`);
+    }
+  }, [queries]);
+
+  // Check if no traces are available (either no series or no traces found in series)
+  if (data.series.length === 0 || queries.length === 0) {
     return (
       <>
         <div className="flex items-center justify-center h-full p-4 text-center">
-          <div className="text-orange-500">
-            <h3 className="text-lg font-semibold mb-2">⚠️ Panel too small for trace visualization</h3>
-            <p>This panel requires a minimum size of 600x300 pixels.</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Current size: {width}x{height} pixels
-            </p>
+          <div className="text-blue-500">
+            <h3 className="text-lg font-semibold mb-2">📊 No trace data available</h3>
+            <p>The current query returned no trace data.</p>
+            <p className="text-sm text-gray-500 mt-1">Try adjusting your query or time range to see traces.</p>
             <Button
               onClick={() => {
-                setHelpModalType('panel-too-small');
+                setHelpModalType('no-data');
                 setShowHelpModal(true);
               }}
               variant="primary"
@@ -92,27 +98,20 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
       </>
     );
   }
-
-  const queries = useMemo(() => extractQueries(data), [data]);
-  useEffect(() => {
-    if (queries.length > 1) {
-      const traceIds = queries.map((q) => '- ' + q.traceId).join('\n');
-      console.warn(`Multiple traces found in the query result:\n${traceIds}\nOnly the first trace will be displayed.`);
-    }
-  }, [queries.length]);
-
-  // Check if no traces are available (either no series or no traces found in series)
-  if (data.series.length === 0 || queries.length === 0) {
+  // Check if panel size meets minimum requirements
+  else if (width < 600 || height < 300) {
     return (
       <>
         <div className="flex items-center justify-center h-full p-4 text-center">
-          <div className="text-blue-500">
-            <h3 className="text-lg font-semibold mb-2">📊 No trace data available</h3>
-            <p>The current query returned no trace data.</p>
-            <p className="text-sm text-gray-500 mt-1">Try adjusting your query or time range to see traces.</p>
+          <div className="text-orange-500">
+            <h3 className="text-lg font-semibold mb-2">⚠️ Panel too small for trace visualization</h3>
+            <p>This panel requires a minimum size of 600x300 pixels.</p>
+            <p className="text-sm text-gray-500 mt-1">
+              Current size: {width}x{height} pixels
+            </p>
             <Button
               onClick={() => {
-                setHelpModalType('no-data');
+                setHelpModalType('panel-too-small');
                 setShowHelpModal(true);
               }}
               variant="primary"
