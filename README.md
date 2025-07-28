@@ -19,6 +19,18 @@ For detailed usage instructions and troubleshooting, see [HELP.md](HELP.md).
 
 App plugins can let you create a custom out-of-the-box monitoring experience by custom pages, nested data sources and panel plugins.
 
+## Build-time Configuration
+
+The plugin supports build-time configuration through environment variables. Create a `.env` file in the root directory and set the following variables:
+
+- `SUPPORTS_CHILD_COUNT`: Set to `'true'` to enable child count support, `'false'` to disable it. This affects whether the plugin will use `childCount` attributes from the backend. Default is `'false'`.
+
+Example `.env` file:
+
+```bash
+SUPPORTS_CHILD_COUNT=false
+```
+
 ## Get started
 
 ### Backend
@@ -60,6 +72,12 @@ App plugins can let you create a custom out-of-the-box monitoring experience by 
 
    ```bash
    bun run build
+   ```
+
+   To build with child count support enabled:
+
+   ```bash
+   bun run build:with-child-count
    ```
 
 4. Run the tests (using Jest)

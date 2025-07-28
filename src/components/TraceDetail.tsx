@@ -17,7 +17,8 @@ import { HelpModal } from './HelpModal';
 
 // default Grafana does not support child count.
 // In production, we use a custom build of Grafana that supports child count.
-const supportsChildCount = false;
+// This value is set at build time via environment variable SUPPORTS_CHILD_COUNT
+const supportsChildCount = process.env.SUPPORTS_CHILD_COUNT || false;
 
 export type SpanInfo = {
   spanId: string;
