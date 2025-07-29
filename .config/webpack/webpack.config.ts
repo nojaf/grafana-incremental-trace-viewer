@@ -195,7 +195,7 @@ const config = async (env: Env): Promise<Configuration> => {
       virtualPublicPath,
       // Define environment variables for build-time configuration
       new webpack.DefinePlugin({
-        'process.env.SUPPORTS_CHILD_COUNT': JSON.stringify(process.env.SUPPORTS_CHILD_COUNT === 'true'),
+        'process.env.SUPPORTS_CHILD_COUNT': JSON.stringify(process.env.SUPPORTS_CHILD_COUNT === '1'),
       }),
       // Insert create plugin version information into the bundle
       new webpack.BannerPlugin({

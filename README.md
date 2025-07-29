@@ -23,12 +23,12 @@ App plugins can let you create a custom out-of-the-box monitoring experience by 
 
 The plugin supports build-time configuration through environment variables. Create a `.env` file in the root directory and set the following variables:
 
-- `SUPPORTS_CHILD_COUNT`: Set to `'true'` to enable child count support, `'false'` to disable it. This affects whether the plugin will use `childCount` attributes from the backend. Default is `'false'`.
+- `SUPPORTS_CHILD_COUNT`: Set to `'1'` to enable child count support, `'0'` to disable it. This affects whether the plugin will use `childCount` attributes from the backend. Default is `'false'`.
 
 Example `.env` file:
 
 ```bash
-SUPPORTS_CHILD_COUNT=false
+SUPPORTS_CHILD_COUNT=0
 ```
 
 ## Get started

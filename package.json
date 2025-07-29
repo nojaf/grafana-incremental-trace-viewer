@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
-    "build:with-child-count": "SUPPORTS_CHILD_COUNT=true webpack -c ./.config/webpack/webpack.config.ts --env production",
+    "build:with-child-count": "SUPPORTS_CHILD_COUNT=1 webpack -c ./.config/webpack/webpack.config.ts --env production",
     "dev": "webpack -w -c ./.config/webpack/webpack.config.ts --env development",
     "test": "jest --watch --onlyChanged",
     "test:ci": "jest --passWithNoTests --maxWorkers 4",
