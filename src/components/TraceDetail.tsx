@@ -160,7 +160,13 @@ async function loadMoreSpans(
   return await extractSpans(idToLevelMap, traceId, datasourceUid, data);
 }
 
-function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: TraceDetailProps): React.JSX.Element {
+function TraceDetail({
+  traceId,
+  datasourceUid,
+  startTimeInMs,
+  panelWidth,
+  panelHeight,
+}: TraceDetailProps): React.JSX.Element {
   // Should we assert for traceId and datasourceId?
   if (!traceId || !datasourceUid) {
     throw new Error('traceId and datasourceId are required');
@@ -281,12 +287,16 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
     });
   };
 
+  function copyTraceId() {
+    navigator.clipboard.writeText(traceId);
+  }
+
   return (
-    <div className="flex h-[calc(100vh-120px)] relative">
+    <div className="flex relative">
       <div className="flex-grow flex flex-col">
         <div className="flex bg-gray-800 p-2 border-b border-gray-700">
           <div className="w-1/3 font-bold flex items-center justify-between">
-            <span>Span</span>
+            <span onClick={copyTraceId}>Span</span>
             <button
               onClick={() => setShowHelpModal(true)}
               className="p-1 rounded hover:bg-gray-700 transition-colors"
@@ -315,7 +325,7 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
           {result.isLoading && <div>Loading...</div>}
           {result.isError && <div>Error: {result.error.message}</div>}
           {result.isSuccess && (
-            <div ref={parentRef} className="h-full overflow-auto">
+            <div ref={parentRef} className="overflow-auto" style={{ height: panelHeight }}>
               <div
                 style={{
                   height: `${rowVirtualizer.getTotalSize()}px`,
