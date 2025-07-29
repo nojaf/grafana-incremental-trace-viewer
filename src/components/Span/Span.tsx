@@ -1,6 +1,6 @@
 import React from 'react';
 import { Icon } from '@grafana/ui';
-import { calculateColourBySpanId, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
+import { calculateColourByStringValue, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
 import type { SpanInfo } from '../TraceDetail';
 
 type SpanNodeProps = SpanInfo & {
@@ -24,6 +24,8 @@ export const Span = (props: SpanNodeProps) => {
     100;
 
   const canLoadMore = props.hasMore;
+
+  console.log(props.serviceNamespace);
 
   return (
     <div
@@ -56,14 +58,15 @@ export const Span = (props: SpanNodeProps) => {
       </div>
       <div
         className="w-2/3 h-full relative border-l-3"
-        style={{ borderColor: calculateColourBySpanId(props.level > 2 ? props.parentSpanId || '' : props.spanId) }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+        style={{ borderColor: calculateColourByStringValue(props.level > 2 ? props.parentSpanId || '' : props.spanId) }} // Limitation in tailwind dynamic class construction: Check README.md for more details
       >
         <div className="h-full relative mx-4">
           <div
-            className="bg-blue-500 h-3/4 absolute my-auto top-0 bottom-0 rounded-sm min-w-[2px]"
+            className="h-3/4 absolute my-auto top-0 bottom-0 rounded-sm min-w-[2px]"
             style={{
               left: `${offset}%`,
               width: `${Math.max(width, 0.1)}%`,
+              backgroundColor: calculateColourByStringValue(props.serviceNamespace || 'default'),
             }} // Limitation in tailwind dynamic class construction: Check README.md for more details
             title={`Duration: ${props.endTimeUnixNano - props.startTimeUnixNano}ns`}
           ></div>

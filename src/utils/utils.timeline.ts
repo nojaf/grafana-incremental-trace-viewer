@@ -12,8 +12,8 @@ export const getMillisecondsDifferenceNative = (startTime: ISODateString, endTim
   return e.getTime() - s.getTime();
 };
 
-export const calculateColourBySpanId = (spanId: string) => {
-  const hash = spanId.split('').reduce((acc, char) => {
+export const calculateColourByStringValue = (value: string) => {
+  const hash = value.split('').reduce((acc, char) => {
     return acc + char.charCodeAt(0);
   }, 0);
   return `hsl(${hash % 360}, 100%, 50%)`;

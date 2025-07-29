@@ -13,20 +13,33 @@ const rndFloat = (min, max) => Math.random() * (max - min) + min;
 
 // ---------- parameters ----------
 const NUM_SERVICES = 2;
-const CHILDREN = 5;
+const CHILDREN = 2;
 
 // ---------- tracer provider ----------
-const resource = resourceFromAttributes({
+const baseResource = resourceFromAttributes({
   [ATTR_SERVICE_NAME]: `my-large-trace-provider-${new Date().toISOString()}`,
   'other-resource-attribute': 'other-resource-attribute-value',
 });
 
-const provider = new NodeTracerProvider({
-  resource,
-  spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: 'http://localhost:4317' }))],
-});
-provider.register();
-const tracer = provider.getTracer('create-depth-trace');
+// Create separate providers for each service
+const providers = [];
+const tracers = [];
+
+for (let i = 0; i < NUM_SERVICES; i++) {
+  const serviceResource = resourceFromAttributes({
+    ...baseResource.attributes,
+    'service.namespace': `service_${i}_namespace`,
+  });
+
+  const provider = new NodeTracerProvider({
+    resource: serviceResource,
+    spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: 'http://localhost:4317' }))],
+  });
+  provider.register();
+
+  providers.push(provider);
+  tracers.push(provider.getTracer(`service-${i}`));
+}
 
 // ---------- main logic ----------
 async function main() {
@@ -34,15 +47,15 @@ async function main() {
   const total = NUM_SERVICES * CHILDREN;
   log(`Total spans generated: ${total}`);
 
-  const rootSpan = tracer.startSpan('root');
+  const rootSpan = tracers[0].startSpan('root');
   rootSpan.setAttribute('root-span-attribute-xyz', 123);
   const rootCtx = trace.setSpan(otContext.active(), rootSpan);
 
   for (let i = 0; i < NUM_SERVICES; i++) {
-    const serviceSpan = tracer.startSpan(`service_${i}`, undefined, rootCtx);
+    const serviceSpan = tracers[i].startSpan(`service_${i}`, undefined, rootCtx);
     const serviceCtx = trace.setSpan(rootCtx, serviceSpan);
     for (let j = 0; j < CHILDREN; j++) {
-      const childSpan = tracer.startSpan(`service_${i}_child_${j}`, undefined, serviceCtx);
+      const childSpan = tracers[i].startSpan(`service_${i}_child_${j}`, undefined, serviceCtx);
       childSpan.setAttribute('child-span-attribute-xyz', 456);
       await sleep(rndFloat(10, 50));
       childSpan.setAttribute('foo', 'bar');
@@ -56,7 +69,9 @@ async function main() {
 
   // allow exporter to flush & cleanly shut down
   await sleep(2000);
-  await provider.shutdown();
+  for (const provider of providers) {
+    await provider.shutdown();
+  }
 }
 
 await main();

@@ -29,6 +29,7 @@ export type SpanInfo = {
   endTimeUnixNano: number;
   name: string;
   hasMore: boolean;
+  serviceNamespace?: string;
 };
 
 function getParentSpanId(span: Span): string | null {
@@ -128,6 +129,9 @@ async function extractSpans(
       }
     }
 
+    const serviceNamespace =
+      span.attributes?.find((a) => a.key === 'service.namespace')?.value?.stringValue || undefined;
+
     spans.push({
       spanId: span.spanID,
       parentSpanId: parentSpanId,
@@ -137,6 +141,7 @@ async function extractSpans(
       endTimeUnixNano: endTimeUnixNano,
       name: span.name || '',
       hasMore: hasMore,
+      serviceNamespace,
     });
   }
   return spans;
@@ -148,9 +153,9 @@ async function loadMoreSpans(
   idToLevelMap: Map<string, number>,
   span: SpanInfo
 ): Promise<SpanInfo[]> {
-  const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } | select (span:parentID, span:name${
-    supportsChildCount ? ', childCount' : ''
-  })`;
+  const q = `{ trace:id = "${traceId}" && span:parentID = "${
+    span.spanId
+  }" } | select (span:parentID, span:name, resource.service.namespace${supportsChildCount ? ', childCount' : ''})`;
   const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
   // As a precaution, we add 1 second to the end time.
   // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
@@ -187,7 +192,7 @@ function TraceDetail({
       queryFn: async () => {
         const start = mkUnixEpochFromMiliseconds(startTimeInMs);
         const end = start + 1;
-        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name${
+        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name, resource.service.namespace${
           supportsChildCount ? ', childCount' : ''
         })`;
         const data = await search(datasourceUid, q, start, end);
@@ -239,17 +244,7 @@ function TraceDetail({
     }
 
     new Promise(async () => {
-      const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } | select (span:parentID, span:name${
-        supportsChildCount ? ', childCount' : ''
-      })`;
-      const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
-      // As a precaution, we add 1 second to the end time.
-      // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
-      const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano) + 1;
-      // See https://github.com/grafana/tempo/issues/5435
-      const data = await search(datasourceUid, q, start, end, 4294967295);
-      const spans = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
-
+      const spans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
       queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
         if (!oldData) {
           return spans;
