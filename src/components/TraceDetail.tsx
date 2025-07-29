@@ -15,6 +15,11 @@ import type { QueryInfo as TraceDetailProps } from './TraceViewerPanel';
 import { SpanOverlayDrawer } from './Span/SpanOverlayDrawer';
 import { HelpModal } from './HelpModal';
 
+// default Grafana does not support child count.
+// In production, we use a custom build of Grafana that supports child count.
+// This value is set at build time via environment variable SUPPORTS_CHILD_COUNT
+const supportsChildCount = process.env.SUPPORTS_CHILD_COUNT || false;
+
 export type SpanInfo = {
   spanId: string;
   parentSpanId: string | null;
@@ -108,10 +113,20 @@ async function extractSpans(
     const endTimeUnixNano = startTimeUnixNano + durationNanos;
     // This is a rather expensive call.
     // We need to call this for every span.
-    const hasMore =
-      fixedHasMore !== undefined
-        ? fixedHasMore
-        : await hasChildren(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
+    let hasMore = false;
+    if (fixedHasMore !== undefined) {
+      hasMore = fixedHasMore;
+    } else {
+      // Assuming that the childCount is set by the backend.
+      // We can just use that value to determine if the span has more children.
+      const childCount = span.attributes?.find((a) => a.key === 'childCount')?.value?.intValue;
+      if (childCount !== undefined) {
+        hasMore = childCount > 0;
+      } else {
+        // If not, we need to fetch the children count via additional query.
+        hasMore = await hasChildren(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
+      }
+    }
 
     spans.push({
       spanId: span.spanID,
@@ -133,7 +148,9 @@ async function loadMoreSpans(
   idToLevelMap: Map<string, number>,
   span: SpanInfo
 ): Promise<SpanInfo[]> {
-  const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } | select (span:parentID, span:name)`;
+  const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } | select (span:parentID, span:name${
+    supportsChildCount ? ', childCount' : ''
+  })`;
   const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
   // As a precaution, we add 1 second to the end time.
   // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
@@ -164,7 +181,9 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
       queryFn: async () => {
         const start = mkUnixEpochFromMiliseconds(startTimeInMs);
         const end = start + 1;
-        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name)`;
+        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name${
+          supportsChildCount ? ', childCount' : ''
+        })`;
         const data = await search(datasourceUid, q, start, end);
         // We pass in hasMore: false because we are fetching the first round of children later.
         const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data, false);
@@ -214,7 +233,9 @@ function TraceDetail({ traceId, datasourceUid, startTimeInMs, panelWidth }: Trac
     }
 
     new Promise(async () => {
-      const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } | select (span:parentID, span:name)`;
+      const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } | select (span:parentID, span:name${
+        supportsChildCount ? ', childCount' : ''
+      })`;
       const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
       // As a precaution, we add 1 second to the end time.
       // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
