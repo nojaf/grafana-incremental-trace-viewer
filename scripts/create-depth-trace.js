@@ -12,23 +12,30 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rndFloat = (min, max) => Math.random() * (max - min) + min;
 
 // ---------- parameters ----------
-const NUM_SERVICES = 2;
-const CHILDREN = 2;
+const NUM_SERVICES = 7;
+const CHILDREN = 13;
 
 // ---------- tracer provider ----------
 const baseResource = resourceFromAttributes({
   [ATTR_SERVICE_NAME]: `my-large-trace-provider-${new Date().toISOString()}`,
   'other-resource-attribute': 'other-resource-attribute-value',
+  'service.namespace': 'root-service-namespace',
 });
 
-// Create separate providers for each service
+const rootProvider = new NodeTracerProvider({
+  resource: baseResource,
+  spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: 'http://localhost:4317' }))],
+});
+rootProvider.register();
+
+// Create separate tracers for each service with different resources
 const providers = [];
 const tracers = [];
 
 for (let i = 0; i < NUM_SERVICES; i++) {
   const serviceResource = resourceFromAttributes({
-    ...baseResource.attributes,
-    'service.namespace': `service_${i}_namespace`,
+    [ATTR_SERVICE_NAME]: `service-${i + 1}`,
+    'service.namespace': `service_${i + 1}_namespace`,
   });
 
   const provider = new NodeTracerProvider({
@@ -47,15 +54,19 @@ async function main() {
   const total = NUM_SERVICES * CHILDREN;
   log(`Total spans generated: ${total}`);
 
-  const rootSpan = tracers[0].startSpan('root');
+  const rootTracer = rootProvider.getTracer('root');
+  const rootSpan = rootTracer.startSpan('root');
   rootSpan.setAttribute('root-span-attribute-xyz', 123);
   const rootCtx = trace.setSpan(otContext.active(), rootSpan);
 
   for (let i = 0; i < NUM_SERVICES; i++) {
-    const serviceSpan = tracers[i].startSpan(`service_${i}`, undefined, rootCtx);
+    // Use the service tracer to create service spans with proper namespace
+    const serviceSpan = tracers[i].startSpan(`service_${i + 1}`, undefined, rootCtx);
     const serviceCtx = trace.setSpan(rootCtx, serviceSpan);
+
     for (let j = 0; j < CHILDREN; j++) {
-      const childSpan = tracers[i].startSpan(`service_${i}_child_${j}`, undefined, serviceCtx);
+      // Use the same service tracer for child spans to maintain namespace
+      const childSpan = tracers[i].startSpan(`service_${i + 1}_child_${j + 1}`, undefined, serviceCtx);
       childSpan.setAttribute('child-span-attribute-xyz', 456);
       await sleep(rndFloat(10, 50));
       childSpan.setAttribute('foo', 'bar');
@@ -69,6 +80,7 @@ async function main() {
 
   // allow exporter to flush & cleanly shut down
   await sleep(2000);
+  await rootProvider.shutdown();
   for (const provider of providers) {
     await provider.shutdown();
   }
