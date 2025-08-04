@@ -61,6 +61,7 @@ async function buildTree(parentCtx, currentDepth, maxDepth, spanBudget) {
   const tracer = nextTracer();
   const span = tracer.startSpan(`span-depth-${currentDepth}`, undefined, parentCtx);
   span.setAttribute('depth', currentDepth);
+  span.setAttribute('k8s.container.name', `container-depth-${currentDepth}`);
 
   const ctxWithSpan = trace.setSpan(parentCtx, span);
 
@@ -71,6 +72,7 @@ async function buildTree(parentCtx, currentDepth, maxDepth, spanBudget) {
       const child = tracer.startSpan(`span-depth-${currentDepth + 1}_${count}`, undefined, ctxWithSpan);
 
       child.setAttribute('depth', currentDepth + 1);
+      child.setAttribute('k8s.container.name', `container-depth-${currentDepth + 1}-${count}`);
       child.setAttribute('user_id', `user-${count}`);
       child.setAttribute('order_id', `order-${count}`);
       child.setAttribute('region', ['us-east', 'eu-west', 'ap-south', 'sa-east'][count % 4]);

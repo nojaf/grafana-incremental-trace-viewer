@@ -57,17 +57,20 @@ async function main() {
   const rootTracer = rootProvider.getTracer('root');
   const rootSpan = rootTracer.startSpan('root');
   rootSpan.setAttribute('root-span-attribute-xyz', 123);
+  rootSpan.setAttribute('k8s.container.name', 'root-container');
   const rootCtx = trace.setSpan(otContext.active(), rootSpan);
 
   for (let i = 0; i < NUM_SERVICES; i++) {
     // Use the service tracer to create service spans with proper namespace
     const serviceSpan = tracers[i].startSpan(`service_${i + 1}`, undefined, rootCtx);
+    serviceSpan.setAttribute('k8s.container.name', `service-container-${i + 1}`);
     const serviceCtx = trace.setSpan(rootCtx, serviceSpan);
 
     for (let j = 0; j < CHILDREN; j++) {
       // Use the same service tracer for child spans to maintain namespace
       const childSpan = tracers[i].startSpan(`service_${i + 1}_child_${j + 1}`, undefined, serviceCtx);
       childSpan.setAttribute('child-span-attribute-xyz', 456);
+      childSpan.setAttribute('k8s.container.name', `container-${i + 1}-${j + 1}`);
       await sleep(rndFloat(10, 50));
       childSpan.setAttribute('foo', 'bar');
       childSpan.setAttribute('yozora', crypto.randomUUID());
