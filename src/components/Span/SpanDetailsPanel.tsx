@@ -1,7 +1,7 @@
 import React from 'react';
 import clsx from 'clsx';
 
-import type { SpanInfo } from '../TraceDetail';
+import type { SpanInfo } from '../../types';
 import { mkUnixEpochFromNanoSeconds, formatUnixNanoToDateTime, formatDuration } from 'utils/utils.timeline';
 import { useQuery } from '@tanstack/react-query';
 import { searchTags, search, KeyValue, AnyValue } from 'utils/utils.api';

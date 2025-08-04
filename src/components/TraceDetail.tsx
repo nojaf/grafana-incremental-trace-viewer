@@ -14,23 +14,12 @@ import { search, SearchResponse, Span } from '../utils/utils.api';
 import type { QueryInfo as TraceDetailProps } from './TraceViewerPanel';
 import { SpanOverlayDrawer } from './Span/SpanOverlayDrawer';
 import { HelpModal } from './HelpModal';
+import { ChildStatus, SpanInfo } from 'types';
 
 // default Grafana does not support child count.
 // In production, we use a custom build of Grafana that supports child count.
 // This value is set at build time via environment variable SUPPORTS_CHILD_COUNT
 const supportsChildCount = process.env.SUPPORTS_CHILD_COUNT || false;
-
-export type SpanInfo = {
-  spanId: string;
-  parentSpanId: string | null;
-  traceId: string;
-  level: number;
-  startTimeUnixNano: number;
-  endTimeUnixNano: number;
-  name: string;
-  hasMore: boolean;
-  serviceNamespace?: string;
-};
 
 function getParentSpanId(span: Span): string | null {
   const attributes = span.attributes;
@@ -73,8 +62,7 @@ async function extractSpans(
   idToLevelMap: Map<string, number>,
   traceId: string,
   datasourceUid: string,
-  responseData: SearchResponse,
-  fixedHasMore?: boolean
+  responseData: SearchResponse
 ): Promise<SpanInfo[]> {
   const trace = responseData.traces?.find((t) => t.traceID === traceId);
   if (!trace) {
@@ -114,19 +102,15 @@ async function extractSpans(
     const endTimeUnixNano = startTimeUnixNano + durationNanos;
     // This is a rather expensive call.
     // We need to call this for every span.
-    let hasMore = false;
-    if (fixedHasMore !== undefined) {
-      hasMore = fixedHasMore;
+    let hasRemoteChildren = false;
+    // Assuming that the childCount is set by the backend.
+    // We can just use that value to determine if the span has more children.
+    const childCount = span.attributes?.find((a) => a.key === 'childCount')?.value?.intValue;
+    if (childCount !== undefined) {
+      hasRemoteChildren = childCount > 0;
     } else {
-      // Assuming that the childCount is set by the backend.
-      // We can just use that value to determine if the span has more children.
-      const childCount = span.attributes?.find((a) => a.key === 'childCount')?.value?.intValue;
-      if (childCount !== undefined) {
-        hasMore = childCount > 0;
-      } else {
-        // If not, we need to fetch the children count via additional query.
-        hasMore = await hasChildren(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
-      }
+      // If not, we need to fetch the children count via additional query.
+      hasRemoteChildren = await hasChildren(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
     }
 
     const serviceNamespace =
@@ -141,8 +125,8 @@ async function extractSpans(
       level: idToLevelMap.get(span.spanID) || 0,
       startTimeUnixNano: startTimeUnixNano,
       endTimeUnixNano: endTimeUnixNano,
+      childStatus: hasRemoteChildren ? ChildStatus.RemoteChildren : ChildStatus.NoChildren,
       name: serviceName || span.name || '',
-      hasMore: hasMore,
       serviceNamespace,
     });
   }
@@ -188,6 +172,8 @@ function TraceDetail({
   const [showHelpModal, setShowHelpModal] = React.useState(false);
 
   const idToLevelMap = React.useRef(new Map<string, number>());
+  // Keep track of the open/collapsed items in a map
+  // filter accordingly in the virtualizer
 
   const result = useQuery<SpanInfo[]>(
     {
@@ -201,10 +187,11 @@ function TraceDetail({
         })`;
         const data = await search(datasourceUid, q, start, end);
         // We pass in hasMore: false because we are fetching the first round of children later.
-        const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data, false);
+        const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
         const allSpans = [];
         // We fetch the first round of children for each span.
         for (const span of spans) {
+          span.childStatus = ChildStatus.ShowChildren;
           allSpans.push(span);
           const moreSpans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
           allSpans.push(...moreSpans);
@@ -214,6 +201,33 @@ function TraceDetail({
     },
     queryClient
   );
+
+  const visibleIndexes = React.useMemo(() => {
+    if (!result.isSuccess) {
+      return [];
+    }
+
+    const indexes: number[] = [];
+    const collapsedParents = new Set<string>();
+
+    for (let i = 0; i < result.data.length; i++) {
+      const span = result.data[i];
+
+      // Mark this span as collapsed if it should hide children
+      if (span.childStatus === ChildStatus.HideChildren) {
+        collapsedParents.add(span.spanId);
+      }
+
+      // Skip if parent is collapsed
+      if (span.parentSpanId && collapsedParents.has(span.parentSpanId)) {
+        continue;
+      }
+
+      indexes.push(i);
+    }
+
+    return indexes;
+  }, [result.isSuccess, result.data]);
 
   const traceDurationInMiliseconds = React.useMemo(() => {
     if (!result.isSuccess || result.data.length === 0) {
@@ -235,59 +249,102 @@ function TraceDetail({
   }, [result.isSuccess, result.data]);
 
   const rowVirtualizer = useVirtualizer({
-    count: result.isSuccess ? result.data.length : 0,
+    count: visibleIndexes.length,
     getScrollElement: () => parentRef.current,
     estimateSize: () => 28,
-    // Potential solution to add sticky headers
-    // rangeExtractor: (range) => {}
   });
 
-  const loadMore = (index: number, span: SpanInfo) => {
+  const loadRemoteChildren = async (span: SpanInfo) => {
     if (!result.isSuccess) {
       return;
     }
 
-    new Promise(async () => {
-      const spans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
-      queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
-        if (!oldData) {
-          return spans;
-        }
+    // Mark the parent span as loading
+    queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
+      if (!oldData) {
+        return oldData;
+      }
+      return oldData.map((s) => (s.spanId === span.spanId ? { ...s, childStatus: ChildStatus.LoadingChildren } : s));
+    });
 
-        let nextSpans: SpanInfo[] = [];
-        let didAddNewSpans = false;
+    // Load the children
+    const spans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
 
-        for (let i = 0; i < oldData.length; i++) {
-          // Add all spans before the current span.
-          if (i <= index) {
-            nextSpans.push(oldData[i]);
-            continue;
+    // Update the parent span to show children
+    queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
+      if (!oldData) {
+        return spans;
+      }
+
+      let nextSpans: SpanInfo[] = [];
+
+      for (const sp of oldData) {
+        nextSpans.push(sp);
+
+        if (sp.spanId === span.spanId) {
+          const last = nextSpans.at(-1);
+          if (last) {
+            last.childStatus = ChildStatus.ShowChildren;
           }
-
-          if (i === index + 1) {
-            // Add the new spans after their parent span.
-            for (let c = 0; c < spans.length; c++) {
-              nextSpans.push(spans[c]);
-            }
-            didAddNewSpans = true;
-          }
-
-          nextSpans.push(oldData[i]);
-        }
-
-        if (!didAddNewSpans) {
           nextSpans.push(...spans);
         }
+      }
 
-        nextSpans[index].hasMore = false;
+      return nextSpans;
+    });
+  };
 
-        return nextSpans;
+  let showChildren = (span: SpanInfo) => {
+    queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
+      return oldData?.map((sp) => {
+        return sp.spanId === span.spanId ? { ...span, childStatus: ChildStatus.ShowChildren } : sp;
       });
+    });
+  };
+
+  let hideChildren = (span: SpanInfo) => {
+    queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
+      if (!oldData) {
+        return oldData;
+      }
+
+      const descendantsToHide = new Set<string>([span.spanId]);
+
+      const newData = oldData.map((sp) => {
+        // Check if this span should be hidden (either it's the target or its parent is being hidden)
+        const shouldHide = sp.spanId === span.spanId || (sp.parentSpanId && descendantsToHide.has(sp.parentSpanId));
+
+        if (shouldHide) {
+          descendantsToHide.add(sp.spanId); // Add to set for future children
+          // Only change status if it's not NoChildren
+          const newStatus =
+            sp.childStatus === ChildStatus.NoChildren ? ChildStatus.NoChildren : ChildStatus.HideChildren;
+          return { ...sp, childStatus: newStatus };
+        }
+
+        return sp;
+      });
+
+      return newData;
     });
   };
 
   function copyTraceId() {
     navigator.clipboard.writeText(traceId);
+  }
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
+  function copyData() {
+    if (!result.isSuccess) {
+      return;
+    }
+    const striped = result.data.map((d) => ({
+      level: d.level,
+      spanId: d.spanId,
+      parentSpanId: d.parentSpanId,
+    }));
+    navigator.clipboard.writeText(JSON.stringify(striped));
   }
 
   return (
@@ -323,19 +380,34 @@ function TraceDetail({
         <div className="flex-grow" data-testid={testIds.pageThree.container}>
           {result.isLoading && <div>Loading...</div>}
           {result.isError && <div>Error: {result.error.message}</div>}
+          <button onClick={copyData}>Copy data</button>
           {result.isSuccess && (
-            <div ref={parentRef} className="overflow-auto" style={{ height: panelHeight }}>
+            <div ref={parentRef} className="overflow-auto" style={{ height: `calc(${panelHeight}px - 44px)` }}>
               <div
                 style={{
                   height: `${rowVirtualizer.getTotalSize()}px`,
                 }} // Limitation in tailwind dynamic class construction: Check README.md for more details
                 className="w-full relative"
               >
-                {rowVirtualizer.getVirtualItems().map((virtualItem) => {
-                  const span = result.data[virtualItem.index];
-                  const hasChildren =
-                    virtualItem.index !== result.data.length - 1 &&
-                    result.data[virtualItem.index + 1].parentSpanId === span.spanId;
+                {virtualItems.map((virtualItem) => {
+                  // The index of result.data
+                  const originalIndex = visibleIndexes[virtualItem.index];
+                  const span = result.data[originalIndex];
+                  let updateChildStatus = (span: SpanInfo) => {};
+                  switch (span.childStatus) {
+                    case ChildStatus.HideChildren:
+                      updateChildStatus = showChildren;
+                      break;
+                    case ChildStatus.RemoteChildren:
+                      updateChildStatus = loadRemoteChildren;
+                      break;
+                    case ChildStatus.ShowChildren:
+                      updateChildStatus = hideChildren;
+                      break;
+                    case ChildStatus.NoChildren:
+                    case ChildStatus.LoadingChildren:
+                      break;
+                  }
                   return (
                     <div
                       key={virtualItem.key}
@@ -348,12 +420,10 @@ function TraceDetail({
                       <SpanComponent
                         key={span.spanId}
                         {...span}
-                        index={virtualItem.index}
-                        loadMore={loadMore}
+                        updateChildStatus={updateChildStatus}
                         traceStartTimeInMiliseconds={traceStartTimeInMiliseconds}
                         traceDurationInMiliseconds={traceDurationInMiliseconds}
                         onSelect={setSelectedSpan}
-                        hasChildren={hasChildren}
                         isSelected={selectedSpan?.spanId === span.spanId}
                       />
                     </div>
