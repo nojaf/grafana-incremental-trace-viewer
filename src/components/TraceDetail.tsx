@@ -116,6 +116,8 @@ async function extractSpans(
     const serviceNamespace =
       span.attributes?.find((a) => a.key === 'service.namespace')?.value?.stringValue || undefined;
 
+    // Using k8s.container.name as the service name since this is specific to our Kubernetes environment.
+    // Jaeger UI is pulling this info from the process object which is in our case translated to this attribute.
     const serviceName = span.attributes?.find((a) => a.key === 'k8s.container.name')?.value?.stringValue || undefined;
 
     spans.push({
