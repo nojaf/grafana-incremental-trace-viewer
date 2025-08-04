@@ -46,7 +46,7 @@ export const Span = (props: SpanNodeProps) => {
               name="plus"
               className="text-xs cursor-pointer"
               title="Load more traces"
-              onClick={(e) => {
+              onMouseDown={(e) => {
                 e.stopPropagation();
                 props.loadMore(props.index, props);
               }}
