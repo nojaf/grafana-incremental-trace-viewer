@@ -15,5 +15,6 @@ export type SpanInfo = {
   endTimeUnixNano: number;
   name: string;
   childStatus: ChildStatus;
+  childCount?: number;
   serviceNamespace?: string;
 };

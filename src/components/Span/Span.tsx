@@ -55,7 +55,14 @@ export const Span = (props: SpanNodeProps) => {
       >
         <div className="flex items-center gap-1 truncate">
           <Expand childStatus={props.childStatus} action={() => props.updateChildStatus(props)}></Expand>
-          {/* {props.hasMore ? <Icon name="angle-down" /> : <span className="inline-block w-4"></span>} */}
+          {props.childCount !== undefined && (
+            <strong
+              style={{ backgroundColor: getColourForValue(props.serviceNamespace || 'default') }}
+              className="block p-[3px] min-w-5 mr-1 rounded font-mono font-thin leading-none text-black text-center"
+            >
+              {props.childCount}
+            </strong>
+          )}
           <span>{props.name}</span>
         </div>
       </div>
