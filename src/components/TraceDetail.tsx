@@ -29,20 +29,20 @@ function getParentSpanId(span: Span): string | null {
   return parentSpanId || null;
 }
 
-async function hasChildren(
+async function fetchChildCountViaAPI(
   datasourceUid: string,
   traceId: string,
   spanId: string,
   startTimeUnixNano: number,
   endTimeUnixNano: number
-): Promise<boolean> {
+): Promise<number | undefined> {
   const q = `{ trace:id = "${traceId}" && span:parentID = "${spanId}" } | count() > 0`;
   const start = mkUnixEpochFromNanoSeconds(startTimeUnixNano);
   // As a precaution, we add 1 second to the end time.
   // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
   const end = mkUnixEpochFromNanoSeconds(endTimeUnixNano) + 1;
   const data = await search(datasourceUid, q, start, end, 1);
-  return (data.traces && data.traces.length > 0) || false;
+  return data.traces?.[0]?.spanSets?.[0]?.matched;
 }
 
 /**
@@ -101,15 +101,12 @@ async function extractSpans(
     const endTimeUnixNano = startTimeUnixNano + durationNanos;
     // This is a rather expensive call.
     // We need to call this for every span.
-    let hasRemoteChildren = false;
     // Assuming that the childCount is set by the backend.
     // We can just use that value to determine if the span has more children.
-    const childCount = span.attributes?.find((a) => a.key === 'childCount')?.value?.intValue;
-    if (childCount !== undefined) {
-      hasRemoteChildren = childCount > 0;
-    } else {
+    let childCount = span.attributes?.find((a) => a.key === 'childCount')?.value?.intValue;
+    if (childCount === undefined) {
       // If not, we need to fetch the children count via additional query.
-      hasRemoteChildren = await hasChildren(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
+      childCount = await fetchChildCountViaAPI(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
     }
 
     const serviceNamespace =
@@ -126,7 +123,8 @@ async function extractSpans(
       level: idToLevelMap.get(span.spanID) || 0,
       startTimeUnixNano: startTimeUnixNano,
       endTimeUnixNano: endTimeUnixNano,
-      childStatus: hasRemoteChildren ? ChildStatus.RemoteChildren : ChildStatus.NoChildren,
+      childStatus: childCount !== undefined && childCount > 0 ? ChildStatus.RemoteChildren : ChildStatus.NoChildren,
+      childCount,
       name: serviceName || span.name || '',
       serviceNamespace,
     });
