@@ -1,3 +1,5 @@
+import { TimeRange } from '@grafana/data';
+
 export enum ChildStatus {
   NoChildren,
   RemoteChildren,
@@ -16,4 +18,13 @@ export type SpanInfo = {
   name: string;
   childStatus: ChildStatus;
   serviceNamespace?: string;
+};
+
+export type TraceViewerHeaderProps = {
+  traceId: string;
+  startTimeInMs: number;
+  durationInMs: number;
+  panelWidth?: number;
+  panelHeight?: number;
+  timeRange: TimeRange;
 };

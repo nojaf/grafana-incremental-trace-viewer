@@ -1,4 +1,7 @@
 import { useSearchParams } from 'react-router-dom';
+import { config } from '@grafana/runtime';
+
+export const isDark = config.theme2.isDark;
 
 export interface TraceFilters {
   start?: string;

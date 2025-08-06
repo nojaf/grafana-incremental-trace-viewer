@@ -1,8 +1,6 @@
 import React from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { Icon } from '@grafana/ui';
-
 import { testIds } from './testIds';
 import { Span as SpanComponent, SpanDetailPanel } from './Span';
 import {
@@ -13,8 +11,9 @@ import {
 import { search, SearchResponse, Span } from '../utils/utils.api';
 import type { QueryInfo as TraceDetailProps } from './TraceViewerPanel';
 import { SpanOverlayDrawer } from './Span/SpanOverlayDrawer';
-import { HelpModal } from './HelpModal';
 import { ChildStatus, SpanInfo } from 'types';
+import TraceViewerHeader from './TraceViewerHeader';
+import { TimeRange } from '@grafana/data';
 
 // default Grafana does not support child count.
 // In production, we use a custom build of Grafana that supports child count.
@@ -161,7 +160,8 @@ function TraceDetail({
   startTimeInMs,
   panelWidth,
   panelHeight,
-}: TraceDetailProps): React.JSX.Element {
+  timeRange,
+}: TraceDetailProps & { timeRange: TimeRange }): React.JSX.Element {
   // Should we assert for traceId and datasourceId?
   if (!traceId || !datasourceUid) {
     throw new Error('traceId and datasourceId are required');
@@ -171,7 +171,6 @@ function TraceDetail({
   const parentRef = React.useRef(null);
   const queryKey = ['datasource', datasourceUid, 'trace', traceId];
   const [selectedSpan, setSelectedSpan] = React.useState<SpanInfo | null>(null);
-  const [showHelpModal, setShowHelpModal] = React.useState(false);
 
   const idToLevelMap = React.useRef(new Map<string, number>());
   // Keep track of the open/collapsed items in a map
@@ -331,10 +330,6 @@ function TraceDetail({
     });
   };
 
-  function copyTraceId() {
-    navigator.clipboard.writeText(traceId);
-  }
-
   const virtualItems = rowVirtualizer.getVirtualItems();
 
   function copyData() {
@@ -352,34 +347,17 @@ function TraceDetail({
   return (
     <div className="flex relative">
       <div className="flex-grow flex flex-col">
-        <div className="flex bg-gray-800 p-2 border-b border-gray-700">
-          <div className="w-1/3 font-bold flex items-center justify-between">
-            <span onClick={copyTraceId}>Span</span>
-            <button
-              onClick={() => setShowHelpModal(true)}
-              className="p-1 rounded hover:bg-gray-700 transition-colors"
-              title="Get help"
-            >
-              <Icon name="info-circle" className="text-gray-400 hover:text-white w-4 h-4" />
-            </button>
-          </div>
-          <div className="w-2/3 font-bold px-4">
-            <div className="w-full relative">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="absolute border-l border-gray-500 h-2 pl-1 text-xs"
-                  style={{
-                    left: `${(i / 4) * 100}%`,
-                  }} // Limitation in tailwind dynamic class construction: Check README.md for more details
-                >
-                  {((traceDurationInMiliseconds / 1000 / 4) * i).toFixed(2)}s
-                </div>
-              ))}
-            </div>
-          </div>
+        <div className="flex">
+          <TraceViewerHeader
+            traceId={traceId}
+            startTimeInMs={startTimeInMs}
+            durationInMs={traceDurationInMiliseconds}
+            panelWidth={panelWidth}
+            panelHeight={panelHeight}
+            timeRange={timeRange}
+          />
         </div>
-        <div className="flex-grow" data-testid={testIds.pageThree.container}>
+        <div className={`flex-grow py-2`} data-testid={testIds.pageThree.container}>
           {result.isLoading && <div>Loading...</div>}
           {result.isError && <div>Error: {result.error.message}</div>}
           <button onClick={copyData}>Copy data</button>
@@ -446,13 +424,6 @@ function TraceDetail({
           <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} datasourceUid={datasourceUid} />
         )}
       </SpanOverlayDrawer>
-      <HelpModal
-        isOpen={showHelpModal}
-        onClose={() => setShowHelpModal(false)}
-        type="general-help"
-        currentWidth={panelWidth}
-        currentHeight={window.innerHeight}
-      />
     </div>
   );
 }

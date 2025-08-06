@@ -55,7 +55,7 @@ function extractQueries(data: PanelData): QueryInfo[] {
   return queries;
 }
 
-export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id }) => {
+export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id, timeRange }) => {
   const [showHelpModal, setShowHelpModal] = React.useState(false);
   const [helpModalType, setHelpModalType] = React.useState<'panel-too-small' | 'no-data'>('panel-too-small');
 
@@ -134,7 +134,13 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TraceDetail key={queries[0].traceId} {...queries[0]} panelWidth={width} panelHeight={height} />
+      <TraceDetail
+        key={queries[0].traceId}
+        {...queries[0]}
+        panelWidth={width}
+        panelHeight={height}
+        timeRange={timeRange}
+      />
     </QueryClientProvider>
   );
 };
