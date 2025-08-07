@@ -55,6 +55,19 @@ async function getTagAttributes(
   return combined;
 }
 
+function splitAttributesAndEvents(allAttributes: Record<string, AnyValue>) {
+  const attributes: Record<string, AnyValue> = {};
+  const events = [];
+  for (const [key, value] of Object.entries(allAttributes)) {
+    if (key.startsWith('event.') && value.stringValue !== undefined) {
+      events.push({ time: parseInt(key.replace('event.', ''), 10), value: value.stringValue });
+    } else {
+      attributes[key] = value;
+    }
+  }
+  return { attributes, events };
+}
+
 export const SpanDetailPanel = ({
   span,
   onClose,
@@ -103,7 +116,9 @@ export const SpanDetailPanel = ({
     return clsx('leading-7', index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700');
   };
 
-  const flattenedAttributes = result.isSuccess ? result.data : {};
+  const { attributes, events } = result.isSuccess
+    ? splitAttributesAndEvents(result.data)
+    : { attributes: {}, events: [] };
 
   return (
     <div className="z-10">
@@ -121,16 +136,13 @@ export const SpanDetailPanel = ({
             ))}
           </tbody>
         </table>
-        {Object.keys(flattenedAttributes).length > 0 && (
+        {Object.keys(attributes).length > 0 && (
           <>
             <div className="mt-4 mb-2 text-sm font-semibold text-gray-300">Additional Span Data</div>
             <table className="w-full">
               <tbody>
-                {Object.entries(flattenedAttributes).map(([key, value], index) => (
-                  <tr
-                    key={key}
-                    className={rowClassName(basicSpanData.length + Object.keys(flattenedAttributes).length + index)}
-                  >
+                {Object.entries(attributes).map(([key, value], index) => (
+                  <tr key={key} className={rowClassName(basicSpanData.length + Object.keys(attributes).length + index)}>
                     <td className="font-semibold text-gray-300 border-r border-gray-600 w-1/3">
                       <span className="px-2 py-2">{key}</span>
                     </td>
@@ -139,6 +151,19 @@ export const SpanDetailPanel = ({
                 ))}
               </tbody>
             </table>
+          </>
+        )}
+        {events.length > 0 && (
+          <>
+            <div className="mt-4 mb-2 text-sm font-semibold text-gray-300">Events</div>
+            <ul>
+              {events.map((event, index) => (
+                <li key={event.time}>
+                  <span className="px-2 py-2 text-gray-200 italic">{event.time}</span>
+                  <span className="px-2 py-2 text-gray-200 italic">{event.value}</span>
+                </li>
+              ))}
+            </ul>
           </>
         )}
       </div>

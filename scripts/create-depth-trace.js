@@ -12,8 +12,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rndFloat = (min, max) => Math.random() * (max - min) + min;
 
 // ---------- parameters ----------
-const NUM_SERVICES = 7;
-const CHILDREN = 13;
+const NUM_SERVICES = 3;
+const CHILDREN = 5;
 
 // ---------- tracer provider ----------
 const baseResource = resourceFromAttributes({
@@ -58,12 +58,36 @@ async function main() {
   const rootSpan = rootTracer.startSpan('root');
   rootSpan.setAttribute('root-span-attribute-xyz', 123);
   rootSpan.setAttribute('k8s.container.name', 'root-container');
+
+  // Add 3 events to root span
+  rootSpan.setAttribute(`event.${new Date().getTime()}`, 'root.initialization.started');
+
+  await sleep(rndFloat(20, 100));
+
+  rootSpan.setAttribute(`event.${new Date().getTime()}`, 'root.configuration.loaded');
+
+  await sleep(rndFloat(30, 80));
+
+  rootSpan.setAttribute(`event.${new Date().getTime()}`, 'root.services.discovered');
+
   const rootCtx = trace.setSpan(otContext.active(), rootSpan);
 
   for (let i = 0; i < NUM_SERVICES; i++) {
     // Use the service tracer to create service spans with proper namespace
     const serviceSpan = tracers[i].startSpan(`service_${i + 1}`, undefined, rootCtx);
     serviceSpan.setAttribute('k8s.container.name', `service-container-${i + 1}`);
+
+    // Add 3 events to service span
+    serviceSpan.setAttribute(`event.${new Date().getTime()}`, 'Something happened at the service');
+
+    await sleep(rndFloat(15, 60));
+
+    serviceSpan.setAttribute(`event.${new Date().getTime()}`, 'service.health.check');
+
+    await sleep(rndFloat(10, 40));
+
+    serviceSpan.setAttribute(`event.${new Date().getTime()}`, 'service.ready.for.requests');
+
     const serviceCtx = trace.setSpan(rootCtx, serviceSpan);
 
     for (let j = 0; j < CHILDREN; j++) {
@@ -71,7 +95,18 @@ async function main() {
       const childSpan = tracers[i].startSpan(`service_${i + 1}_child_${j + 1}`, undefined, serviceCtx);
       childSpan.setAttribute('child-span-attribute-xyz', 456);
       childSpan.setAttribute('k8s.container.name', `container-${i + 1}-${j + 1}`);
+
+      // Add 3 events to child span
+      childSpan.setAttribute(`event.${new Date().getTime()}`, 'child.request.received');
+
       await sleep(rndFloat(10, 50));
+
+      childSpan.setAttribute(`event.${new Date().getTime()}`, 'child.processing.started');
+
+      await sleep(rndFloat(5, 30));
+
+      childSpan.setAttribute(`event.${new Date().getTime()}`, 'child.response.sent');
+
       childSpan.setAttribute('foo', 'bar');
       childSpan.setAttribute('yozora', crypto.randomUUID());
       childSpan.end();
