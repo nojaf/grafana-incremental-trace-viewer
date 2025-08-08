@@ -1,4 +1,5 @@
 import { TimeRange } from '@grafana/data';
+import type React from 'react';
 
 export enum ChildStatus {
   NoChildren,
@@ -28,4 +29,6 @@ export type TraceViewerHeaderProps = {
   panelWidth?: number;
   panelHeight?: number;
   timeRange: TimeRange;
+  leftColumnPercent: number;
+  onDividerMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
 };

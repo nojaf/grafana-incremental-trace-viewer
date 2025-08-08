@@ -1,7 +1,6 @@
 import React from 'react';
 import { TraceViewerHeaderProps } from '../types';
-import { Icon } from '@grafana/ui';
-import { HelpModal } from './HelpModal';
+// removed unused Help/Info imports after replacing with resize handle
 import { isDark } from '../utils/utils.url';
 
 export const TraceViewerHeader = ({
@@ -11,9 +10,9 @@ export const TraceViewerHeader = ({
   panelWidth,
   panelHeight,
   timeRange,
+  leftColumnPercent,
+  onDividerMouseDown,
 }: TraceViewerHeaderProps) => {
-  const [showHelpModal, setShowHelpModal] = React.useState(false);
-
   function copyTraceId() {
     navigator.clipboard.writeText(traceId);
   }
@@ -94,8 +93,8 @@ export const TraceViewerHeader = ({
 
   return (
     <>
-      <div className={`flex-grow flex flex-row items-center ${borderColour} border-b`}>
-        <div className="w-1/3 font-bold flex items-center justify-between">
+      <div className={`flex-grow flex flex-row items-center ${borderColour} border-b relative`}>
+        <div className="font-bold flex items-center justify-between" style={{ width: `${leftColumnPercent}%` }}>
           <div className="px-3 py-1 text-xs/4 font-light">
             <div className="space-y-1">
               {/* First line: Span ID and time range */}
@@ -122,15 +121,8 @@ export const TraceViewerHeader = ({
               </div>
             </div>
           </div>
-          <button
-            onClick={() => setShowHelpModal(true)}
-            className="p-1 rounded hover:bg-gray-700 transition-colors"
-            title="Get help"
-          >
-            <Icon name="info-circle" className="text-gray-400 hover:text-white w-4 h-4" />
-          </button>
         </div>
-        <div className="w-2/3 font-bold px-4">
+        <div className="font-bold px-4" style={{ width: `${100 - leftColumnPercent}%` }}>
           <div className="w-full relative">
             {Array.from({ length: 4 }).map((_, i) => (
               <div
@@ -145,14 +137,20 @@ export const TraceViewerHeader = ({
             <div className="absolute right-[4px] top-0 text-xs">{formatDuration(durationInMs)}</div>
           </div>
         </div>
+        {/* Header vertical divider to resize columns */}
+        <div
+          onMouseDown={onDividerMouseDown}
+          title="Drag to resize"
+          style={{ left: `calc(${leftColumnPercent}% - 3px)` }}
+          className="absolute top-0 h-full w-[6px] cursor-col-resize hover:bg-gray-600/50 active:bg-gray-500/60"
+        >
+          <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-[2px] pointer-events-none">
+            <span className="block w-1 h-1 rounded-full bg-gray-400"></span>
+            <span className="block w-1 h-1 rounded-full bg-gray-400"></span>
+            <span className="block w-1 h-1 rounded-full bg-gray-400"></span>
+          </div>
+        </div>
       </div>
-      <HelpModal
-        isOpen={showHelpModal}
-        onClose={() => setShowHelpModal(false)}
-        type="general-help"
-        currentWidth={panelWidth}
-        currentHeight={window.innerHeight}
-      />
     </>
   );
 };

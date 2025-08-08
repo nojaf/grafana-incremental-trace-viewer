@@ -9,6 +9,7 @@ type SpanNodeProps = SpanInfo & {
   traceDurationInMiliseconds: number;
   onSelect: (span: SpanInfo) => void;
   isSelected?: boolean;
+  leftColumnPercent: number;
 };
 
 const Expand = ({ childStatus, action }: { childStatus: ChildStatus; action: () => void }) => {
@@ -50,8 +51,12 @@ export const Span = (props: SpanNodeProps) => {
       }`}
     >
       <div
-        className="w-1/3 flex items-center justify-between gap-1 pr-2"
-        style={{ paddingLeft: `calc(2rem * ${props.level})` }} // Limitation in tailwind dynamic class construction: Check README.md for more details
+        className="flex items-center justify-between gap-1 pr-2"
+        style={{
+          paddingLeft: `calc(2rem * ${props.level})`,
+          width: `${props.leftColumnPercent}%`,
+          minWidth: 0,
+        }} // Limitation in tailwind dynamic class construction: Check README.md for more details
       >
         <div className="flex items-center gap-1 truncate">
           <Expand childStatus={props.childStatus} action={() => props.updateChildStatus(props)}></Expand>
@@ -66,7 +71,11 @@ export const Span = (props: SpanNodeProps) => {
           <span>{props.name}</span>
         </div>
       </div>
-      <div className="w-2/3 h-full relative border-l-3" onClick={() => props.onSelect(props)}>
+      <div
+        className="h-full relative border-l-3"
+        style={{ width: `${100 - props.leftColumnPercent}%` }}
+        onClick={() => props.onSelect(props)}
+      >
         <div className="h-full relative mx-4">
           <div
             className="h-3/4 absolute my-auto top-0 bottom-0 rounded-sm min-w-[2px]"
