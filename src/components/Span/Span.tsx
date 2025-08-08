@@ -55,7 +55,7 @@ export const Span = (props: SpanNodeProps) => {
       >
         <div className="flex items-center gap-1 truncate">
           <Expand childStatus={props.childStatus} action={() => props.updateChildStatus(props)}></Expand>
-          {props.childCount !== undefined && (
+          {props.childCount !== undefined && props.childCount > 0 && (
             <strong
               style={{ backgroundColor: getColourForValue(props.serviceNamespace || 'default') }}
               className="block p-[3px] min-w-5 mr-1 rounded font-mono font-thin leading-none text-black text-center"
