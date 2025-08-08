@@ -88,15 +88,27 @@ type SearchTagsResponse = {
   }>;
 };
 
-export async function searchTags(datasourceUid: string, query: string, start: number, end: number): Promise<string[]> {
+export type SearchTagsResult = {
+  spanTags: string[];
+  resourceTags: string[];
+};
+
+export async function searchTags(
+  datasourceUid: string,
+  query: string,
+  start: number,
+  end: number
+): Promise<SearchTagsResult> {
   // The end always needs to be greater than the start. If not, we get a bad request from the Tempo API.
   const validEnd = start < end ? end : end + 1;
   const responses = getBackendSrv().fetch<SearchTagsResponse>({
     url: `/api/datasources/proxy/uid/${datasourceUid}/api/v2/search/tags?q=${encodeURIComponent(
       query
-    )}&start=${start}&end=${validEnd}&scope=span`,
+    )}&start=${start}&end=${validEnd}`,
     method: 'GET',
   });
   const response = await lastValueFrom(responses);
-  return response.data.scopes.find((scope) => scope.name === 'span')?.tags || [];
+  const spanTags = response.data.scopes.find((scope) => scope.name === 'span')?.tags || [];
+  const resourceTags = response.data.scopes.find((scope) => scope.name === 'resource')?.tags || [];
+  return { spanTags, resourceTags };
 }

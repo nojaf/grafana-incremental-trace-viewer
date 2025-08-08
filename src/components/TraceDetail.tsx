@@ -343,8 +343,10 @@ function TraceDetail({
   }
 
   return (
-    <div className="flex relative">
-      <div className="flex-grow flex flex-col">
+    // Grafana sets padding on the parent panel which causes our content to overflow.
+    // This negative margin compensates for that padding to keep content within bounds.
+    <div className="flex relative m-[-8px]">
+      <div className="flex-grow flex flex-col px-2">
         <div className="flex">
           <TraceViewerHeader
             traceId={traceId}

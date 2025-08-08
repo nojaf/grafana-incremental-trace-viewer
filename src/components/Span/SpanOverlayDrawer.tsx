@@ -39,8 +39,7 @@ export const SpanOverlayDrawer: React.FC<SpanOverlayDrawerProps> = ({
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-2 border-b border-gray-700 bg-gray-900">
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
+        <div className="absolute top-0 right-0">
           <button
             onClick={onClose}
             className="p-1 rounded hover:bg-gray-700 transition-colors"
