@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { PanelData, PanelProps } from '@grafana/data';
-import { Button } from '@grafana/ui';
+import { Button, Icon, TextLink } from '@grafana/ui';
 import TraceDetail from './TraceDetail';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelpModal } from './HelpModal';
@@ -102,23 +102,25 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
   else if (width < 600 || height < 300) {
     return (
       <>
-        <div className="flex items-center justify-center h-full p-4 text-center">
-          <div className="text-orange-500">
-            <h3 className="text-lg font-semibold mb-2">⚠️ Panel too small for trace visualization</h3>
-            <p>This panel requires a minimum size of 600x300 pixels.</p>
-            <p className="text-sm text-gray-500 mt-1">
-              Current size: {width}x{height} pixels
-            </p>
-            <Button
+        <div className="flex flex-col h-full p-4">
+          <p className="bg-red-400 py-1 text-black text-md flex items-center justify-center gap-2 rounded">
+            <Icon name="exclamation-triangle" /> Current panel size is {Math.floor(width)}x{Math.floor(height)} pixels
+          </p>
+          <div className="text-center flex-1 flex flex-col justify-center">
+            <h3 className="text-lg font-semibold mb-2 text-white">Panel too small</h3>
+            <p className="text-zinc-400">This panel requires a minimum size of 600x300 pixels.</p>
+            <TextLink
               onClick={() => {
                 setHelpModalType('panel-too-small');
                 setShowHelpModal(true);
               }}
-              variant="primary"
-              className="mt-4"
+              color="disabled"
+              inline={true}
+              href="#panel-too-small"
+              style={{ display: 'block' }}
             >
-              Get Help
-            </Button>
+              Learn more
+            </TextLink>
           </div>
         </div>
         <HelpModal
