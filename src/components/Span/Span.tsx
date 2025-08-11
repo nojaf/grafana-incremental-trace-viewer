@@ -1,6 +1,6 @@
 import React, { useCallback, MouseEvent } from 'react';
 import { Icon } from '@grafana/ui';
-import { getColourForValue, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
+import { formatDuration, getColourForValue, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
 import { SpanInfo, ChildStatus } from '../../types';
 
 type SpanNodeProps = SpanInfo & {
@@ -44,11 +44,18 @@ export const Span = (props: SpanNodeProps) => {
       props.traceDurationInMiliseconds) *
     100;
 
+  // We don't show the root timing
+  const formattedDuration = formatDuration(props.endTimeUnixNano - props.startTimeUnixNano);
+  const timing = props.level > 0 ?
+    <div className="absolute top-0 h-full flex items-center" style={{
+      left: `${width + offset + 1}%`,
+    }}>
+      <span className="m-auto leading-none text-gray-500 font-xs font-mono">{formattedDuration}</span></div> : null;
+
   return (
     <div
-      className={`flex items-center hover:bg-gray-700 cursor-pointer h-full text-sm ${
-        props.isSelected ? 'bg-gray-600 hover:bg-gray-700 z-1000' : ''
-      }`}
+      className={`flex items-center dark:hover:bg-gray-700 hover:bg-zinc-100 cursor-pointer h-full text-sm ${props.isSelected ? 'dark:bg-gray-600 bg-blue-200 z-1000' : ''
+        }`}
     >
       <div
         className="flex items-center justify-between gap-1 pr-2"
@@ -86,6 +93,7 @@ export const Span = (props: SpanNodeProps) => {
             }} // Limitation in tailwind dynamic class construction: Check README.md for more details
             title={`Duration: ${props.endTimeUnixNano - props.startTimeUnixNano}ns`}
           ></div>
+          {timing}
         </div>
       </div>
     </div>
