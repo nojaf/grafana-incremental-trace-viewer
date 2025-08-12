@@ -7,6 +7,7 @@ import {
   mkMilisecondsFromNanoSeconds,
   mkUnixEpochFromNanoSeconds,
   mkUnixEpochFromMiliseconds,
+  formatDuration,
 } from '../utils/utils.timeline';
 import { search, SearchResponse, Span } from '../utils/utils.api';
 import type { QueryInfo as TraceDetailProps } from './TraceViewerPanel';
@@ -401,6 +402,16 @@ function TraceDetail({
   const hasExpandedSpans =
     result.isSuccess && result.data.some((span) => span.childStatus === ChildStatus.ShowChildren);
 
+  const timelineOffset = React.useMemo(() => {
+    if (!result.isSuccess) {
+      return 0;
+    }
+    const rootSpan = result.data[0];
+    const textLength = formatDuration(rootSpan.endTimeUnixNano - rootSpan.startTimeUnixNano);
+    // This is a rough estimate of the width of the duration text.
+    return Math.floor(textLength.length * 8);
+  }, [result.isSuccess, result.data]);
+
   return (
     // Grafana sets padding on the parent panel which causes our content to overflow.
     // This negative margin compensates for that padding to keep content within bounds.
@@ -418,6 +429,7 @@ function TraceDetail({
             onDividerMouseDown={onMouseDownDivider}
             onCollapseAll={collapseAll}
             hasExpandedSpans={hasExpandedSpans}
+            timelineOffset={timelineOffset}
           />
         </div>
         <div className={`flex-grow py-2`} data-testid={testIds.pageThree.container}>
@@ -469,6 +481,7 @@ function TraceDetail({
                         onSelect={setSelectedSpan}
                         isSelected={selectedSpan?.spanId === span.spanId}
                         leftColumnPercent={leftColumnPercent}
+                        timelineOffset={timelineOffset}
                       />
                     </div>
                   );
