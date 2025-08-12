@@ -143,7 +143,8 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
         key={queries[0].traceId}
         {...queries[0]}
         panelWidth={width}
-        panelHeight={height}
+        // Grafana adds padding-block of 8px
+        panelHeight={height + 16}
         timeRange={timeRange}
       />
     </QueryClientProvider>
