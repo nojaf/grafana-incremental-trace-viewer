@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import clsx from 'clsx';
+import { IconButton } from '@grafana/ui';
 
 import type { SpanInfo } from '../../types';
 import { mkUnixEpochFromNanoSeconds, formatUnixNanoToDateTime, formatDuration } from 'utils/utils.timeline';
@@ -95,6 +96,54 @@ function splitAttributesAndEvents(tagAttributes: TagAttributes) {
   return { spanAttributes, events, resourceAttributes: tagAttributes.resourceAttributes };
 }
 
+function ValueWrapper({
+  value,
+  color,
+  displayValue,
+  italic,
+}: {
+  value: any;
+  color: string;
+  displayValue?: React.JSX.ElementType;
+  italic?: boolean;
+}) {
+  const [tooltip, setTooltip] = useState('Copy value');
+  return (
+    <span className={`p-2 flex gap-1 items-center justify-between ${italic ? 'italic' : ''}`}>
+      <span className={`px-2 py-2 ${color}`}>{displayValue || value}</span>
+      <IconButton
+        name="copy"
+        variant="secondary"
+        aria-label="Copy value"
+        className="bg-red-500"
+        tooltip={tooltip}
+        onClick={() => {
+          navigator.clipboard.writeText(value || '');
+          setTooltip((_) => 'Copied!');
+          setTimeout(() => {
+            setTooltip((_) => 'Copy value');
+          }, 1000);
+        }}
+      />
+    </span>
+  );
+}
+
+function Value({ value }: { value: AnyValue }) {
+  if (value.stringValue !== undefined) {
+    return <ValueWrapper value={value.stringValue} color="text-cyan-400" displayValue={`"${value.stringValue}"`} />;
+  } else if (value.boolValue !== undefined) {
+    return <ValueWrapper value={value.boolValue ? 'true' : 'false'} color={'text-blue-500'} />;
+  } else if (value.intValue !== undefined) {
+    return <ValueWrapper value={value.intValue} color="text-green-600" />;
+  } else if (value.doubleValue !== undefined) {
+    return <ValueWrapper value={value.doubleValue} color="text-green-600" />;
+  } else if (value.bytesValue !== undefined) {
+    return <ValueWrapper value={JSON.stringify(value)} color="text-gray-200" italic />;
+  }
+  return <ValueWrapper value={JSON.stringify(value)} color="text-gray-200" italic />;
+}
+
 export const SpanDetailPanel = ({
   span,
   onClose,
@@ -128,21 +177,6 @@ export const SpanDetailPanel = ({
     },
   });
 
-  const formatValue = (value: AnyValue) => {
-    if (value.stringValue !== undefined) {
-      return <span className="px-2 py-2 text-cyan-400">&quot;{value.stringValue}&quot;</span>;
-    } else if (value.boolValue !== undefined) {
-      return <span className="px-2 py-2 text-blue-500">{value.boolValue ? 'true' : 'false'}</span>;
-    } else if (value.intValue !== undefined) {
-      return <span className="px-2 py-2 text-green-600">{value.intValue}</span>;
-    } else if (value.doubleValue !== undefined) {
-      return <span className="px-2 py-2 text-green-600">{value.doubleValue}</span>;
-    } else if (value.bytesValue !== undefined) {
-      return <span className="px-2 py-2 text-gray-200 italic">{JSON.stringify(value)}</span>;
-    }
-    return <span className="px-2 py-2 text-gray-200 italic">{JSON.stringify(value)}</span>;
-  };
-
   const basicSpanData: KeyValue[] = [
     { key: 'Name', value: { stringValue: span.name } },
     { key: 'ID', value: { stringValue: span.spanId } },
@@ -171,7 +205,7 @@ export const SpanDetailPanel = ({
                   <span className="px-2 py-2">{item.key}</span>{' '}
                   {/* TODO: padding & margins are overriden to 0 by the global CSS and it is not possible to set it on the td tag */}
                 </td>
-                <td>{item.value && formatValue(item.value)}</td>
+                <td>{item.value && <Value value={item.value} />}</td>
               </tr>
             ))}
           </tbody>
@@ -192,7 +226,7 @@ export const SpanDetailPanel = ({
                     <td className="font-semibold text-gray-300 border-r border-gray-600 w-1/3">
                       <span className="px-2 py-2">{key}</span>
                     </td>
-                    <td>{formatValue(value)}</td>
+                    <td>{value && <Value value={value} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -210,7 +244,7 @@ export const SpanDetailPanel = ({
                     <td className="font-semibold text-gray-300 border-r border-gray-600 w-1/3">
                       <span className="px-2 py-2">{key}</span>
                     </td>
-                    <td>{value && formatValue(value)}</td>
+                    <td>{value && <Value value={value} />}</td>
                   </tr>
                 ))}
               </tbody>
@@ -231,7 +265,7 @@ export const SpanDetailPanel = ({
                         {((item.time - span.startTimeUnixNano / 1000000) / 1000).toFixed(3)}s
                       </span>
                     </td>
-                    <td>{item.value && formatValue({ stringValue: item.value })}</td>
+                    <td>{item.value && <Value value={{ stringValue: item.value }} />}</td>
                   </tr>
                 ))}
               </tbody>
