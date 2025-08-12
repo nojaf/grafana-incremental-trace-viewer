@@ -1,6 +1,6 @@
 import React, { useCallback, MouseEvent } from 'react';
 import { Icon } from '@grafana/ui';
-import { getColourForValue, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
+import { formatDuration, getColourForValue, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
 import { SpanInfo, ChildStatus } from '../../types';
 
 type SpanNodeProps = SpanInfo & {
@@ -10,6 +10,9 @@ type SpanNodeProps = SpanInfo & {
   onSelect: (span: SpanInfo) => void;
   isSelected?: boolean;
   leftColumnPercent: number;
+  // This is the offset on the right side of the timeline.
+  // It is used to shrink the timeline to make room for the top-level span duration.
+  timelineOffset: number;
 };
 
 const Expand = ({ childStatus, action }: { childStatus: ChildStatus; action: () => void }) => {
@@ -44,10 +47,23 @@ export const Span = (props: SpanNodeProps) => {
       props.traceDurationInMiliseconds) *
     100;
 
+  // We don't show the root timing
+  const formattedDuration = formatDuration(props.endTimeUnixNano - props.startTimeUnixNano);
+  const timing = (
+    <div
+      className="absolute top-0 h-full flex items-center whitespace-nowrap"
+      // We want to display the duration on the right side of the span.
+      // We add 1% to the width for some padding.
+      style={{ left: `${width + offset + 1}%` }}
+    >
+      <span className="m-auto leading-none text-gray-500 font-xs font-mono">{formattedDuration}</span>
+    </div>
+  );
+
   return (
     <div
-      className={`flex items-center hover:bg-gray-700 cursor-pointer h-full text-sm ${
-        props.isSelected ? 'bg-gray-600 hover:bg-gray-700 z-1000' : ''
+      className={`flex items-center dark:hover:bg-gray-700 hover:bg-zinc-100 cursor-pointer h-full text-sm ${
+        props.isSelected ? 'dark:bg-gray-600 bg-blue-200 z-1000' : ''
       }`}
     >
       <div
@@ -73,10 +89,11 @@ export const Span = (props: SpanNodeProps) => {
       </div>
       <div
         className="h-full relative border-l-3"
-        style={{ width: `${100 - props.leftColumnPercent}%` }}
+        // We leave a bit or room for the duration text of the top-level span.
+        style={{ width: `calc(${100 - props.leftColumnPercent}% - ${props.timelineOffset}px)` }}
         onClick={() => props.onSelect(props)}
       >
-        <div className="h-full relative mx-4">
+        <div className="h-full relative mx-1">
           <div
             className="h-3/4 absolute my-auto top-0 bottom-0 rounded-sm min-w-[2px]"
             style={{
@@ -86,6 +103,7 @@ export const Span = (props: SpanNodeProps) => {
             }} // Limitation in tailwind dynamic class construction: Check README.md for more details
             title={`Duration: ${props.endTimeUnixNano - props.startTimeUnixNano}ns`}
           ></div>
+          {timing}
         </div>
       </div>
     </div>
