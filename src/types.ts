@@ -33,4 +33,7 @@ export type TraceViewerHeaderProps = {
   onDividerMouseDown: (e: React.MouseEvent<HTMLDivElement>) => void;
   onCollapseAll: () => void;
   hasExpandedSpans?: boolean;
+  // This is the offset on the right side of the timeline.
+  // It is used to shrink the timeline to make room for the top-level span duration.
+  timelineOffset: number;
 };

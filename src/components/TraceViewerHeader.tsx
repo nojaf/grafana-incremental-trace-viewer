@@ -15,6 +15,7 @@ export const TraceViewerHeader = ({
   onDividerMouseDown,
   onCollapseAll,
   hasExpandedSpans = false,
+  timelineOffset,
 }: TraceViewerHeaderProps) => {
   function copyTraceId() {
     navigator.clipboard.writeText(traceId);
@@ -137,7 +138,7 @@ export const TraceViewerHeader = ({
             />
           </div>
         </div>
-        <div className="font-bold px-4" style={{ width: `${100 - leftColumnPercent}%` }}>
+        <div className="font-bold px-4" style={{ width: `calc(${100 - leftColumnPercent}% - ${timelineOffset}px)` }}>
           <div className="w-full relative">
             {Array.from({ length: 4 }).map((_, i) => (
               <div

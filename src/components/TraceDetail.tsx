@@ -429,6 +429,7 @@ function TraceDetail({
             onDividerMouseDown={onMouseDownDivider}
             onCollapseAll={collapseAll}
             hasExpandedSpans={hasExpandedSpans}
+            timelineOffset={timelineOffset}
           />
         </div>
         <div className={`flex-grow py-2`} data-testid={testIds.pageThree.container}>
