@@ -386,18 +386,6 @@ function TraceDetail({
 
   const virtualItems = rowVirtualizer.getVirtualItems();
 
-  function copyData() {
-    if (!result.isSuccess) {
-      return;
-    }
-    const striped = result.data.map((d) => ({
-      level: d.level,
-      spanId: d.spanId,
-      parentSpanId: d.parentSpanId,
-    }));
-    navigator.clipboard.writeText(JSON.stringify(striped));
-  }
-
   // Check if there are any expanded spans that can be collapsed
   const hasExpandedSpans =
     result.isSuccess && result.data.some((span) => span.childStatus === ChildStatus.ShowChildren);
@@ -415,9 +403,9 @@ function TraceDetail({
   return (
     // Grafana sets padding on the parent panel which causes our content to overflow.
     // This negative margin compensates for that padding to keep content within bounds.
-    <div className="flex relative m-[-8px]">
-      <div className="flex-grow flex flex-col px-2">
-        <div className="flex">
+    <div className="flex flex-col relative m-[-8px]" style={{ height: `${panelHeight}px` }}>
+      <div className="flex flex-col gap-2 px-2 flex-1 min-h-0">
+        <div className="flex-shrink-0">
           <TraceViewerHeader
             traceId={traceId}
             startTimeInMs={startTimeInMs}
@@ -432,12 +420,11 @@ function TraceDetail({
             timelineOffset={timelineOffset}
           />
         </div>
-        <div className={`flex-grow py-2`} data-testid={testIds.pageThree.container}>
+        <div className={`flex-1 flex flex-col min-h-0`} data-testid={testIds.pageThree.container}>
           {result.isLoading && <div>Loading...</div>}
           {result.isError && <div>Error: {result.error.message}</div>}
-          <button onClick={copyData}>Copy data</button>
           {result.isSuccess && (
-            <div ref={parentRef} className="overflow-auto" style={{ height: `calc(${panelHeight}px - 44px)` }}>
+            <div ref={parentRef} className="overflow-auto h-full">
               <div
                 style={{
                   height: `${rowVirtualizer.getTotalSize()}px`,
