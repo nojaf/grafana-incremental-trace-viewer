@@ -367,6 +367,22 @@ function TraceDetail({
     });
   };
 
+  const collapseAll = () => {
+    queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
+      if (!oldData) {
+        return oldData;
+      }
+
+      return oldData.map((sp) => {
+        // Only collapse spans that have children and are currently showing them
+        if (sp.childStatus === ChildStatus.ShowChildren && sp.childCount && sp.childCount > 0) {
+          return { ...sp, childStatus: ChildStatus.HideChildren };
+        }
+        return sp;
+      });
+    });
+  };
+
   const virtualItems = rowVirtualizer.getVirtualItems();
 
   function copyData() {
@@ -380,6 +396,10 @@ function TraceDetail({
     }));
     navigator.clipboard.writeText(JSON.stringify(striped));
   }
+
+  // Check if there are any expanded spans that can be collapsed
+  const hasExpandedSpans =
+    result.isSuccess && result.data.some((span) => span.childStatus === ChildStatus.ShowChildren);
 
   return (
     // Grafana sets padding on the parent panel which causes our content to overflow.
@@ -396,6 +416,8 @@ function TraceDetail({
             timeRange={timeRange}
             leftColumnPercent={leftColumnPercent}
             onDividerMouseDown={onMouseDownDivider}
+            onCollapseAll={collapseAll}
+            hasExpandedSpans={hasExpandedSpans}
           />
         </div>
         <div className={`flex-grow py-2`} data-testid={testIds.pageThree.container}>

@@ -1,5 +1,6 @@
 import React from 'react';
 import { TraceViewerHeaderProps } from '../types';
+import { IconButton } from '@grafana/ui';
 // removed unused Help/Info imports after replacing with resize handle
 import { isDark } from '../utils/utils.url';
 
@@ -12,6 +13,8 @@ export const TraceViewerHeader = ({
   timeRange,
   leftColumnPercent,
   onDividerMouseDown,
+  onCollapseAll,
+  hasExpandedSpans = false,
 }: TraceViewerHeaderProps) => {
   function copyTraceId() {
     navigator.clipboard.writeText(traceId);
@@ -120,6 +123,18 @@ export const TraceViewerHeader = ({
                 <span className={`${textColour}`}>{formatDuration(durationInMs)}</span>
               </div>
             </div>
+          </div>
+          {/* Collapse All Button */}
+          <div className="px-3 py-1">
+            <IconButton
+              variant="secondary"
+              name="table-collapse-all"
+              size="sm"
+              onClick={onCollapseAll}
+              title="Collapse all expanded spans"
+              disabled={!hasExpandedSpans}
+              aria-label="Collapse all expanded spans"
+            />
           </div>
         </div>
         <div className="font-bold px-4" style={{ width: `${100 - leftColumnPercent}%` }}>
