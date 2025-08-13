@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@custom-variant dark (&:where(.theme-dark, .theme-dark *));
 
 /* Some custom style to hide parts of the query editor */
 .query-editor {

@@ -2,7 +2,6 @@ import React from 'react';
 import { TraceViewerHeaderProps } from '../types';
 import { IconButton } from '@grafana/ui';
 // removed unused Help/Info imports after replacing with resize handle
-import { isDark } from '../utils/utils.url';
 
 export const TraceViewerHeader = ({
   traceId,
@@ -92,36 +91,33 @@ export const TraceViewerHeader = ({
     }
   };
 
-  const borderColour = isDark ? 'border-gray-600' : 'border-gray-300';
-  const textColour = isDark ? 'text-white' : 'text-black';
-
   return (
     <>
-      <div className={`flex-grow flex flex-row items-center ${borderColour} border-b relative`}>
+      <div className="flex-grow flex flex-row items-center border-b border-gray-300 dark:border-gray-600 relative">
         <div className="font-bold flex items-center justify-between" style={{ width: `${leftColumnPercent}%` }}>
           <div className="px-3 py-1 text-xs/4 font-light">
             <div className="space-y-1">
               {/* First line: Span ID and time range */}
               <div className="flex items-center space-x-1">
-                <span className="text-gray-400">Span:</span>
+                <span className="text-gray-500 dark:text-gray-400">Span:</span>
                 <span
-                  className={`${textColour} font-semibold cursor-pointer hover:text-gray-300`}
+                  className="text-black dark:text-white font-semibold cursor-pointer hover:text-gray-600 dark:hover:text-gray-300"
                   onClick={copyTraceId}
                   title="Click to copy trace ID"
                 >
                   {traceId.slice(0, 8)}
                 </span>
-                <span className="text-gray-400">in</span>
-                <span className={`${textColour} font-semibold`}>{getTimeRangeText()}</span>
+                <span className="text-gray-500 dark:text-gray-400">in</span>
+                <span className="text-black dark:text-white font-semibold">{getTimeRangeText()}</span>
               </div>
 
               {/* Second line: Start time and duration */}
               <div className="flex items-center space-x-1">
-                <span className="text-gray-400">Start:</span>
-                <span className={`${textColour}`}>{formatStartTime(startTimeInMs)}</span>
-                <span className="text-gray-400 mx-1">|</span>
-                <span className="text-gray-400">Duration:</span>
-                <span className={`${textColour}`}>{formatDuration(durationInMs)}</span>
+                <span className="text-gray-500 dark:text-gray-400">Start:</span>
+                <span className="text-black dark:text-white">{formatStartTime(startTimeInMs)}</span>
+                <span className="text-gray-500 dark:text-gray-400 mx-1">|</span>
+                <span className="text-gray-500 dark:text-gray-400">Duration:</span>
+                <span className="text-black dark:text-white">{formatDuration(durationInMs)}</span>
               </div>
             </div>
           </div>
@@ -143,7 +139,7 @@ export const TraceViewerHeader = ({
             {Array.from({ length: 4 }).map((_, i) => (
               <div
                 key={i}
-                className="absolute border-l border-gray-500 h-2 pl-1 text-xs"
+                className="absolute border-l border-gray-400 dark:border-gray-500 h-2 pl-1 text-xs"
                 style={{ left: `${(i / 3) * 100}%` }}
               >
                 {i < 3 && `${((durationInMs / 1000 / 3) * i).toFixed(2)}s`}
@@ -158,12 +154,12 @@ export const TraceViewerHeader = ({
           onMouseDown={onDividerMouseDown}
           title="Drag to resize"
           style={{ left: `calc(${leftColumnPercent}% - 3px)` }}
-          className="absolute top-0 h-full w-[6px] cursor-col-resize hover:bg-gray-600/50 active:bg-gray-500/60"
+          className="absolute top-0 h-full w-[6px] cursor-col-resize hover:bg-gray-400/50 dark:hover:bg-gray-600/50 active:bg-gray-500/60 dark:active:bg-gray-500/60"
         >
           <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 flex flex-col items-center gap-[2px] pointer-events-none">
-            <span className="block w-1 h-1 rounded-full bg-gray-400"></span>
-            <span className="block w-1 h-1 rounded-full bg-gray-400"></span>
-            <span className="block w-1 h-1 rounded-full bg-gray-400"></span>
+            <span className="block w-1 h-1 rounded-full bg-gray-500 dark:bg-gray-400"></span>
+            <span className="block w-1 h-1 rounded-full bg-gray-500 dark:bg-gray-400"></span>
+            <span className="block w-1 h-1 rounded-full bg-gray-500 dark:bg-gray-400"></span>
           </div>
         </div>
       </div>

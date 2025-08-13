@@ -453,7 +453,7 @@ function TraceDetail({
                   return (
                     <div
                       key={virtualItem.key}
-                      className="absolute top-0 left-0 w-full border-b border-[#2d2d2d]"
+                      className="absolute top-0 left-0 w-full border-b border-gray-300 dark:border-gray-700"
                       style={{
                         height: `${virtualItem.size}px`,
                         transform: `translateY(${virtualItem.start}px)`,
@@ -478,7 +478,7 @@ function TraceDetail({
                   onMouseDown={onMouseDownDivider}
                   title="Drag to resize"
                   style={{ left: `calc(${leftColumnPercent}% - 3px)` }}
-                  className="absolute top-0 h-full w-[6px] cursor-col-resize hover:bg-gray-600/50 active:bg-gray-500/60 z-10"
+                  className="absolute top-0 h-full w-[6px] cursor-col-resize hover:bg-gray-400/50 dark:hover:bg-gray-600/50 active:bg-gray-500/60 dark:active:bg-gray-500/60 z-10"
                 />
               </div>
             </div>

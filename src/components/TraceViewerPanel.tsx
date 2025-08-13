@@ -72,11 +72,11 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
     return (
       <>
         <div className="flex flex-col items-center justify-center h-full p-4 text-center">
-          <Icon name="calendar-slash" size="xxxl" className="text-zinc-600 mb-5" />
-          <h3 className="text-lg font-semibold mb-2 text-black dark:text-white">
+          <Icon name="calendar-slash" size="xxxl" className="text-gray-400 dark:text-zinc-600 mb-5" />
+          <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
             No trace data available for this query
           </h3>
-          <p className="text-md text-zinc-400 mt-1">
+          <p className="text-md text-gray-600 dark:text-zinc-400 mt-1">
             Try adjusting your query or time range to see traces.{' '}
             <TextLink
               onClick={() => {
@@ -110,8 +110,8 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
             <Icon name="exclamation-triangle" /> Current panel size is {Math.floor(width)}x{Math.floor(height)} pixels
           </p>
           <div className="text-center flex-1 flex flex-col justify-center">
-            <h3 className="text-lg font-semibold mb-2 text-black dark:text-white">Panel too small</h3>
-            <p className="text-zinc-400">This panel requires a minimum size of 600x300 pixels.</p>
+            <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">Panel too small</h3>
+            <p className="text-gray-600 dark:text-zinc-400">This panel requires a minimum size of 600x300 pixels.</p>
             <TextLink
               onClick={() => {
                 setHelpModalType('panel-too-small');

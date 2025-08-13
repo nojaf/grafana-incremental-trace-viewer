@@ -14,11 +14,11 @@ export const Accordion = ({
   onToggle: () => void;
   children: React.ReactNode;
 }) => (
-  <div className="border-t border-gray-600 pt-4 mt-2">
+  <div className="border-t border-gray-300 dark:border-gray-600 pt-4 mt-2">
     {
       <button
         onClick={onToggle}
-        className="w-full flex items-center justify-between text-sm font-semibold text-gray-300 hover:text-gray-100 transition-colors duration-200 mb-2"
+        className="w-full flex items-center justify-between text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-200 mb-2"
       >
         <span>{title}</span>
         {showToggle && (
