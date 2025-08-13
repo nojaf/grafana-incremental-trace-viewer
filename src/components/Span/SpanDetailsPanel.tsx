@@ -84,16 +84,20 @@ async function getTagAttributes(
 }
 
 function splitAttributesAndEvents(tagAttributes: TagAttributes) {
-  const spanAttributes: Record<string, AnyValue> = {};
+  const spanAttributes: KeyValue[] = [];
+  const resourceAttributes: KeyValue[] = [];
   const events = [];
   for (const [key, value] of Object.entries(tagAttributes.spanAttributes)) {
     if (key.startsWith('event.') && value.stringValue !== undefined) {
       events.push({ time: parseInt(key.replace('event.', ''), 10), value: value.stringValue });
     } else {
-      spanAttributes[key] = value;
+      spanAttributes.push({ key, value });
     }
   }
-  return { spanAttributes, events, resourceAttributes: tagAttributes.resourceAttributes };
+  for (const [key, value] of Object.entries(tagAttributes.resourceAttributes)) {
+    resourceAttributes.push({ key, value });
+  }
+  return { spanAttributes, events, resourceAttributes };
 }
 
 function ValueWrapper({
@@ -144,6 +148,36 @@ function Value({ value }: { value: AnyValue }) {
   return <ValueWrapper value={JSON.stringify(value)} color="text-gray-200" italic />;
 }
 
+function useLoweredDebounce(value: string, delay: number): string {
+  const [debouncedValue, setDebouncedValue] = React.useState(value);
+
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value.toLocaleLowerCase());
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
+
+function filterKeyValue(search: string) {
+  if (search === '') {
+    return () => true;
+  }
+
+  return (kv: KeyValue) => {
+    if (kv.key === undefined) {
+      return false;
+    }
+    const json = JSON.stringify(kv).toLocaleLowerCase();
+    return json.includes(search);
+  };
+}
+
 export const SpanDetailPanel = ({
   span,
   onClose,
@@ -166,6 +200,9 @@ export const SpanDetailPanel = ({
     }));
   };
 
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useLoweredDebounce(search, 200);
+
   const result = useQuery<TagAttributes>({
     queryKey: ['trace', span.traceId, 'span', span.spanId, 'details'],
     queryFn: async () => {
@@ -177,26 +214,48 @@ export const SpanDetailPanel = ({
     },
   });
 
-  const basicSpanData: KeyValue[] = [
-    { key: 'Name', value: { stringValue: span.name } },
-    { key: 'ID', value: { stringValue: span.spanId } },
-    { key: 'Trace ID', value: { stringValue: span.traceId } },
-    { key: 'Start Time', value: { stringValue: formatUnixNanoToDateTime(span.startTimeUnixNano) } },
-    { key: 'End Time', value: { stringValue: formatUnixNanoToDateTime(span.endTimeUnixNano) } },
-    { key: 'Duration', value: { stringValue: formatDuration(span.endTimeUnixNano - span.startTimeUnixNano) } },
-  ];
+  const basicSpanData: KeyValue[] = React.useMemo(
+    () =>
+      [
+        { key: 'Name', value: { stringValue: span.name } },
+        { key: 'ID', value: { stringValue: span.spanId } },
+        { key: 'Trace ID', value: { stringValue: span.traceId } },
+        { key: 'Start Time', value: { stringValue: formatUnixNanoToDateTime(span.startTimeUnixNano) } },
+        { key: 'End Time', value: { stringValue: formatUnixNanoToDateTime(span.endTimeUnixNano) } },
+        { key: 'Duration', value: { stringValue: formatDuration(span.endTimeUnixNano - span.startTimeUnixNano) } },
+      ].filter(filterKeyValue(debouncedSearch)),
+    [span, debouncedSearch]
+  );
 
   const rowClassName = (index: number) => {
     return clsx('leading-7', index % 2 === 0 ? 'bg-gray-800' : 'bg-gray-700');
   };
 
-  const { spanAttributes, events, resourceAttributes } = result.isSuccess
-    ? splitAttributesAndEvents(result.data)
-    : { spanAttributes: {}, events: [], resourceAttributes: {} };
+  const { spanAttributes, events, resourceAttributes } = React.useMemo(() => {
+    if (!result.isSuccess) {
+      return { spanAttributes: [], events: [], resourceAttributes: [] };
+    }
+
+    let { spanAttributes, events, resourceAttributes } = splitAttributesAndEvents(result.data);
+
+    if (debouncedSearch !== '') {
+      // filter
+      let filterFn = filterKeyValue(debouncedSearch);
+      spanAttributes = spanAttributes.filter(filterFn);
+      resourceAttributes = resourceAttributes.filter(filterFn);
+      events = events.filter((event) => {
+        return event.value === undefined || event.value?.toLowerCase().includes(debouncedSearch);
+      });
+    }
+
+    return { spanAttributes, events, resourceAttributes };
+  }, [result, debouncedSearch]);
 
   return (
     <div className="z-10">
       <div className="overflow-hidden text-sm">
+        <h2 className="uppercase">Span Details</h2>
+        <input type="text" placeholder="Search" value={search} onChange={(e) => setSearch(e.target.value)} />
         <table className="w-full">
           <tbody>
             {basicSpanData.map((item, index) => (
@@ -210,19 +269,17 @@ export const SpanDetailPanel = ({
             ))}
           </tbody>
         </table>
-        {Object.keys(spanAttributes).length > 0 && (
+        {spanAttributes.length > 0 && (
           <Accordion
             title="Additional Span Data"
-            isExpanded={expandedSections.additionalData}
+            showToggle={debouncedSearch === ''}
+            isExpanded={debouncedSearch !== '' || expandedSections.additionalData}
             onToggle={() => toggleSection('additionalData')}
           >
             <table className="w-full">
               <tbody>
-                {Object.entries(spanAttributes).map(([key, value], index) => (
-                  <tr
-                    key={key}
-                    className={rowClassName(basicSpanData.length + Object.keys(spanAttributes).length + index)}
-                  >
+                {spanAttributes.map(({ key, value }, index) => (
+                  <tr key={key} className={rowClassName(basicSpanData.length + spanAttributes.length + index)}>
                     <td className="font-semibold text-gray-300 border-r border-gray-600 w-1/3">
                       <span className="px-2 py-2">{key}</span>
                     </td>
@@ -235,11 +292,16 @@ export const SpanDetailPanel = ({
         )}
 
         {/* Resource Section */}
-        {Object.keys(resourceAttributes).length > 0 && (
-          <Accordion title="Resource" isExpanded={expandedSections.process} onToggle={() => toggleSection('process')}>
+        {resourceAttributes.length > 0 && (
+          <Accordion
+            title="Resource"
+            showToggle={debouncedSearch === ''}
+            isExpanded={debouncedSearch !== '' || expandedSections.process}
+            onToggle={() => toggleSection('process')}
+          >
             <table className="w-full">
               <tbody>
-                {Object.entries(resourceAttributes).map(([key, value], index) => (
+                {resourceAttributes.map(({ key, value }, index) => (
                   <tr key={key} className={rowClassName(index)}>
                     <td className="font-semibold text-gray-300 border-r border-gray-600 w-1/3">
                       <span className="px-2 py-2">{key}</span>
@@ -254,7 +316,12 @@ export const SpanDetailPanel = ({
 
         {/* Events Section */}
         {events.length > 0 && (
-          <Accordion title="Events" isExpanded={expandedSections.events} onToggle={() => toggleSection('events')}>
+          <Accordion
+            title="Events"
+            showToggle={debouncedSearch === ''}
+            isExpanded={debouncedSearch !== '' || expandedSections.events}
+            onToggle={() => toggleSection('events')}
+          >
             <table className="w-full">
               <tbody>
                 {events.map((item, index) => (
