@@ -113,23 +113,27 @@ function ValueWrapper({
 }) {
   const [tooltip, setTooltip] = useState('Copy value');
   return (
-    <span className={`flex gap-1 items-center justify-between ${italic ? 'italic' : ''}`}>
-      <span className={`p-2 ${color}`}>{displayValue || value}</span>
-      <IconButton
-        name="copy"
-        variant="secondary"
-        aria-label="Copy value"
-        className="bg-red-500"
-        tooltip={tooltip}
-        onClick={() => {
-          navigator.clipboard.writeText(value || '');
-          setTooltip((_) => 'Copied!');
-          setTimeout(() => {
-            setTooltip((_) => 'Copy value');
-          }, 1000);
-        }}
-      />
-    </span>
+    <tr>
+      <td className={`max-w-[1px] w-full ${italic ? 'italic' : ''}`}>
+        <span className={`block truncate p-2 ${color}`}>{displayValue || value}</span>
+      </td>
+      <td>
+        <IconButton
+          name="copy"
+          variant="secondary"
+          aria-label="Copy value"
+          className="bg-red-500"
+          tooltip={tooltip}
+          onClick={() => {
+            navigator.clipboard.writeText(value || '');
+            setTooltip((_) => 'Copied!');
+            setTimeout(() => {
+              setTooltip((_) => 'Copy value');
+            }, 1000);
+          }}
+        />
+      </td>
+    </tr>
   );
 }
 
