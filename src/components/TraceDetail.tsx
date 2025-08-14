@@ -92,7 +92,9 @@ async function extractSpans(
     } else {
       let parentLevel = idToLevelMap.get(parentSpanId);
       if (parentLevel === undefined) {
-        throw new Error(`Parent level not found for ${span.spanID}`);
+        // If traces are linked, there might be a parentId from another trace.
+        // In this case, we consider it a root span.
+        parentLevel = 0;
       }
       idToLevelMap.set(span.spanID, parentLevel + 1);
     }
