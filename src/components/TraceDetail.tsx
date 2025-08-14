@@ -66,7 +66,8 @@ async function extractSpans(
 ): Promise<SpanInfo[]> {
   const trace = responseData.traces?.find((t) => t.traceID === traceId);
   if (!trace) {
-    throw new Error(`Trace not found for ${traceId}`);
+    // The trace might not have results for the current query.
+    return [];
   }
 
   let spanNodes = trace.spanSets?.flatMap((r) => r.spans || []) || [];
