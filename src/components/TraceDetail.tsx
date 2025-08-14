@@ -189,10 +189,15 @@ function TraceDetail({
         const allSpans = [];
         // We fetch the first round of children for each span.
         for (const span of spans) {
-          span.childStatus = ChildStatus.ShowChildren;
+          const hasNoChildren = span.childStatus === ChildStatus.NoChildren;
+          if (!hasNoChildren) {
+            span.childStatus = ChildStatus.ShowChildren;
+          }
           allSpans.push(span);
-          const moreSpans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
-          allSpans.push(...moreSpans);
+          if (!hasNoChildren) {
+            const moreSpans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
+            allSpans.push(...moreSpans);
+          }
         }
         return allSpans;
       },
