@@ -66,7 +66,8 @@ async function extractSpans(
 ): Promise<SpanInfo[]> {
   const trace = responseData.traces?.find((t) => t.traceID === traceId);
   if (!trace) {
-    throw new Error(`Trace not found for ${traceId}`);
+    // The trace might not have results for the current query.
+    return [];
   }
 
   let spanNodes = trace.spanSets?.flatMap((r) => r.spans || []) || [];
@@ -188,10 +189,15 @@ function TraceDetail({
         const allSpans = [];
         // We fetch the first round of children for each span.
         for (const span of spans) {
-          span.childStatus = ChildStatus.ShowChildren;
+          const hasNoChildren = span.childStatus === ChildStatus.NoChildren;
+          if (!hasNoChildren) {
+            span.childStatus = ChildStatus.ShowChildren;
+          }
           allSpans.push(span);
-          const moreSpans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
-          allSpans.push(...moreSpans);
+          if (!hasNoChildren) {
+            const moreSpans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
+            allSpans.push(...moreSpans);
+          }
         }
         return allSpans;
       },
