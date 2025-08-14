@@ -19,7 +19,7 @@ export type SpanInfo = {
   name: string;
   childStatus: ChildStatus;
   childCount?: number;
-  serviceNamespace?: string;
+  serviceName?: string;
 };
 
 export type TraceViewerHeaderProps = {

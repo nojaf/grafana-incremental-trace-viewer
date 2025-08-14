@@ -112,12 +112,7 @@ async function extractSpans(
       childCount = await fetchChildCountViaAPI(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
     }
 
-    const serviceNamespace =
-      span.attributes?.find((a) => a.key === 'service.namespace')?.value?.stringValue || undefined;
-
-    // Using k8s.container.name as the service name since this is specific to our Kubernetes environment.
-    // Jaeger UI is pulling this info from the process object which is in our case translated to this attribute.
-    const serviceName = span.attributes?.find((a) => a.key === 'k8s.container.name')?.value?.stringValue || undefined;
+    const serviceName = span.attributes?.find((a) => a.key === 'service.name')?.value?.stringValue || undefined;
 
     spans.push({
       spanId: span.spanID,
@@ -128,8 +123,8 @@ async function extractSpans(
       endTimeUnixNano: endTimeUnixNano,
       childStatus: childCount !== undefined && childCount > 0 ? ChildStatus.RemoteChildren : ChildStatus.NoChildren,
       childCount,
-      name: serviceName || span.name || '',
-      serviceNamespace,
+      name: span.name || '',
+      serviceName,
     });
   }
   return spans;
@@ -143,9 +138,7 @@ async function loadMoreSpans(
 ): Promise<SpanInfo[]> {
   const q = `{ trace:id = "${traceId}" && span:parentID = "${
     span.spanId
-  }" } | select (span:parentID, span:name, span.k8s.container.name, resource.service.namespace${
-    supportsChildCount ? ', childCount' : ''
-  })`;
+  }" } | select (span:parentID, span:name, resource.service.name${supportsChildCount ? ', childCount' : ''})`;
   const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
   // As a precaution, we add 1 second to the end time.
   // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
@@ -186,7 +179,7 @@ function TraceDetail({
       queryFn: async () => {
         const start = mkUnixEpochFromMiliseconds(startTimeInMs);
         const end = start + 1;
-        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name, span.k8s.container.name, resource.service.namespace${
+        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name, resource.service.name${
           supportsChildCount ? ', childCount' : ''
         })`;
         const data = await search(datasourceUid, q, start, end);

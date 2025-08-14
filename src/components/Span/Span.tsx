@@ -80,13 +80,14 @@ export const Span = (props: SpanNodeProps) => {
           <Expand childStatus={props.childStatus} action={() => props.updateChildStatus(props)}></Expand>
           {props.childCount !== undefined && props.childCount > 0 && (
             <strong
-              style={{ backgroundColor: getColourForValue(props.serviceNamespace || 'default') }}
+              style={{ backgroundColor: getColourForValue(props.serviceName || 'default') }}
               className="block p-[3px] min-w-5 mr-1 rounded font-mono font-thin leading-none text-gray-900 dark:text-black text-center"
             >
               {props.childCount}
             </strong>
           )}
-          <span className="text-gray-900 dark:text-white">{props.name}</span>
+          <span className="text-gray-900 dark:text-white">{props.serviceName}</span>
+          <span className="text-gray-400">{props.name}</span>
         </div>
       </div>
       <div
@@ -101,7 +102,7 @@ export const Span = (props: SpanNodeProps) => {
             style={{
               left: `${offset}%`,
               width: `${Math.max(width, 0.1)}%`,
-              backgroundColor: getColourForValue(props.serviceNamespace || 'default'),
+              backgroundColor: getColourForValue(props.serviceName || 'default'),
             }} // Limitation in tailwind dynamic class construction: Check README.md for more details
             title={`Duration: ${props.endTimeUnixNano - props.startTimeUnixNano}ns`}
           ></div>

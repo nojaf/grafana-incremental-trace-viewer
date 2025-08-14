@@ -11,6 +11,37 @@ const log = (...xs) => console.info(new Date().toISOString(), ...xs);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rndFloat = (min, max) => Math.random() * (max - min) + min;
 
+const operations = [
+  'Assault Weathertop',
+  'Siege Dol Guldur',
+  'Cross the Misty Mountains',
+  'Guard the Argonath',
+  'Seek the Arkenstone',
+  'Unearth Moria',
+  "Hold Helm's Deep",
+  'Reclaim Erebor',
+  'Venture into Mirkwood',
+  'Pursue the Orc-pack',
+  'Rally the Rohirrim',
+  'Scout the Black Gate',
+  'Defend Minas Tirith',
+  'Bind the Nine',
+  'Forge Andúril',
+  'Break the Siege',
+  'Illuminate the Path',
+  'Whisper to Eagles',
+  'Secure the Shire',
+  'Journey to Mount Doom',
+];
+
+let currentOperationIndex = 0;
+
+export function getOperation() {
+  const operation = operations[currentOperationIndex];
+  currentOperationIndex = (currentOperationIndex + 1) % operations.length; // Cycle through the array
+  return operation;
+}
+
 // ---------- parameters ----------
 const NUM_SERVICES = 3;
 const CHILDREN = 5;
@@ -74,7 +105,7 @@ async function main() {
 
   for (let i = 0; i < NUM_SERVICES; i++) {
     // Use the service tracer to create service spans with proper namespace
-    const serviceSpan = tracers[i].startSpan(`service_${i + 1}`, undefined, rootCtx);
+    const serviceSpan = tracers[i].startSpan(`${getOperation()} (s${i + 1})`, undefined, rootCtx);
     serviceSpan.setAttribute('k8s.container.name', `service-container-${i + 1}`);
 
     // Add 3 events to service span
@@ -92,7 +123,7 @@ async function main() {
 
     for (let j = 0; j < CHILDREN; j++) {
       // Use the same service tracer for child spans to maintain namespace
-      const childSpan = tracers[i].startSpan(`service_${i + 1}_child_${j + 1}`, undefined, serviceCtx);
+      const childSpan = tracers[i].startSpan(`${getOperation()} (s${i + 1} c${j + 1})`, undefined, serviceCtx);
       childSpan.setAttribute('child-span-attribute-xyz', 456);
       childSpan.setAttribute('k8s.container.name', `container-${i + 1}-${j + 1}`);
 
