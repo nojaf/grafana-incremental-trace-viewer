@@ -153,6 +153,7 @@ function TraceDetail({
   traceId,
   datasourceUid,
   startTimeInMs,
+  durationInMs,
   panelWidth,
   panelHeight,
   timeRange,
@@ -179,7 +180,7 @@ function TraceDetail({
       staleTime: 5000,
       queryFn: async () => {
         const start = mkUnixEpochFromMiliseconds(startTimeInMs);
-        const end = start + 1;
+        const end = mkUnixEpochFromMiliseconds(startTimeInMs + durationInMs);
         const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name, resource.service.name${
           supportsChildCount ? ', childCount' : ''
         })`;
