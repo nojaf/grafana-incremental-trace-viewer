@@ -7,7 +7,7 @@ type SpanNodeProps = SpanInfo & {
   updateChildStatus: (span: SpanInfo) => void;
   traceStartTimeInMiliseconds: number;
   traceDurationInMiliseconds: number;
-  onSelect: (span: SpanInfo) => void;
+  onSelect: (span: SpanInfo, selectedElementTopCoordinate?: number) => void;
   isSelected?: boolean;
   leftColumnPercent: number;
   // This is the offset on the right side of the timeline.
@@ -94,7 +94,7 @@ export const Span = (props: SpanNodeProps) => {
         className="h-full relative border-l-3"
         // We leave a bit or room for the duration text of the top-level span.
         style={{ width: `calc(${100 - props.leftColumnPercent}% - ${props.timelineOffset}px)` }}
-        onClick={() => props.onSelect(props)}
+        onClick={(e) => props.onSelect(props, e.currentTarget.getBoundingClientRect().top)}
       >
         <div className="h-full relative mx-1">
           <div
