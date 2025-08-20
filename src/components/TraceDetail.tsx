@@ -171,6 +171,9 @@ async function fetchGenerationOneSpans(
       return acc;
     }, [])
     .join(' || ');
+  if (ids.length === 0) {
+    return [];
+  }
   const q = `{ trace:id = "${traceId}" && (${ids}) } ${pipeSelect}`;
   const data = await search(datasourceUid, q, start, end, 4294967295);
   console.log(data);
