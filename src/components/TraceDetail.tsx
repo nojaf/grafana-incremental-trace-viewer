@@ -134,15 +134,15 @@ async function extractSpans(
   return spans;
 }
 
+const pipeSelect = `| select (span:name, resource.service.name${supportsChildCount ? ', childCount' : ''})`;
+
 async function loadMoreSpans(
   traceId: string,
   datasourceUid: string,
   idToLevelMap: Map<string, number>,
   span: SpanInfo
 ): Promise<SpanInfo[]> {
-  const q = `{ trace:id = "${traceId}" && span:parentID = "${
-    span.spanId
-  }" } | select (span:parentID, span:name, resource.service.name${supportsChildCount ? ', childCount' : ''})`;
+  const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } ${pipeSelect}`;
   const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
   // As a precaution, we add 1 second to the end time.
   // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
@@ -150,6 +150,31 @@ async function loadMoreSpans(
   // See https://github.com/grafana/tempo/issues/5435
   const data = await search(datasourceUid, q, start, end, 4294967295);
   return await extractSpans(idToLevelMap, traceId, datasourceUid, data);
+}
+
+/**
+ * Fetches the children of the root spans
+ */
+async function fetchGenerationOneSpans(
+  traceId: string,
+  datasourceUid: string,
+  start: number,
+  end: number,
+  rootSpans: SpanInfo[]
+) {
+  const ids = rootSpans
+    .reduce((acc: string[], s) => {
+      if (s.childStatus === ChildStatus.NoChildren) {
+        return acc;
+      }
+      acc.push(`span:parentID = "${s.spanId}"`);
+      return acc;
+    }, [])
+    .join(' || ');
+  const q = `{ trace:id = "${traceId}" && (${ids}) } ${pipeSelect}`;
+  const data = await search(datasourceUid, q, start, end, 4294967295);
+  console.log(data);
+  return data;
 }
 
 function TraceDetail({
@@ -203,14 +228,14 @@ function TraceDetail({
       queryFn: async () => {
         const start = mkUnixEpochFromMiliseconds(startTimeInMs);
         const end = mkUnixEpochFromMiliseconds(startTimeInMs + durationInMs);
-        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name, resource.service.name${
-          supportsChildCount ? ', childCount' : ''
-        })`;
+        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } ${pipeSelect}`;
         const data = await search(datasourceUid, q, start, end);
         // We pass in hasMore: false because we are fetching the first round of children later.
         const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
         const allSpans = [];
         // We fetch the first round of children for each span.
+        const generationOneSpans = await fetchGenerationOneSpans(traceId, datasourceUid, start, end, spans);
+        console.log(generationOneSpans);
         for (const span of spans) {
           const hasNoChildren = span.childStatus === ChildStatus.NoChildren;
           if (!hasNoChildren) {
