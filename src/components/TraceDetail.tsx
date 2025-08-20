@@ -85,6 +85,7 @@ async function extractSpans(
       continue;
     }
 
+    let warning = null;
     const parentSpanId = getParentSpanId(span);
 
     // Assign the level to the span.
@@ -96,6 +97,7 @@ async function extractSpans(
         // If traces are linked, there might be a parentId from another trace.
         // In this case, we consider it a root span.
         parentLevel = 0;
+        warning = `Parent span "${parentSpanId}" not found in trace "${traceId}"`;
       }
       idToLevelMap.set(span.spanID, parentLevel + 1);
     }
@@ -126,6 +128,7 @@ async function extractSpans(
       childCount,
       name: span.name || '',
       serviceName,
+      warning,
     });
   }
   return spans;

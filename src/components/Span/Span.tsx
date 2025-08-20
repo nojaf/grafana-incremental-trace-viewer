@@ -1,5 +1,5 @@
 import React, { useCallback, MouseEvent } from 'react';
-import { Icon } from '@grafana/ui';
+import { Icon, IconButton } from '@grafana/ui';
 import { formatDuration, getColourForValue, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
 import { SpanInfo, ChildStatus } from '../../types';
 
@@ -85,6 +85,9 @@ export const Span = (props: SpanNodeProps) => {
             >
               {props.childCount}
             </strong>
+          )}
+          {props.warning !== null && (
+            <IconButton name="exclamation-circle" variant="destructive" tooltip={props.warning} size="sm" />
           )}
           <span className="text-gray-900 dark:text-white">{props.serviceName}</span>
           <span className="text-gray-400">{props.name}</span>
