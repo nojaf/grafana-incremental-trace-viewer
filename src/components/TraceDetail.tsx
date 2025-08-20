@@ -152,34 +152,6 @@ async function loadMoreSpans(
   return await extractSpans(idToLevelMap, traceId, datasourceUid, data);
 }
 
-/**
- * Fetches the children of the root spans
- */
-async function fetchGenerationOneSpans(
-  traceId: string,
-  datasourceUid: string,
-  start: number,
-  end: number,
-  rootSpans: SpanInfo[]
-) {
-  const ids = rootSpans
-    .reduce((acc: string[], s) => {
-      if (s.childStatus === ChildStatus.NoChildren) {
-        return acc;
-      }
-      acc.push(`span:parentID = "${s.spanId}"`);
-      return acc;
-    }, [])
-    .join(' || ');
-  if (ids.length === 0) {
-    return [];
-  }
-  const q = `{ trace:id = "${traceId}" && (${ids}) } ${pipeSelect}`;
-  const data = await search(datasourceUid, q, start, end, 4294967295);
-  console.log(data);
-  return data;
-}
-
 function TraceDetail({
   traceId,
   datasourceUid,
@@ -237,15 +209,14 @@ function TraceDetail({
         const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
         const allSpans = [];
         // We fetch the first round of children for each span.
-        const generationOneSpans = await fetchGenerationOneSpans(traceId, datasourceUid, start, end, spans);
-        console.log(generationOneSpans);
+        let isSingleRootSpan = spans.filter((s) => s.level === 0).length === 1;
         for (const span of spans) {
           const hasNoChildren = span.childStatus === ChildStatus.NoChildren;
           if (!hasNoChildren) {
             span.childStatus = ChildStatus.ShowChildren;
           }
           allSpans.push(span);
-          if (!hasNoChildren) {
+          if (!hasNoChildren && isSingleRootSpan) {
             const moreSpans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
             allSpans.push(...moreSpans);
           }
@@ -487,7 +458,7 @@ function TraceDetail({
                   // The index of result.data
                   const originalIndex = visibleIndexes[virtualItem.index];
                   const span = result.data[originalIndex];
-                  let updateChildStatus = (span: SpanInfo) => {};
+                  let updateChildStatus = (_span: SpanInfo) => {};
                   switch (span.childStatus) {
                     case ChildStatus.HideChildren:
                       updateChildStatus = showChildren;
