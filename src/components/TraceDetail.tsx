@@ -207,16 +207,21 @@ function TraceDetail({
         const data = await search(datasourceUid, q, start, end);
         // We pass in hasMore: false because we are fetching the first round of children later.
         const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
-        const allSpans = [];
+
         // We fetch the first round of children for each span.
         let isSingleRootSpan = spans.filter((s) => s.level === 0).length === 1;
+        if (!isSingleRootSpan) {
+          return spans;
+        }
+
+        const allSpans = [];
         for (const span of spans) {
           const hasNoChildren = span.childStatus === ChildStatus.NoChildren;
           if (!hasNoChildren) {
             span.childStatus = ChildStatus.ShowChildren;
           }
           allSpans.push(span);
-          if (!hasNoChildren && isSingleRootSpan) {
+          if (!hasNoChildren) {
             const moreSpans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
             allSpans.push(...moreSpans);
           }
