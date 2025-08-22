@@ -8,5 +8,6 @@ datasources:
 
   - name: Local Tempo
     type: tempo
+    uid: tempo-local
     access: proxy
     url: http://localhost:5259/tempo
