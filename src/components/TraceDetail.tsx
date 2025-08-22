@@ -134,15 +134,15 @@ async function extractSpans(
   return spans;
 }
 
+const pipeSelect = `| select (span:name, resource.service.name${supportsChildCount ? ', childCount' : ''})`;
+
 async function loadMoreSpans(
   traceId: string,
   datasourceUid: string,
   idToLevelMap: Map<string, number>,
   span: SpanInfo
 ): Promise<SpanInfo[]> {
-  const q = `{ trace:id = "${traceId}" && span:parentID = "${
-    span.spanId
-  }" } | select (span:parentID, span:name, resource.service.name${supportsChildCount ? ', childCount' : ''})`;
+  const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } ${pipeSelect}`;
   const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
   // As a precaution, we add 1 second to the end time.
   // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
@@ -203,14 +203,18 @@ function TraceDetail({
       queryFn: async () => {
         const start = mkUnixEpochFromMiliseconds(startTimeInMs);
         const end = mkUnixEpochFromMiliseconds(startTimeInMs + durationInMs);
-        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } | select (span:name, resource.service.name${
-          supportsChildCount ? ', childCount' : ''
-        })`;
+        const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } ${pipeSelect}`;
         const data = await search(datasourceUid, q, start, end);
         // We pass in hasMore: false because we are fetching the first round of children later.
         const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
-        const allSpans = [];
+
         // We fetch the first round of children for each span.
+        let isSingleRootSpan = spans.filter((s) => s.level === 0).length === 1;
+        if (!isSingleRootSpan) {
+          return spans;
+        }
+
+        const allSpans = [];
         for (const span of spans) {
           const hasNoChildren = span.childStatus === ChildStatus.NoChildren;
           if (!hasNoChildren) {
@@ -459,7 +463,7 @@ function TraceDetail({
                   // The index of result.data
                   const originalIndex = visibleIndexes[virtualItem.index];
                   const span = result.data[originalIndex];
-                  let updateChildStatus = (span: SpanInfo) => {};
+                  let updateChildStatus = (_span: SpanInfo) => {};
                   switch (span.childStatus) {
                     case ChildStatus.HideChildren:
                       updateChildStatus = showChildren;
