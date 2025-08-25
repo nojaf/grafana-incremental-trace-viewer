@@ -3,12 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { testIds } from './testIds';
 import { Span as SpanComponent, SpanDetailPanel } from './Span';
-import {
-  mkMilisecondsFromNanoSeconds,
-  mkUnixEpochFromNanoSeconds,
-  mkUnixEpochFromMiliseconds,
-  formatDuration,
-} from '../utils/utils.timeline';
+import { mkUnixEpochFromNanoSeconds, mkUnixEpochFromMiliseconds, formatDuration } from '../utils/utils.timeline';
 import { search, SearchResponse, Span } from '../utils/utils.api';
 import type { QueryInfo as TraceDetailProps } from './TraceViewerPanel';
 import { SpanOverlayDrawer } from './Span/SpanOverlayDrawer';
@@ -259,25 +254,6 @@ function TraceDetail({
     return indexes;
   }, [result.isSuccess, result.data]);
 
-  const traceDurationInMiliseconds = React.useMemo(() => {
-    if (!result.isSuccess || result.data.length === 0) {
-      return 0;
-    }
-    const rootSpan = result.data[0];
-    return (
-      mkMilisecondsFromNanoSeconds(rootSpan.endTimeUnixNano) - mkMilisecondsFromNanoSeconds(rootSpan.startTimeUnixNano)
-    );
-  }, [result.isSuccess, result.data]);
-
-  const traceStartTimeInMiliseconds = React.useMemo(() => {
-    if (!result.isSuccess || result.data.length === 0) {
-      return 0;
-    }
-    const rootSpan = result.data[0];
-    // TODO: not sure if this will work as is in nano seconds.
-    return new Date(mkMilisecondsFromNanoSeconds(rootSpan.startTimeUnixNano)).getTime();
-  }, [result.isSuccess, result.data]);
-
   const rowVirtualizer = useVirtualizer({
     count: visibleIndexes.length,
     getScrollElement: () => parentRef.current,
@@ -437,7 +413,7 @@ function TraceDetail({
           <TraceViewerHeader
             traceId={traceId}
             startTimeInMs={startTimeInMs}
-            durationInMs={traceDurationInMiliseconds}
+            durationInMs={durationInMs}
             panelWidth={panelWidth}
             panelHeight={panelHeight}
             timeRange={timeRange}
@@ -491,8 +467,8 @@ function TraceDetail({
                         key={span.spanId}
                         {...span}
                         updateChildStatus={updateChildStatus}
-                        traceStartTimeInMiliseconds={traceStartTimeInMiliseconds}
-                        traceDurationInMiliseconds={traceDurationInMiliseconds}
+                        traceStartTimeInMiliseconds={startTimeInMs}
+                        traceDurationInMiliseconds={durationInMs}
                         onSelect={handleSpanSelect}
                         isSelected={selectedSpan?.spanId === span.spanId}
                         leftColumnPercent={leftColumnPercent}

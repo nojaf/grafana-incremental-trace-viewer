@@ -100,9 +100,9 @@ export const formatDuration = (nanoseconds: number): string => {
   } else if (hours >= 1) {
     return `${hours.toFixed(2)} hours`;
   } else if (minutes >= 1) {
-    return `${minutes.toFixed(2)} minutes`;
+    return `${minutes.toFixed(2)} min`;
   } else if (seconds >= 1) {
-    return `${seconds.toFixed(2)} seconds`;
+    return `${seconds.toFixed(2)} sec`;
   } else if (milliseconds >= 1) {
     return `${milliseconds.toFixed(2)} ms`;
   } else if (microseconds >= 1) {
