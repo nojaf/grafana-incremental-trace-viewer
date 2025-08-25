@@ -22,6 +22,7 @@ services:
       - ../dist:/var/lib/grafana/plugins/gresearch-grafanaincrementaltraceviewer-panel
       - ../provisioning:/etc/grafana/provisioning
       - ..:/root/gresearch-grafanaincrementaltraceviewer-panel
+      - ./grafana.ini:/etc/grafana/grafana.ini
 
     environment:
       NODE_ENV: development
