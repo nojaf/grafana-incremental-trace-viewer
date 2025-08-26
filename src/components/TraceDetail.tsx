@@ -441,7 +441,7 @@ function TraceDetail({
           )}
           {result.isError && <div>Error: {result.error.message}</div>}
           {result.isSuccess && (
-            <div ref={parentRef} className="overflow-auto h-full">
+            <div ref={parentRef} className={`${selectedSpan ? 'overflow-hidden' : 'overflow-auto'} h-full`}>
               <div
                 style={{
                   height: `${rowVirtualizer.getTotalSize()}px`,
