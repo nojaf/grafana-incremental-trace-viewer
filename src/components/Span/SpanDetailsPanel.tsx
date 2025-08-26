@@ -71,10 +71,10 @@ async function getTagAttributes(
   for (const result of results) {
     for (const keyValue of result) {
       if (keyValue.key && keyValue.value !== undefined) {
-        if (spanTags.includes(keyValue.key)) {
-          spanAttributes[keyValue.key] = keyValue.value;
-        } else {
+        if (resourceTags.includes(keyValue.key)) {
           resourceAttributes[keyValue.key] = keyValue.value;
+        } else {
+          spanAttributes[keyValue.key] = keyValue.value;
         }
       }
     }
@@ -373,8 +373,7 @@ export const SpanDetailPanel = ({
                   <tr key={item.time} className={rowClassName(index)}>
                     <td className="font-regular text-gray-700 dark:text-gray-300  w-1/3">
                       <span className="px-2 whitespace-nowrap">
-                        {/* print the time in seconds since the start of the span with 3 decimal places */}
-                        {((item.time - span.startTimeUnixNano / 1000000) / 1000).toFixed(3)}s
+                        {formatDuration(item.time - span.startTimeUnixNano)}
                       </span>
                     </td>
                     <td className="font-light">{item.value && <Value value={{ stringValue: item.value }} />}</td>

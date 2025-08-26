@@ -1,5 +1,5 @@
 import React, { useCallback, MouseEvent } from 'react';
-import { Icon, IconButton } from '@grafana/ui';
+import { Icon, IconButton, Tooltip } from '@grafana/ui';
 import { formatDuration, getColourForValue, mkMilisecondsFromNanoSeconds } from '../../utils/utils.timeline';
 import { SpanInfo, ChildStatus } from '../../types';
 
@@ -100,6 +100,33 @@ export const Span = (props: SpanNodeProps) => {
         onClick={(e) => props.onSelect(props, e.currentTarget.getBoundingClientRect().top)}
       >
         <div className="h-full relative mx-1">
+          {props.events.map((e) => {
+            const left =
+              ((mkMilisecondsFromNanoSeconds(e.time) - props.traceStartTimeInMiliseconds) /
+                props.traceDurationInMiliseconds) *
+              100;
+            return (
+              <span
+                key={e.time}
+                className="absolute z-2000 h-full w-[1px] bg-neutral-950 flex items-center justify-center"
+                style={{ left: `${left}%` }}
+              >
+                <Tooltip content={e.value} placement="top">
+                  <Icon
+                    name="circle-mono"
+                    size="xs"
+                    style={{
+                      color: 'white',
+                      height: '7px',
+                      width: '7px',
+                      border: '1px solid black',
+                      borderRadius: '50%',
+                    }}
+                  />
+                </Tooltip>
+              </span>
+            );
+          })}
           <div
             className="h-3/4 absolute my-auto top-0 bottom-0 rounded-sm min-w-[2px]"
             style={{

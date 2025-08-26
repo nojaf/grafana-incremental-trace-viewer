@@ -21,6 +21,7 @@ export type SpanInfo = {
   childCount?: number;
   serviceName?: string;
   warning: string | null;
+  events: Array<{ time: number; value: string }>;
 };
 
 export type TraceViewerHeaderProps = {

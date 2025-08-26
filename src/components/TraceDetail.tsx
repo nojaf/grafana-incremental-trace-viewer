@@ -113,6 +113,17 @@ async function extractSpans(
 
     const serviceName = span.attributes?.find((a) => a.key === 'service.name')?.value?.stringValue || undefined;
 
+    // In production we will receive events as attributes for each span.
+    const events =
+      span.attributes?.flatMap((a) => {
+        if (a.key?.startsWith('event') && a.value?.stringValue) {
+          const time = parseInt(a.key.replace('event.', ''), 10);
+          return [{ time, value: a.value.stringValue }];
+        } else {
+          return [];
+        }
+      }) || [];
+
     spans.push({
       spanId: span.spanID,
       parentSpanId: parentSpanId,
@@ -125,6 +136,7 @@ async function extractSpans(
       name: span.name || '',
       serviceName,
       warning,
+      events,
     });
   }
   return spans;
