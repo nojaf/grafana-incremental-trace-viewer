@@ -1,5 +1,6 @@
 import React from 'react';
 import clsx from 'clsx';
+import { Icon } from '@grafana/ui';
 
 export const Accordion = ({
   title,
@@ -20,16 +21,7 @@ export const Accordion = ({
         onClick={onToggle}
         className="w-full flex items-center text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-200 mb-2 pl-2 gap-2"
       >
-        {showToggle && (
-          <svg
-            className={clsx('w-4 h-4 transition-transform duration-200', isExpanded ? 'rotate-180' : 'rotate-0')}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        )}
+        {showToggle && (isExpanded ? <Icon name="angle-down" /> : <Icon name="angle-right" />)}
         <span className="uppercase font-light">{title}</span>
       </button>
     }
