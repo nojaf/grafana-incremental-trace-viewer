@@ -31,7 +31,7 @@ const Expand = ({ childStatus, action }: { childStatus: ChildStatus; action: () 
     case ChildStatus.ShowChildren:
       return <Icon name="angle-down" onMouseDown={mouseDown} />;
     case ChildStatus.NoChildren:
-      return null;
+      return <Icon name="circle-mono" className="px-1.5 opacity-50" />; // px-1.5 is set to reduce the size of the icon and keep alignment
     case ChildStatus.LoadingChildren:
       return <Icon name="spinner" className="animate-spin" />;
   }
@@ -78,14 +78,13 @@ export const Span = (props: SpanNodeProps) => {
       >
         <div className="flex items-center gap-1 truncate">
           <Expand childStatus={props.childStatus} action={() => props.updateChildStatus(props)}></Expand>
-          {props.childCount !== undefined && props.childCount > 0 && (
-            <strong
-              style={{ backgroundColor: getColourForValue(props.serviceName || 'default') }}
-              className="block p-[3px] min-w-5 mr-1 rounded font-mono font-thin leading-none text-gray-900 dark:text-black text-center"
-            >
-              {props.childCount}
-            </strong>
-          )}
+
+          <strong
+            style={{ backgroundColor: getColourForValue(props.serviceName || 'default') }}
+            className="block p-[3px] min-w-5 mr-1 rounded font-mono font-thin leading-none text-gray-900 dark:text-black text-center"
+          >
+            {props.childCount || 0}
+          </strong>
           {props.warning !== null && (
             <IconButton name="exclamation-circle" variant="destructive" tooltip={props.warning} size="sm" />
           )}
