@@ -76,7 +76,7 @@ export const Span = (props: SpanNodeProps) => {
           minWidth: 0,
         }} // Limitation in tailwind dynamic class construction: Check README.md for more details
       >
-        <div className="flex items-center gap-1 truncate">
+        <div className="flex items-center gap-1 truncate" title={`${props.serviceName} - ${props.name}`}>
           <Expand childStatus={props.childStatus} action={() => props.updateChildStatus(props)}></Expand>
 
           <strong
