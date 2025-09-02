@@ -221,3 +221,34 @@ Run `bun run package` to create a plugin zip archive.
 
 Afterward you need to start Grafana, if you are using Docker, just restart the container.
 Once that is done, you need to enable the plugin via the UI.
+
+## Known limitations
+
+### Plugin
+
+- If the search endpoint returns duplicate spanIDs, we do not handle them.
+- If a single root node has a very large number of children, the plugin will attempt to load all children when it mounts.
+
+### Production API
+
+In production at G-Research, we target a Tempo-compatible API endpoint. The API is Tempo-compatible but uses a custom implementation and a different datastore.
+
+Minor differences:
+
+- The `search` endpoint returns all span attributes, even when they were not requested in traceQL. When opening span details the client performs two requests to obtain all span attributes:
+
+  1. Retrieve all tags via `/search/tags`.
+  2. Query the span and use the tags in a `select(...)`.
+     The Grafana Tempo API only returns attributes which are part of the `| select(...)` query.
+     In production, the server already has these attributes and we do not fetch them again.
+
+- `childCount` is part of the traceQL spec but is not implemented by Grafana Tempo. ([comment](https://github.com/grafana/tempo/issues/5311#issuecomment-3119494111)) This field is supported by the production API.
+
+- In traceQL, `nestedSetParent = -1` is an undocumented feature (but part of the spec) used to find root nodes.
+  Ideally, each trace has a single root node; however, when a trace is still in progress, that root node might not yet exist (see partial application spans).
+  Our production server detects parentIds that do not yet exist in a trace and treats nodes referencing these _ghost_ parents as root nodes. This impacts performance, but the processing occurs server-side.
+
+## API discrepancies
+
+To differentiate between the Grafana Tempo API and the G-Research–flavoured Tempo API, the plugin checks the `SUPPORTS_CHILD_COUNT` environment variable.
+Building with `SUPPORTS_CHILD_COUNT=1` results in the runtime behavior described above.

@@ -5,13 +5,30 @@ import { IconButton, Input } from '@grafana/ui';
 import type { SpanInfo } from '../../types';
 import { mkUnixEpochFromNanoSeconds, formatUnixNanoToDateTime, formatDuration } from 'utils/utils.timeline';
 import { useQuery } from '@tanstack/react-query';
-import { searchTags, search, KeyValue, AnyValue, SearchTagsResult } from 'utils/utils.api';
+import { searchTags, search, KeyValue, AnyValue, SearchTagsResult, supportsChildCount } from 'utils/utils.api';
 import { Accordion } from './Accordion';
 
 type TagAttributes = {
   spanAttributes: Record<string, AnyValue>;
   resourceAttributes: Record<string, AnyValue>;
 };
+
+function collectTagAttributes(filterResource: (v: string) => boolean, result: KeyValue[]): TagAttributes {
+  const spanAttributes: Record<string, AnyValue> = {};
+  const resourceAttributes: Record<string, AnyValue> = {};
+
+  for (const keyValue of result) {
+    if (keyValue.key && keyValue.value !== undefined) {
+      if (filterResource(keyValue.key)) {
+        resourceAttributes[keyValue.key] = keyValue.value;
+      } else {
+        spanAttributes[keyValue.key] = keyValue.value;
+      }
+    }
+  }
+
+  return { spanAttributes, resourceAttributes };
+}
 
 async function getTagAttributes(
   datasourceUid: string,
@@ -65,22 +82,9 @@ async function getTagAttributes(
     return data.traces?.[0].spanSets?.[0].spans?.[0].attributes || [];
   });
 
-  const results: KeyValue[][] = await Promise.all(promises);
-  const spanAttributes: Record<string, AnyValue> = {};
-  const resourceAttributes: Record<string, AnyValue> = {};
-  for (const result of results) {
-    for (const keyValue of result) {
-      if (keyValue.key && keyValue.value !== undefined) {
-        if (resourceTags.includes(keyValue.key)) {
-          resourceAttributes[keyValue.key] = keyValue.value;
-        } else {
-          spanAttributes[keyValue.key] = keyValue.value;
-        }
-      }
-    }
-  }
+  const results: KeyValue[] = await Promise.all(promises).then((rs) => rs.flatMap((r) => r));
 
-  return { spanAttributes, resourceAttributes };
+  return collectTagAttributes((key: string) => resourceTags.includes(key), results);
 }
 
 function splitAttributesAndEvents(tagAttributes: TagAttributes) {
@@ -216,6 +220,10 @@ export const SpanDetailPanel = ({
   const result = useQuery<TagAttributes>({
     queryKey: ['trace', span.traceId, 'span', span.spanId, 'details'],
     queryFn: async () => {
+      if (supportsChildCount) {
+        return collectTagAttributes((key: string) => key.startsWith('resource.'), span.attributes);
+      }
+
       const qTags = `{ trace:id = "${span.traceId}" && span:id = "${span.spanId}" }`;
       const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
       const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano);

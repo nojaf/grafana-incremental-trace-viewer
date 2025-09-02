@@ -1,5 +1,6 @@
 import { TimeRange } from '@grafana/data';
 import type React from 'react';
+import { KeyValue } from 'utils/utils.api';
 
 export enum ChildStatus {
   NoChildren,
@@ -22,6 +23,7 @@ export type SpanInfo = {
   serviceName?: string;
   warning: string | null;
   events: Array<{ time: number; value: string }>;
+  attributes: KeyValue[];
 };
 
 export type TraceViewerHeaderProps = {

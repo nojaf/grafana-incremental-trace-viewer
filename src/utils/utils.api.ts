@@ -93,6 +93,11 @@ export type SearchTagsResult = {
   resourceTags: string[];
 };
 
+// default Grafana does not support child count.
+// In production, we use a custom build of Grafana that supports child count.
+// This value is set at build time via environment variable SUPPORTS_CHILD_COUNT
+export const supportsChildCount = process.env.SUPPORTS_CHILD_COUNT || false;
+
 export async function searchTags(
   datasourceUid: string,
   query: string,
