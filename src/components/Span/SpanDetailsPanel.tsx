@@ -117,7 +117,7 @@ function ValueWrapper({
 }) {
   const [tooltip, setTooltip] = useState('Copy value');
   return (
-    <tr>
+    <tr title={displayValue || value}>
       <td className={`max-w-[1px] w-full ${italic ? 'italic' : ''}`}>
         <span className={`block truncate p-2 ${color}`}>{displayValue || value}</span>
       </td>
