@@ -166,8 +166,8 @@ jobs:
     permissions:
       contents: read
     timeout-minutes: 3
-    needs: build
-    if: ${{ needs.build.outputs.has-e2e == 'true' }}
+    needs: [build, build-with-child-count]
+    if: ${{ needs.build.outputs.has-e2e == 'true' || needs.build-with-child-count.outputs.has-e2e == 'true' }}
     outputs:
       matrix: ${{ steps.resolve-versions.outputs.matrix }}
     steps:
