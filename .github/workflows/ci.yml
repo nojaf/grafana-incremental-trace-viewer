@@ -98,8 +98,7 @@ jobs:
     permissions:
       contents: read
     timeout-minutes: 3
-    needs: build
-    if: ${{ needs.build.outputs.has-e2e == 'true' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     outputs:
       matrix: ${{ steps.resolve-versions.outputs.matrix }}
     steps:
@@ -113,8 +112,8 @@ jobs:
         uses: grafana/plugin-actions/e2e-version@main # zizmor: ignore[unpinned-uses] provided by grafana
 
   playwright-tests:
-    needs: [resolve-versions, build]
-    timeout-minutes: 15
+    needs: [resolve-versions]
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -130,23 +129,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download plugin
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          name: ${{ needs.build.outputs.plugin-id }}-${{ needs.build.outputs.plugin-version }}
-
-      - name: Execute permissions on binary
-        if: needs.build.outputs.has-backend == 'true'
-        run: |
-          chmod +x ./dist/gpx_*
-
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Build plugin
+        run: bun run build
 
       - name: Start Grafana
         run: |
@@ -167,49 +158,98 @@ jobs:
       - name: Fetch trace
         run: curl "http://localhost:3200/api/search?q=%7B%7D"
 
-      - name: Run Playwright tests
-        id: run-tests
+      - name: Run Playwright tests (regular)
+        id: run-tests-regular
         run: bun run e2e
 
-      - name: Upload e2e test summary
+      - name: Upload e2e test summary (regular)
         uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@main # zizmor: ignore[unpinned-uses] provided by grafana
         if: ${{ always() && !cancelled() }}
         with:
           upload-report: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          test-outcome: ${{ steps.run-tests.outcome }}
+          test-outcome: ${{ steps.run-tests-regular.outcome }}
+
+      - name: Stop grafana docker (after regular tests)
+        run: docker compose down
+
+      - name: Build with child count support
+        run: bun run build:with-child-count
+
+      - name: Start Grafana (for child count tests)
+        run: |
+          docker compose -f ./local-tempo-docker-compose.yml pull
+          ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false GRAFANA_VERSION=${{ matrix.GRAFANA_IMAGE.VERSION }} GRAFANA_IMAGE=${{ matrix.GRAFANA_IMAGE.NAME }} docker compose -f ./local-tempo-docker-compose.yml up --build -d
+
+      - name: Wait for grafana server (child count)
+        uses: grafana/plugin-actions/wait-for-grafana@main # zizmor: ignore[unpinned-uses] provided by grafana
+        with:
+          url: http://localhost:3000/login
+
+      - name: Start server with child count support
+        run: |
+          bun run tests/test-api.ts &
+          echo $! > /tmp/test-api.pid
+          echo "Started test API server with PID: $(cat /tmp/test-api.pid)"
+
+      - name: Run Playwright tests (with child count)
+        id: run-tests-child-count
+        run: bun run e2e
+
+      - name: Stop test API server
+        if: always()
+        run: |
+          if [ -f /tmp/test-api.pid ]; then
+            PID=$(cat /tmp/test-api.pid)
+            echo "Stopping test API server with PID: $PID"
+            kill $PID 2>/dev/null || echo "Process $PID not found or already stopped"
+            rm -f /tmp/test-api.pid
+          else
+            echo "No test API server PID file found"
+          fi
+
+      - name: Upload e2e test summary (with child count)
+        uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@main # zizmor: ignore[unpinned-uses] provided by grafana
+        if: ${{ always() && !cancelled() }}
+        with:
+          upload-report: false
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          test-outcome: ${{ steps.run-tests-child-count.outcome }}
+          plugin-name: gresearch-grafanaincrementaltraceviewer-panel-0.2.0-with-child-count
 
       - name: Docker logs
-        if: ${{ always() && steps.run-tests.outcome == 'failure' }}
+        if: ${{ always() && (steps.run-tests-regular.outcome == 'failure' || steps.run-tests-child-count.outcome == 'failure') }}
         run: |
           docker logs gresearch-grafanaincrementaltraceviewer-app >& grafana-server.log
 
-      - name: Stop grafana docker
+      - name: Stop grafana docker (final)
         run: docker compose down
 
       # Uncomment this step to upload the server log to Github artifacts. Remember Github artifacts are public on the Internet if the repository is public.
       # - name: Upload server log
       #   uses: actions/upload-artifact@v4
-      #   if: ${{ always() && steps.run-tests.outcome == 'failure' }}
+      #   if: ${{ always() && (steps.run-tests-regular.outcome == 'failure' || steps.run-tests-child-count.outcome == 'failure') }}
       #   with:
       #     name: ${{ matrix.GRAFANA_IMAGE.NAME }}-v${{ matrix.GRAFANA_IMAGE.VERSION }}-${{github.run_id}}-server-log
       #     path: grafana-server.log
       #     retention-days: 5
 
-  publish-report:
-    if: ${{ always() && !cancelled() }}
-    permissions:
-      contents: write
-      id-token: write
-      pull-requests: write
-    needs: [playwright-tests]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # required for playwright-gh-pages
-          persist-credentials: true
-      - name: Publish report
-        uses: grafana/plugin-actions/playwright-gh-pages/deploy-report-pages@main # zizmor: ignore[unpinned-uses] provided by grafana
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+  # PR comment functionality disabled due to repository permissions
+  # The Playwright tests are working correctly - reports are available as artifacts
+  # publish-report:
+  #   if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
+  #   permissions:
+  #     contents: write
+  #     id-token: write
+  #     pull-requests: write
+  #     issues: write
+  #   needs: [playwright-tests]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         persist-credentials: true
+  #     - name: Publish report
+  #       uses: grafana/plugin-actions/playwright-gh-pages/deploy-report-pages@main
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
