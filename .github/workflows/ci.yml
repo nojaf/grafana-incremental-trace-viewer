@@ -362,12 +362,32 @@ jobs:
       #     retention-days: 5
 
   publish-report:
-    if: ${{ always() && !cancelled() }}
+    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
     permissions:
       contents: write
       id-token: write
       pull-requests: write
-    needs: [playwright-tests, playwright-tests-with-child-count]
+      issues: write
+    needs: [playwright-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # required for playwright-gh-pages
+          persist-credentials: true
+      - name: Publish report
+        uses: grafana/plugin-actions/playwright-gh-pages/deploy-report-pages@main # zizmor: ignore[unpinned-uses] provided by grafana
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-report-with-child-count:
+    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
+    permissions:
+      contents: write
+      id-token: write
+      pull-requests: write
+      issues: write
+    needs: [playwright-tests-with-child-count]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
