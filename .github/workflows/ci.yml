@@ -92,82 +92,13 @@ jobs:
           path: ${{ steps.metadata.outputs.plugin-id }}
           retention-days: 5
 
-  build-with-child-count:
-    name: Build with child count
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      plugin-id: ${{ steps.metadata.outputs.plugin-id }}
-      plugin-version: ${{ steps.metadata.outputs.plugin-version }}
-      has-e2e: ${{ steps.check-for-e2e.outputs.has-e2e }}
-      has-backend: ${{ steps.check-for-backend.outputs.has-backend }}
-    env:
-      GRAFANA_ACCESS_POLICY_TOKEN: ${{ secrets.GRAFANA_ACCESS_POLICY_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-      - name: Unit tests
-        run: bun run test:ci
-      - name: Build frontend
-        run: bun run build:with-child-count
-
-      - name: Check for E2E
-        id: check-for-e2e
-        run: |
-          if [ -f "playwright.config.ts" ]
-          then
-            echo "has-e2e=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Sign plugin
-        run: bun run sign
-        if: ${{ env.GRAFANA_ACCESS_POLICY_TOKEN != '' }}
-
-      - name: Get plugin metadata
-        id: metadata
-        run: |
-          sudo apt-get install jq
-
-          export GRAFANA_PLUGIN_ID=$(cat dist/plugin.json | jq -r .id)
-          export GRAFANA_PLUGIN_VERSION=$(cat dist/plugin.json | jq -r .info.version)
-          export GRAFANA_PLUGIN_ARTIFACT=${GRAFANA_PLUGIN_ID}-${GRAFANA_PLUGIN_VERSION}.zip
-
-          echo "plugin-id=${GRAFANA_PLUGIN_ID}" >> $GITHUB_OUTPUT
-          echo "plugin-version=${GRAFANA_PLUGIN_VERSION}" >> $GITHUB_OUTPUT
-          echo "archive=${GRAFANA_PLUGIN_ARTIFACT}" >> $GITHUB_OUTPUT
-
-      - name: Package plugin
-        id: package-plugin
-        run: |
-          mv dist ${PLUGIN_ID}
-          zip ${ARCHIVE} ${PLUGIN_ID} -r
-        env:
-          ARCHIVE: ${{ steps.metadata.outputs.archive }}
-          PLUGIN_ID: ${{ steps.metadata.outputs.plugin-id }}
-
-      - name: Archive Build
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ steps.metadata.outputs.plugin-id }}-${{ steps.metadata.outputs.plugin-version }}-with-child-count
-          path: ${{ steps.metadata.outputs.plugin-id }}
-          retention-days: 5
-
   resolve-versions:
     name: Resolve e2e images
     runs-on: ubuntu-latest
     permissions:
       contents: read
     timeout-minutes: 3
-    needs: [build, build-with-child-count]
-    if: ${{ needs.build.outputs.has-e2e == 'true' || needs.build-with-child-count.outputs.has-e2e == 'true' }}
+    if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     outputs:
       matrix: ${{ steps.resolve-versions.outputs.matrix }}
     steps:
@@ -181,8 +112,8 @@ jobs:
         uses: grafana/plugin-actions/e2e-version@main # zizmor: ignore[unpinned-uses] provided by grafana
 
   playwright-tests:
-    needs: [resolve-versions, build]
-    timeout-minutes: 15
+    needs: [resolve-versions]
+    timeout-minutes: 30
     permissions:
       contents: read
       id-token: write
@@ -198,23 +129,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Download plugin
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          name: ${{ needs.build.outputs.plugin-id }}-${{ needs.build.outputs.plugin-version }}
-
-      - name: Execute permissions on binary
-        if: needs.build.outputs.has-backend == 'true'
-        run: |
-          chmod +x ./dist/gpx_*
-
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      - name: Build plugin
+        run: bun run build
 
       - name: Start Grafana
         run: |
@@ -235,83 +158,33 @@ jobs:
       - name: Fetch trace
         run: curl "http://localhost:3200/api/search?q=%7B%7D"
 
-      - name: Run Playwright tests
-        id: run-tests
+      - name: Run Playwright tests (regular)
+        id: run-tests-regular
         run: bun run e2e
 
-      - name: Upload e2e test summary
+      - name: Upload e2e test summary (regular)
         uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@main # zizmor: ignore[unpinned-uses] provided by grafana
         if: ${{ always() && !cancelled() }}
         with:
           upload-report: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          test-outcome: ${{ steps.run-tests.outcome }}
+          test-outcome: ${{ steps.run-tests-regular.outcome }}
 
-      - name: Docker logs
-        if: ${{ always() && steps.run-tests.outcome == 'failure' }}
-        run: |
-          docker logs gresearch-grafanaincrementaltraceviewer-app >& grafana-server.log
-
-      - name: Stop grafana docker
+      - name: Stop grafana docker (after regular tests)
         run: docker compose down
 
-      # Uncomment this step to upload the server log to Github artifacts. Remember Github artifacts are public on the Internet if the repository is public.
-      # - name: Upload server log
-      #   uses: actions/upload-artifact@v4
-      #   if: ${{ always() && steps.run-tests.outcome == 'failure' }}
-      #   with:
-      #     name: ${{ matrix.GRAFANA_IMAGE.NAME }}-v${{ matrix.GRAFANA_IMAGE.VERSION }}-${{github.run_id}}-server-log
-      #     path: grafana-server.log
-      #     retention-days: 5
+      - name: Build with child count support
+        run: bun run build:with-child-count
 
-  playwright-tests-with-child-count:
-    needs: [resolve-versions, build-with-child-count]
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-      pull-requests: write
-    strategy:
-      fail-fast: false
-      matrix:
-        GRAFANA_IMAGE: ${{fromJson(needs.resolve-versions.outputs.matrix)}}
-    name: e2e test ${{ matrix.GRAFANA_IMAGE.name }}@${{ matrix.GRAFANA_IMAGE.VERSION }}
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-
-      - name: Download plugin
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          name: ${{ needs.build-with-child-count.outputs.plugin-id }}-${{ needs.build-with-child-count.outputs.plugin-version }}-with-child-count
-
-      - name: Execute permissions on binary
-        if: needs.build-with-child-count.outputs.has-backend == 'true'
-        run: |
-          chmod +x ./dist/gpx_*
-
-      - uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Start Grafana
+      - name: Start Grafana (for child count tests)
         run: |
           docker compose pull
           ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false GRAFANA_VERSION=${{ matrix.GRAFANA_IMAGE.VERSION }} GRAFANA_IMAGE=${{ matrix.GRAFANA_IMAGE.NAME }} docker compose -f ./local-tempo-docker-compose.yml up --build -d
 
-      - name: Wait for grafana server
+      - name: Wait for grafana server (child count)
         uses: grafana/plugin-actions/wait-for-grafana@main # zizmor: ignore[unpinned-uses] provided by grafana
         with:
           url: http://localhost:3000/login
-
-      - name: Install Playwright Browsers
-        run: bunx playwright install chromium --with-deps
 
       - name: Start server with child count support
         run: |
@@ -319,8 +192,8 @@ jobs:
           echo $! > /tmp/test-api.pid
           echo "Started test API server with PID: $(cat /tmp/test-api.pid)"
 
-      - name: Run Playwright tests
-        id: run-tests
+      - name: Run Playwright tests (with child count)
+        id: run-tests-child-count
         run: bun run e2e
 
       - name: Stop test API server
@@ -335,27 +208,27 @@ jobs:
             echo "No test API server PID file found"
           fi
 
-      - name: Upload e2e test summary
+      - name: Upload e2e test summary (with child count)
         uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@main # zizmor: ignore[unpinned-uses] provided by grafana
         if: ${{ always() && !cancelled() }}
         with:
           upload-report: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          test-outcome: ${{ steps.run-tests.outcome }}
-          plugin-name: ${{ needs.build-with-child-count.outputs.plugin-id }}-${{ needs.build-with-child-count.outputs.plugin-version }}-with-child-count
+          test-outcome: ${{ steps.run-tests-child-count.outcome }}
+          plugin-name: gresearch-grafanaincrementaltraceviewer-panel-0.2.0-with-child-count
 
       - name: Docker logs
-        if: ${{ always() && steps.run-tests.outcome == 'failure' }}
+        if: ${{ always() && (steps.run-tests-regular.outcome == 'failure' || steps.run-tests-child-count.outcome == 'failure') }}
         run: |
           docker logs gresearch-grafanaincrementaltraceviewer-app >& grafana-server.log
 
-      - name: Stop grafana docker
+      - name: Stop grafana docker (final)
         run: docker compose down
 
       # Uncomment this step to upload the server log to Github artifacts. Remember Github artifacts are public on the Internet if the repository is public.
       # - name: Upload server log
       #   uses: actions/upload-artifact@v4
-      #   if: ${{ always() && steps.run-tests.outcome == 'failure' }}
+      #   if: ${{ always() && (steps.run-tests-regular.outcome == 'failure' || steps.run-tests-child-count.outcome == 'failure') }}
       #   with:
       #     name: ${{ matrix.GRAFANA_IMAGE.NAME }}-v${{ matrix.GRAFANA_IMAGE.VERSION }}-${{github.run_id}}-server-log
       #     path: grafana-server.log
@@ -369,25 +242,6 @@ jobs:
       pull-requests: write
       issues: write
     needs: [playwright-tests]
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          # required for playwright-gh-pages
-          persist-credentials: true
-      - name: Publish report
-        uses: grafana/plugin-actions/playwright-gh-pages/deploy-report-pages@main # zizmor: ignore[unpinned-uses] provided by grafana
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-report-with-child-count:
-    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
-    permissions:
-      contents: write
-      id-token: write
-      pull-requests: write
-      issues: write
-    needs: [playwright-tests-with-child-count]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
