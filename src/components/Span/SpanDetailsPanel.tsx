@@ -3,15 +3,17 @@ import clsx from 'clsx';
 import { IconButton, Input } from '@grafana/ui';
 
 import type { SpanInfo } from '../../types';
-import { mkUnixEpochFromNanoSeconds, formatUnixNanoToDateTime, formatDuration } from 'utils/utils.timeline';
+import { formatUnixNanoToDateTime, formatDuration } from 'utils/utils.timeline';
 import { useQuery } from '@tanstack/react-query';
-import { searchTags, search, KeyValue, AnyValue, SearchTagsResult, supportsChildCount } from 'utils/utils.api';
+import {
+  KeyValue,
+  AnyValue,
+  FetchFunction,
+  TagAttributes,
+  getTagAttributesForSpan,
+  supportsChildCount,
+} from 'utils/utils.api';
 import { Accordion } from './Accordion';
-
-type TagAttributes = {
-  spanAttributes: Record<string, AnyValue>;
-  resourceAttributes: Record<string, AnyValue>;
-};
 
 function collectTagAttributes(filterResource: (v: string) => boolean, result: KeyValue[]): TagAttributes {
   const spanAttributes: Record<string, AnyValue> = {};
@@ -28,63 +30,6 @@ function collectTagAttributes(filterResource: (v: string) => boolean, result: Ke
   }
 
   return { spanAttributes, resourceAttributes };
-}
-
-async function getTagAttributes(
-  datasourceUid: string,
-  start: number,
-  end: number,
-  traceId: string,
-  spanId: string,
-  tagResult: SearchTagsResult
-): Promise<TagAttributes> {
-  // There could potentially be a lot of tags, so we need to split them into groups to avoid the query being too long.
-  const groups: string[][] = [];
-  let currentGroup: string[] = [];
-  let currentLength = 0;
-  let maxLength = 1000;
-
-  const { spanTags, resourceTags } = tagResult;
-
-  // Add span tags to the groups
-  for (const tag of spanTags) {
-    const tagIdentifier = `span.${tag}`;
-    if (currentLength + tagIdentifier.length < maxLength) {
-      currentGroup.push(tagIdentifier);
-      currentLength += tagIdentifier.length;
-    } else {
-      groups.push(currentGroup);
-      currentGroup = [tagIdentifier];
-      currentLength = tagIdentifier.length;
-    }
-  }
-
-  // Add resource tags to the groups
-  for (const tag of resourceTags) {
-    const tagIdentifier = `resource.${tag}`;
-    if (currentLength + tagIdentifier.length < maxLength) {
-      currentGroup.push(tagIdentifier);
-      currentLength += tagIdentifier.length;
-    } else {
-      groups.push(currentGroup);
-      currentGroup = [tagIdentifier];
-      currentLength = tagIdentifier.length;
-    }
-  }
-
-  if (currentGroup.length > 0) {
-    groups.push(currentGroup);
-  }
-
-  const promises = groups.map(async (group) => {
-    const q = `{ trace:id = "${traceId}" && span:id = "${spanId}" } | select (${group.join(', ')})`;
-    const data = await search(datasourceUid, q, start, end, 1);
-    return data.traces?.[0].spanSets?.[0].spans?.[0].attributes || [];
-  });
-
-  const results: KeyValue[] = await Promise.all(promises).then((rs) => rs.flatMap((r) => r));
-
-  return collectTagAttributes((key: string) => resourceTags.includes(key), results);
 }
 
 function splitAttributesAndEvents(tagAttributes: TagAttributes) {
@@ -192,15 +137,15 @@ function filterKeyValue(search: string) {
   };
 }
 
-export const SpanDetailPanel = ({
+export function SpanDetailPanel({
   span,
   onClose,
-  datasourceUid,
+  fetchFn,
 }: {
   span: SpanInfo;
   onClose: () => void;
-  datasourceUid: string;
-}) => {
+  fetchFn: FetchFunction<any>;
+}) {
   const [expandedSections, setExpandedSections] = useState({
     additionalData: false,
     events: false,
@@ -224,11 +169,13 @@ export const SpanDetailPanel = ({
         return collectTagAttributes((key: string) => key.startsWith('resource.'), span.attributes);
       }
 
-      const qTags = `{ trace:id = "${span.traceId}" && span:id = "${span.spanId}" }`;
-      const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
-      const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano);
-      const tagsResult = await searchTags(datasourceUid, qTags, start, end);
-      return getTagAttributes(datasourceUid, start, end, span.traceId, span.spanId, tagsResult);
+      return await getTagAttributesForSpan(
+        fetchFn,
+        span.traceId,
+        span.spanId,
+        span.startTimeUnixNano,
+        span.endTimeUnixNano
+      );
     },
   });
 
@@ -394,4 +341,4 @@ export const SpanDetailPanel = ({
       )}
     </div>
   );
-};
+}

@@ -1,5 +1,4 @@
-import { lastValueFrom } from 'rxjs';
-import { getBackendSrv } from '@grafana/runtime';
+import { mkUnixEpochFromNanoSeconds } from './utils.timeline';
 
 type ValueOneofCase =
   | 'none'
@@ -22,7 +21,8 @@ type KeyValueList = {
 export type AnyValue = {
   stringValue?: string | null;
   boolValue?: boolean;
-  intValue?: number;
+  // Tempo API returns intValue as a string 🙃
+  intValue?: string;
   doubleValue?: number;
   arrayValue?: ArrayValue;
   kvlistValue?: KeyValueList;
@@ -41,18 +41,18 @@ export type Span = {
   name?: string | null;
   startTimeUnixNano?: string;
   durationNanos?: string;
-  readonly attributes?: KeyValue[];
+  attributes?: KeyValue[];
 };
 
 type SpanSet = {
-  readonly spans?: Span[];
-  readonly matched?: number;
+  spans?: Span[];
+  matched?: number;
 };
 
 export type Trace = {
   readonly traceID: string;
   readonly startTimeUnixNano?: string;
-  readonly durationMs?: string;
+  readonly durationMs?: number;
   readonly spanSets?: SpanSet[];
   readonly rootServiceName?: string;
   readonly rootTraceName?: string;
@@ -62,8 +62,10 @@ export type SearchResponse = {
   traces?: Trace[];
 };
 
+export type FetchFunction<TResponse> = (url: string, queryString: string) => Promise<TResponse>;
+
 export async function search(
-  datasourceUid: string,
+  fetchFn: FetchFunction<SearchResponse>,
   query: string,
   start: number,
   end: number,
@@ -71,14 +73,10 @@ export async function search(
 ): Promise<SearchResponse> {
   // The end always needs to be greater than the start. If not, we get a bad request from the Tempo API.
   const validEnd = start < end ? end : end + 1;
-  const responses = getBackendSrv().fetch<SearchResponse>({
-    url: `/api/datasources/proxy/uid/${datasourceUid}/api/search?q=${encodeURIComponent(
-      query
-    )}&start=${start}&end=${validEnd}${spss ? `&spss=${spss}` : ''}`,
-    method: 'GET',
-  });
-  const response = await lastValueFrom(responses);
-  return response.data;
+  return fetchFn(
+    `/api/search`,
+    `q=${encodeURIComponent(query)}&start=${start}&end=${validEnd}${spss ? `&spss=${spss}` : ''}`
+  );
 }
 
 type SearchTagsResponse = {
@@ -99,21 +97,112 @@ export type SearchTagsResult = {
 export const supportsChildCount = process.env.SUPPORTS_CHILD_COUNT || false;
 
 export async function searchTags(
-  datasourceUid: string,
+  fetchFn: FetchFunction<SearchTagsResponse>,
   query: string,
   start: number,
   end: number
 ): Promise<SearchTagsResult> {
   // The end always needs to be greater than the start. If not, we get a bad request from the Tempo API.
   const validEnd = start < end ? end : end + 1;
-  const responses = getBackendSrv().fetch<SearchTagsResponse>({
-    url: `/api/datasources/proxy/uid/${datasourceUid}/api/v2/search/tags?q=${encodeURIComponent(
-      query
-    )}&start=${start}&end=${validEnd}`,
-    method: 'GET',
-  });
-  const response = await lastValueFrom(responses);
-  const spanTags = response.data.scopes.find((scope) => scope.name === 'span')?.tags || [];
-  const resourceTags = response.data.scopes.find((scope) => scope.name === 'resource')?.tags || [];
+  const responseData = await fetchFn(
+    `/api/v2/search/tags`,
+    `q=${encodeURIComponent(query)}&start=${start}&end=${validEnd}`
+  );
+  const spanTags = responseData.scopes.find((scope) => scope.name === 'span')?.tags || [];
+  const resourceTags = responseData.scopes.find((scope) => scope.name === 'resource')?.tags || [];
   return { spanTags, resourceTags };
+}
+
+export type TagAttributes = {
+  spanAttributes: Record<string, AnyValue>;
+  resourceAttributes: Record<string, AnyValue>;
+};
+
+const anyNumberRegex = /\d/;
+function escapeTag(str: string) {
+  return anyNumberRegex.test(str) || str.includes(' ') ? `"${str}"` : str;
+}
+
+async function getTagAttributes(
+  fetchFn: FetchFunction<SearchResponse>,
+  start: number,
+  end: number,
+  traceId: string,
+  spanId: string,
+  tagResult: SearchTagsResult
+): Promise<TagAttributes> {
+  // There could potentially be a lot of tags, so we need to split them into groups to avoid the query being too long.
+  const groups: string[][] = [];
+  let currentGroup: string[] = ['span:parentID'];
+  let currentLength = 0;
+  let maxLength = 500;
+
+  const { spanTags, resourceTags } = tagResult;
+
+  // Add span tags to the groups
+  for (const tag of spanTags) {
+    const tagIdentifier = `span.${escapeTag(tag)}`;
+    if (currentLength + tagIdentifier.length < maxLength) {
+      currentGroup.push(tagIdentifier);
+      currentLength += tagIdentifier.length;
+    } else {
+      groups.push(currentGroup);
+      currentGroup = [tagIdentifier];
+      currentLength = tagIdentifier.length;
+    }
+  }
+
+  // Add resource tags to the groups
+  for (const tag of resourceTags) {
+    const tagIdentifier = `resource.${escapeTag(tag)}`;
+    if (currentLength + tagIdentifier.length < maxLength) {
+      currentGroup.push(tagIdentifier);
+      currentLength += tagIdentifier.length;
+    } else {
+      groups.push(currentGroup);
+      currentGroup = [tagIdentifier];
+      currentLength = tagIdentifier.length;
+    }
+  }
+
+  if (currentGroup.length > 0) {
+    groups.push(currentGroup);
+  }
+
+  const promises = groups.map(async (group) => {
+    const q = `{ trace:id = "${traceId}" && span:id = "${spanId}" } | select(${group.join(', ')})`;
+    const data = await search(fetchFn, q, start, end, 1);
+    return data.traces?.[0].spanSets?.[0].spans?.[0].attributes || [];
+  });
+
+  const results: KeyValue[][] = await Promise.all(promises);
+  const spanAttributes: Record<string, AnyValue> = {};
+  const resourceAttributes: Record<string, AnyValue> = {};
+  for (const result of results) {
+    for (const keyValue of result) {
+      if (keyValue.key && keyValue.value !== undefined) {
+        if (resourceTags.includes(keyValue.key)) {
+          resourceAttributes[keyValue.key] = keyValue.value;
+        } else {
+          spanAttributes[keyValue.key] = keyValue.value;
+        }
+      }
+    }
+  }
+
+  return { spanAttributes, resourceAttributes };
+}
+
+export async function getTagAttributesForSpan(
+  fetchFn: FetchFunction<any>,
+  traceId: string,
+  spanId: string,
+  startTimeUnixNano: number,
+  endTimeUnixNano: number
+) {
+  const qTags = `{ trace:id = "${traceId}" && span:id = "${spanId}" }`;
+  const start = mkUnixEpochFromNanoSeconds(startTimeUnixNano);
+  const end = mkUnixEpochFromNanoSeconds(endTimeUnixNano);
+  const tagsResult = await searchTags(fetchFn, qTags, start, end);
+  return getTagAttributes(fetchFn, start, end, traceId, spanId, tagsResult);
 }

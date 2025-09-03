@@ -252,3 +252,91 @@ Minor differences:
 
 To differentiate between the Grafana Tempo API and the G-Research–flavoured Tempo API, the plugin checks the `SUPPORTS_CHILD_COUNT` environment variable.
 Building with `SUPPORTS_CHILD_COUNT=1` results in the runtime behavior described above.
+
+## Testing
+
+We run end-to-end using Playwright and `@grafana/plugin-e2e`.
+There are two ways to run the tests, there is setup for when `SUPPORTS_CHILD_COUNT=0` or `SUPPORTS_CHILD_COUNT=1`.
+In both cases, we rely on a provisioned Docker compose setup.
+
+**Playwright requires Chromium as a dependency**
+
+```shell
+bunx playwright install
+```
+
+_Why is this not part of our package.json?_
+
+Chromium cannot be installed in our production environment, so we do not include it as a required dependency in package.json.
+
+### SUPPORTS_CHILD_COUNT = 0
+
+Run `bun run server` to start the regular developer setup.  
+Here we shall target the Grafana Tempo API as mentioned in [./docker-compose.yaml].
+
+Run
+
+```shell
+bun run build
+```
+
+to build a bundle without `SUPPORTS_CHILD_COUNT`.
+
+Next, we need to provision sample data to our Tempo store.
+Run
+
+```shell
+bun run scripts/e2e-tempo-trace.js
+```
+
+The sample data is based on the moon landing and should not be altered unless you are working on e2e tests.
+
+Afterwards all pieces are in place to run the e2e tests:
+
+```shell
+bun run e2e
+```
+
+### SUPPORTS_CHILD_COUNT = 1
+
+To simulate the production API, we have constructed a different Docker setup in [local-tempo-docker-compose.yml](./local-tempo-docker-compose.yml).
+There we also have a `Tempo` service, so from Grafana's point of view nothing will have changed.
+
+Run
+
+```shell
+bun run server:local
+```
+
+to start our alternative compose.
+
+The Tempo service in Docker is a proxy script that will forward requests from `3200` to a localhost server.
+In production, this would be the .NET side of things, for our local setup, we can run:
+
+```shell
+bun run tests/test-api.ts
+```
+
+Next, build our plugin using `SUPPORTS_CHILD_COUNT=1` via
+
+```shell
+bun run build:with-child-count
+```
+
+Afterwards, you should be able to run the tests using:
+
+```shell
+bun run e2e
+```
+
+### Updating the test Trace
+
+In `scripts/e2e-tempo-trace.js`, we have a test scenario.
+To ensure we use the same data during `SUPPORTS_CHILD_COUNT=1`.
+You can extract the last trace to [tests/test-trace.json](./tests/test-trace.json) via
+
+```shell
+bun run scripts/extract-trace.ts
+```
+
+**This of course assumes you are running against regular Docker compose and real Tempo!**

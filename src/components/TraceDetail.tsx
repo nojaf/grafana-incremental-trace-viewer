@@ -4,13 +4,26 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { testIds } from './testIds';
 import { Span as SpanComponent, SpanDetailPanel } from './Span';
 import { mkUnixEpochFromNanoSeconds, mkUnixEpochFromMiliseconds, formatDuration } from '../utils/utils.timeline';
-import { search, SearchResponse, Span, supportsChildCount } from '../utils/utils.api';
+import { FetchFunction, search, SearchResponse, Span, supportsChildCount } from '../utils/utils.api';
 import type { QueryInfo as TraceDetailProps } from './TraceViewerPanel';
 import { SpanOverlayDrawer } from './Span/SpanOverlayDrawer';
 import { ChildStatus, SpanInfo } from 'types';
 import TraceViewerHeader from './TraceViewerHeader';
 import { TimeRange } from '@grafana/data';
 import { LoadingBar } from '@grafana/ui';
+import { lastValueFrom } from 'rxjs';
+import { getBackendSrv } from '@grafana/runtime';
+
+export function searchWithDatasourceUid<TResponse>(datasourceUid: string): FetchFunction<TResponse> {
+  return async function (apiRoute: string, queryString: string) {
+    const responses = getBackendSrv().fetch<TResponse>({
+      url: `/api/datasources/proxy/uid/${datasourceUid}${apiRoute}?${queryString}`,
+      method: 'GET',
+    });
+    const response = await lastValueFrom(responses);
+    return response.data;
+  };
+}
 
 function getParentSpanId(span: Span): string | null {
   const attributes = span.attributes;
@@ -22,7 +35,7 @@ function getParentSpanId(span: Span): string | null {
 }
 
 async function fetchChildCountViaAPI(
-  datasourceUid: string,
+  fetchFn: FetchFunction<SearchResponse>,
   traceId: string,
   spanId: string,
   startTimeUnixNano: number,
@@ -33,14 +46,14 @@ async function fetchChildCountViaAPI(
   // As a precaution, we add 1 second to the end time.
   // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
   const end = mkUnixEpochFromNanoSeconds(endTimeUnixNano) + 1;
-  const data = await search(datasourceUid, q, start, end, 1);
+  const data = await search(fetchFn, q, start, end, 1);
   return data.traces?.[0]?.spanSets?.[0]?.matched;
 }
 
 async function extractSpans(
+  fetchFn: FetchFunction<SearchResponse>,
   idToLevelMap: Map<string, number>,
   traceId: string,
-  datasourceUid: string,
   responseData: SearchResponse
 ): Promise<SpanInfo[]> {
   const trace = responseData.traces?.find((t) => t.traceID === traceId);
@@ -68,7 +81,7 @@ async function extractSpans(
     const parentSpanId = getParentSpanId(span);
 
     // Assign the level to the span.
-    if (parentSpanId === null) {
+    if (parentSpanId === null || parentSpanId === '0000000000000000') {
       idToLevelMap.set(span.spanID, 0);
     } else {
       let parentLevel = idToLevelMap.get(parentSpanId);
@@ -88,10 +101,11 @@ async function extractSpans(
     // We need to call this for every span.
     // Assuming that the childCount is set by the backend.
     // We can just use that value to determine if the span has more children.
-    let childCount = span.attributes?.find((a) => a.key === 'childCount')?.value?.intValue;
+    let childCountRaw = span.attributes?.find((a) => a.key === 'childCount')?.value?.intValue;
+    let childCount = childCountRaw === undefined ? undefined : parseInt(childCountRaw as string, 10);
     if (childCount === undefined) {
       // If not, we need to fetch the children count via additional query.
-      childCount = await fetchChildCountViaAPI(datasourceUid, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
+      childCount = await fetchChildCountViaAPI(fetchFn, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
     }
 
     const serviceName = span.attributes?.find((a) => a.key === 'service.name')?.value?.stringValue || undefined;
@@ -129,8 +143,8 @@ async function extractSpans(
 const pipeSelect = `| select (span:name, resource.service.name${supportsChildCount ? ', childCount' : ''})`;
 
 async function loadMoreSpans(
+  fetchFn: FetchFunction<SearchResponse>,
   traceId: string,
-  datasourceUid: string,
   idToLevelMap: Map<string, number>,
   span: SpanInfo
 ): Promise<SpanInfo[]> {
@@ -140,8 +154,8 @@ async function loadMoreSpans(
   // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
   const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano) + 1;
   // See https://github.com/grafana/tempo/issues/5435
-  const data = await search(datasourceUid, q, start, end, 4294967295);
-  return await extractSpans(idToLevelMap, traceId, datasourceUid, data);
+  const data = await search(fetchFn, q, start, end, 4294967295);
+  return await extractSpans(fetchFn, idToLevelMap, traceId, data);
 }
 
 function TraceDetail({
@@ -167,6 +181,7 @@ function TraceDetail({
   const [leftColumnPercent, setLeftColumnPercent] = React.useState<number>(25);
   const [loadingMessage, setLoadingMessage] = React.useState<string | null>(null);
   const isResizingRef = React.useRef(false);
+  const fetchFn = React.useMemo(() => searchWithDatasourceUid<SearchResponse>(datasourceUid), [datasourceUid]);
 
   const idToLevelMap = React.useRef(new Map<string, number>());
   // Keep track of the open/collapsed items in a map
@@ -198,9 +213,9 @@ function TraceDetail({
         const start = mkUnixEpochFromMiliseconds(startTimeInMs);
         const end = mkUnixEpochFromMiliseconds(startTimeInMs + durationInMs);
         const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } ${pipeSelect}`;
-        const data = await search(datasourceUid, q, start, end);
+        const data = await search(fetchFn, q, start, end);
         // We pass in hasMore: false because we are fetching the first round of children later.
-        const spans: SpanInfo[] = await extractSpans(idToLevelMap.current, traceId, datasourceUid, data);
+        const spans: SpanInfo[] = await extractSpans(fetchFn, idToLevelMap.current, traceId, data);
 
         // We fetch the first round of children for each span.
         let isSingleRootSpan = spans.filter((s) => s.level === 0).length === 1;
@@ -218,7 +233,7 @@ function TraceDetail({
           }
           allSpans.push(span);
           if (!hasNoChildren) {
-            const moreSpans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
+            const moreSpans = await loadMoreSpans(fetchFn, traceId, idToLevelMap.current, span);
             allSpans.push(...moreSpans);
           }
         }
@@ -313,7 +328,7 @@ function TraceDetail({
     });
 
     // Load the children
-    const spans = await loadMoreSpans(traceId, datasourceUid, idToLevelMap.current, span);
+    const spans = await loadMoreSpans(fetchFn, traceId, idToLevelMap.current, span);
 
     // Update the parent span to show children
     queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
@@ -396,15 +411,7 @@ function TraceDetail({
   const hasExpandedSpans =
     result.isSuccess && result.data.some((span) => span.childStatus === ChildStatus.ShowChildren);
 
-  const timelineOffset = React.useMemo(() => {
-    if (!result.isSuccess) {
-      return 0;
-    }
-    const rootSpan = result.data[0];
-    const textLength = formatDuration(rootSpan.endTimeUnixNano - rootSpan.startTimeUnixNano);
-    // This is a rough estimate of the width of the duration text.
-    return Math.floor(textLength.length * 8);
-  }, [result.isSuccess, result.data]);
+  const timelineOffset = Math.floor(formatDuration((startTimeInMs + durationInMs) * 100_000).length * 8);
 
   return (
     // Grafana sets padding on the parent panel which causes our content to overflow.
@@ -515,7 +522,7 @@ function TraceDetail({
               setSelectedSpan(null);
               setSelectedSpanElementYOffset(null);
             }}
-            datasourceUid={datasourceUid}
+            fetchFn={fetchFn}
           />
         )}
       </SpanOverlayDrawer>
