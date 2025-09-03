@@ -234,52 +234,22 @@ jobs:
       #     path: grafana-server.log
       #     retention-days: 5
 
-  test-permissions:
-    if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
-    permissions:
-      contents: write
-      id-token: write
-      pull-requests: write
-      issues: write
-    needs: [playwright-tests]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Test PR access and comment
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            try {
-              // First, let's check if we can read the PR
-              const pr = await github.rest.pulls.get({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                pull_number: context.issue.number
-              });
-              console.log('Successfully read PR:', pr.data.title);
-              
-              // Check existing comments
-              const comments = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number
-              });
-              console.log('Found', comments.data.length, 'existing comments');
-              
-              // Try to create a comment
-              await github.rest.issues.createComment({
-                issue_number: context.issue.number,
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                body: '✅ Test comment from GitHub Actions - permissions are working!'
-              });
-              console.log('Successfully created comment');
-              
-            } catch (error) {
-              console.log('Error details:', {
-                message: error.message,
-                status: error.status,
-                response: error.response?.data
-              });
-              throw error;
-            }
+  # PR comment functionality disabled due to repository permissions
+  # The Playwright tests are working correctly - reports are available as artifacts
+  # publish-report:
+  #   if: ${{ always() && !cancelled() && github.event_name == 'pull_request' }}
+  #   permissions:
+  #     contents: write
+  #     id-token: write
+  #     pull-requests: write
+  #     issues: write
+  #   needs: [playwright-tests]
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
+  #       with:
+  #         persist-credentials: true
+  #     - name: Publish report
+  #       uses: grafana/plugin-actions/playwright-gh-pages/deploy-report-pages@main
+  #       with:
+  #         github-token: ${{ secrets.GITHUB_TOKEN }}
