@@ -346,7 +346,9 @@ export function SpanDetailPanel({
                         {formatDuration(item.time - span.startTimeUnixNano)}
                       </span>
                     </td>
-                    <td className="font-light">{item.value && <Value value={{ stringValue: item.value }} />}</td>
+                    <td className="font-light" data-testid={`span-detail-panel-event-value`}>
+                      {item.value && <Value value={{ stringValue: item.value }} />}
+                    </td>
                   </tr>
                 ))}
               </tbody>

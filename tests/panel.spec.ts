@@ -110,3 +110,14 @@ test('should have resource data', async ({ page, gotoDashboardPage }) => {
   await expect(serviceNamespaceValue).toBeVisible();
   await expect(serviceNamespaceValue).toContainText('"nasa"');
 });
+
+test('should have events data', async ({ page, gotoDashboardPage }) => {
+  const spanDetailPanel = await openSpanDetailPanel(gotoDashboardPage, page);
+  const eventsData = spanDetailPanel.getByTestId('accordion-Events');
+  await expect(eventsData).toBeVisible();
+  await eventsData.click();
+
+  const eventValues = await spanDetailPanel.getByTestId('span-detail-panel-event-value').all();
+  expect(eventValues.length).toBe(1);
+  expect(eventValues[0]).toContainText('"MissionControlStarted"');
+});
