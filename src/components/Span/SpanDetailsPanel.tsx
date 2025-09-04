@@ -61,6 +61,7 @@ function ValueWrapper({
   italic?: boolean;
 }) {
   const [tooltip, setTooltip] = useState('Copy value');
+
   return (
     <tr title={displayValue || value}>
       <td className={`max-w-[1px] w-full ${italic ? 'italic' : ''}`}>
@@ -68,6 +69,7 @@ function ValueWrapper({
       </td>
       <td>
         <IconButton
+          data-testid="span-detail-panel-close-button"
           name="copy"
           variant="secondary"
           aria-label="Copy value"

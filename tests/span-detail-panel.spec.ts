@@ -13,20 +13,6 @@ async function getLastTraceId() {
   return data.traces[0].traceID;
 }
 
-/*
-
-
-Optional: click and grab to resize panel (if easy).
-
-
-Search for "apollo" (value, but lowercase, assert finding "Apollo" in results)
-Search for key, "mission.target" + assert value "Moon"
-Try and assert clipboard copy function. (check if possible in playwright)
-Close span detail should work
-Click on X.
-Click outside of it.
-*/
-
 async function gotoTraceViewerDashboard(gotoDashboardPage) {
   const traceId = await getLastTraceId();
   await gotoDashboardPage({
@@ -147,4 +133,20 @@ test('should have search input', async ({ page, gotoDashboardPage }) => {
   const eventValues = await spanDetailPanel.getByTestId('span-detail-panel-event-value').all();
   expect(eventValues.length).toBe(1);
   expect(eventValues[0]).toContainText('"MissionControlStarted"');
+});
+
+test('should close span detail panel by clicking the close button', async ({ page, gotoDashboardPage }) => {
+  const spanDetailPanel = await openSpanDetailPanel(gotoDashboardPage, page);
+  const closeButton = spanDetailPanel.getByRole('button', { name: 'Close' });
+  await expect(closeButton).toBeVisible();
+  await closeButton.click();
+  await expect(spanDetailPanel).not.toBeVisible();
+});
+
+test('should close span detail panel by clicking outside of it', async ({ page, gotoDashboardPage }) => {
+  const spanDetailPanel = await openSpanDetailPanel(gotoDashboardPage, page);
+  const backdrop = page.getByTestId('span-overlay-drawer-backdrop');
+  await expect(backdrop).toBeVisible();
+  await backdrop.click();
+  await expect(spanDetailPanel).not.toBeVisible();
 });
