@@ -15,11 +15,10 @@ async function getLastTraceId() {
 
 /*
 
-Assert span name
-Open (additional span) accordion and assert mission.phase + value.
-Open (resource) accordion and assert 'service.namespace' + value.
-Same for events (just check string)
+
 Optional: click and grab to resize panel (if easy).
+
+
 Search for "apollo" (value, but lowercase, assert finding "Apollo" in results)
 Search for key, "mission.target" + assert value "Moon"
 Try and assert clipboard copy function. (check if possible in playwright)
@@ -116,6 +115,34 @@ test('should have events data', async ({ page, gotoDashboardPage }) => {
   const eventsData = spanDetailPanel.getByTestId('accordion-Events');
   await expect(eventsData).toBeVisible();
   await eventsData.click();
+
+  const eventValues = await spanDetailPanel.getByTestId('span-detail-panel-event-value').all();
+  expect(eventValues.length).toBe(1);
+  expect(eventValues[0]).toContainText('"MissionControlStarted"');
+});
+
+test('should have search input', async ({ page, gotoDashboardPage }) => {
+  const spanDetailPanel = await openSpanDetailPanel(gotoDashboardPage, page);
+  // We use a Grafana Input component, so we need to use a CSS locator to grab the actual input element.
+  const searchInput = page.locator('css=input[type="search"]');
+  await expect(searchInput).toBeVisible();
+  await searchInput.fill('mission');
+
+  const nameValue = spanDetailPanel.getByTestId('span-detail-panel-basic-span-data-Name-value');
+  await expect(nameValue).toBeVisible();
+  await expect(nameValue).toContainText('"MissionControl"');
+
+  const missionPhaseKey = spanDetailPanel.getByTestId('span-detail-panel-additional-span-data-mission.phase-key');
+  await expect(missionPhaseKey).toBeVisible();
+  await expect(missionPhaseKey).toContainText('mission.phase');
+
+  const missionTargetKey = spanDetailPanel.getByTestId('span-detail-panel-resource-mission.target-key');
+  await expect(missionTargetKey).toBeVisible();
+  await expect(missionTargetKey).toContainText('mission.target');
+
+  const serviceNameValue = spanDetailPanel.getByTestId('span-detail-panel-resource-service.name-value');
+  await expect(serviceNameValue).toBeVisible();
+  await expect(serviceNameValue).toContainText('"MissionControl"');
 
   const eventValues = await spanDetailPanel.getByTestId('span-detail-panel-event-value').all();
   expect(eventValues.length).toBe(1);

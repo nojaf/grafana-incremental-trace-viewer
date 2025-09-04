@@ -236,7 +236,7 @@ export function SpanDetailPanel({
           </div>
           <Input
             className="w-full"
-            type="text"
+            type="search"
             placeholder="Search details"
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
