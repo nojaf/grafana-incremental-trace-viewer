@@ -109,3 +109,5 @@ const traceJSON = JSON.stringify(trace, undefined, 2);
 await Bun.file(new URL('../tests/test-trace.json', import.meta.url).pathname).write(traceJSON + '\n');
 
 export {};
+
+// TODO: Ad resource attributes.
