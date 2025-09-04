@@ -134,6 +134,7 @@ export const Span = (props: SpanNodeProps) => {
               backgroundColor: getColourForValue(props.serviceName || 'default'),
             }} // Limitation in tailwind dynamic class construction: Check README.md for more details
             title={`Duration: ${props.endTimeUnixNano - props.startTimeUnixNano}ns`}
+            data-testid={`span-duration-${props.name}`}
           ></div>
           {timing}
         </div>

@@ -248,6 +248,8 @@ Minor differences:
   Ideally, each trace has a single root node; however, when a trace is still in progress, that root node might not yet exist (see partial application spans).
   Our production server detects parentIds that do not yet exist in a trace and treats nodes referencing these _ghost_ parents as root nodes. This impacts performance, but the processing occurs server-side.
 
+- Resource attributes that come from the server are prefixed with `resource.`. Since we have all attributes available, we need a way to tell which ones belong to the resource and which belong to the span. Tempo is a bit odd: if you request `select(resource.serviceAttributeName)`, it will appear on the span as `serviceAttributeName`, but because you requested it in the select you can trace it back to a resource attribute. In production, however, we receive all values without requesting them, so the `resource.` prefix is necessary to identify which attributes are resource attributes.
+
 ## API discrepancies
 
 To differentiate between the Grafana Tempo API and the G-Research–flavoured Tempo API, the plugin checks the `SUPPORTS_CHILD_COUNT` environment variable.

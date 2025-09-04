@@ -13,7 +13,6 @@ async function getLastTrace() {
   const end = Math.floor(new Date().getTime() / 1000);
   // Minus one day
   const start = end - 24 * 60 * 60;
-  console.log(start, end);
   const q = '{}';
   // Update spss if there are more spans.
   const data: SearchResponse = await fetchDirectly(
@@ -49,21 +48,30 @@ async function addAttributesToSpan(trace: Trace, span: Span) {
     startTimeUnixNano,
     endTimeUnixNano
   );
-  for (const [key, value] of [
-    ...Object.entries(attributes.spanAttributes),
-    ...Object.entries(attributes.resourceAttributes),
-  ]) {
+  for (const [key, value] of Object.entries(attributes.spanAttributes)) {
     span.attributes?.push({
       key,
       value,
     });
   }
 
+  for (const [key, value] of Object.entries(attributes.resourceAttributes)) {
+    span.attributes?.push({
+      key: `resource.${key}`,
+      value,
+    });
+  }
+
   // Add nestedSetParent
-  const q = `{ trace:id = "${trace.traceID}" && span:id = "${span.spanID}" } | select(nestedSetParent)`;
+  const q = `{ trace:id = "${trace.traceID}" && span:id = "${span.spanID}" } | select(span:name,nestedSetParent)`;
   const start = mkUnixEpochFromNanoSeconds(startTimeUnixNano);
   const end = mkUnixEpochFromNanoSeconds(endTimeUnixNano);
   const response = await search(fetchDirectly, q, start, end);
+  const spanName = response.traces?.[0]?.spanSets?.[0]?.spans?.[0].name;
+  if (spanName !== undefined) {
+    span.name = spanName;
+  }
+
   const nestedSetParent = response.traces?.[0]?.spanSets?.[0]?.spans?.[0]?.attributes?.find(
     (attr) => attr.key === 'nestedSetParent'
   )?.value?.intValue;

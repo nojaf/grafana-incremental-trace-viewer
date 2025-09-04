@@ -18,6 +18,7 @@ export const Accordion = ({
   <div className="border-t border-gray-300 dark:border-gray-600 py-5 px-2">
     {
       <button
+        data-testid={`accordion-${title}`}
         onClick={onToggle}
         className="w-full flex items-center text-sm font-semibold text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 transition-colors duration-200 mb-2 pl-2 gap-2"
       >

@@ -15,14 +15,14 @@ import {
 } from 'utils/utils.api';
 import { Accordion } from './Accordion';
 
-function collectTagAttributes(filterResource: (v: string) => boolean, result: KeyValue[]): TagAttributes {
+function collectTagAttributes(result: KeyValue[]): TagAttributes {
   const spanAttributes: Record<string, AnyValue> = {};
   const resourceAttributes: Record<string, AnyValue> = {};
 
   for (const keyValue of result) {
     if (keyValue.key && keyValue.value !== undefined) {
-      if (filterResource(keyValue.key)) {
-        resourceAttributes[keyValue.key] = keyValue.value;
+      if (keyValue.key.startsWith('resource.')) {
+        resourceAttributes[keyValue.key.replace('resource.', '')] = keyValue.value;
       } else {
         spanAttributes[keyValue.key] = keyValue.value;
       }
@@ -166,7 +166,7 @@ export function SpanDetailPanel({
     queryKey: ['trace', span.traceId, 'span', span.spanId, 'details'],
     queryFn: async () => {
       if (supportsChildCount) {
-        return collectTagAttributes((key: string) => key.startsWith('resource.'), span.attributes);
+        return collectTagAttributes(span.attributes);
       }
 
       return await getTagAttributesForSpan(
@@ -220,7 +220,7 @@ export function SpanDetailPanel({
   }, [result, debouncedSearch]);
 
   return (
-    <div className="z-10 overflow-hidden text-sm">
+    <div data-testid="span-detail-panel" className="z-10 overflow-hidden text-sm">
       <div className="p-2">
         <div className="flex flex-col gap-4 items-start justify-between py-4 px-2 mx-4">
           <div className="flex items-center justify-between gap-2 w-full">
@@ -255,10 +255,15 @@ export function SpanDetailPanel({
           <tbody>
             {basicSpanData.map((item, index) => (
               <tr key={item.key} className={rowClassName(index)}>
-                <td className="font-regular text-gray-700 dark:text-gray-300  w-1/3 mx-4">
+                <td
+                  className="font-regular text-gray-700 dark:text-gray-300  w-1/3 mx-4"
+                  data-testid={`span-detail-panel-basic-span-data-${item.key}-key`}
+                >
                   <span className="px-2 whitespace-nowrap">{item.key}</span>{' '}
                 </td>
-                <td className="font-light">{item.value && <Value value={item.value} />}</td>
+                <td className="font-light" data-testid={`span-detail-panel-basic-span-data-${item.key}-value`}>
+                  {item.value && <Value value={item.value} />}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -276,10 +281,15 @@ export function SpanDetailPanel({
               <tbody>
                 {spanAttributes.map(({ key, value }, index) => (
                   <tr key={key} className={rowClassName(index)}>
-                    <td className="font-regular text-gray-700 dark:text-gray-300  w-1/3">
+                    <td
+                      className="font-regular text-gray-700 dark:text-gray-300  w-1/3"
+                      data-testid={`span-detail-panel-additional-span-data-${key}-key`}
+                    >
                       <span className="px-2 whitespace-nowrap">{key}</span>
                     </td>
-                    <td className="font-light">{value && <Value value={value} />}</td>
+                    <td className="font-light" data-testid={`span-detail-panel-additional-span-data-${key}-value`}>
+                      {value && <Value value={value} />}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -301,10 +311,15 @@ export function SpanDetailPanel({
               <tbody>
                 {resourceAttributes.map(({ key, value }, index) => (
                   <tr key={key} className={rowClassName(index)}>
-                    <td className="font-regular text-gray-700 dark:text-gray-300  w-1/3">
+                    <td
+                      className="font-regular text-gray-700 dark:text-gray-300  w-1/3"
+                      data-testid={`span-detail-panel-resource-${key}-key`}
+                    >
                       <span className="px-2 whitespace-nowrap">{key}</span>
                     </td>
-                    <td className="font-light">{value && <Value value={value} />}</td>
+                    <td className="font-light" data-testid={`span-detail-panel-resource-${key}-value`}>
+                      {value && <Value value={value} />}
+                    </td>
                   </tr>
                 ))}
               </tbody>
