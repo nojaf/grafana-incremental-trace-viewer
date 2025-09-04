@@ -127,6 +127,7 @@ export const TraceViewerHeader = ({
               variant="secondary"
               name="table-collapse-all"
               size="sm"
+              data-testid="span-collapse-all-button"
               onClick={onCollapseAll}
               title="Collapse all expanded spans"
               disabled={!hasExpandedSpans}
