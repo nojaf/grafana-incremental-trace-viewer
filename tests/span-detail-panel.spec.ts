@@ -147,6 +147,8 @@ test('should close span detail panel by clicking outside of it', async ({ page, 
   const spanDetailPanel = await openSpanDetailPanel(gotoDashboardPage, page);
   const backdrop = page.getByTestId('span-overlay-drawer-backdrop');
   await expect(backdrop).toBeVisible();
-  await backdrop.click();
+
+  // Click on the left side of the backdrop to avoid the drawer content
+  await backdrop.click({ position: { x: 50, y: 50 } });
   await expect(spanDetailPanel).not.toBeVisible();
 });
