@@ -152,3 +152,21 @@ test('should close span detail panel by clicking outside of it', async ({ page, 
   await backdrop.click({ position: { x: 50, y: 50 } });
   await expect(spanDetailPanel).not.toBeVisible();
 });
+
+test('button click copies text to clipboard', async ({ page, gotoDashboardPage }) => {
+  const spanDetailPanel = await openSpanDetailPanel(gotoDashboardPage, page);
+
+  const nameValue = spanDetailPanel.getByTestId('span-detail-panel-basic-span-data-Name-value');
+  expect(nameValue).toBeVisible();
+  // Click the button that should copy text
+  const copyButton = nameValue.getByTestId('span-detail-panel-copy-button');
+  expect(copyButton).toBeVisible();
+  await copyButton.click();
+
+  // Read clipboard content inside the browser context
+  const clipboardText = await page.evaluate(async () => {
+    return await navigator.clipboard.readText();
+  });
+
+  expect(clipboardText).toBe('MissionControl');
+});
