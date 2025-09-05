@@ -92,7 +92,11 @@ export const SpanOverlayDrawer: React.FC<SpanOverlayDrawerProps> = ({
   return (
     <>
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/10 dark:bg-black/20 z-[998]" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/10 dark:bg-black/20 z-[998]"
+        onClick={onClose}
+        data-testid="span-overlay-drawer-backdrop"
+      />
 
       {/* Tooltip Arrow pointing to selected span */}
       {selectedSpanElementYOffset && (

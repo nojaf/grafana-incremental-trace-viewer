@@ -61,6 +61,7 @@ function ValueWrapper({
   italic?: boolean;
 }) {
   const [tooltip, setTooltip] = useState('Copy value');
+
   return (
     <tr title={displayValue || value}>
       <td className={`max-w-[1px] w-full ${italic ? 'italic' : ''}`}>
@@ -68,6 +69,7 @@ function ValueWrapper({
       </td>
       <td>
         <IconButton
+          data-testid="span-detail-panel-close-button"
           name="copy"
           variant="secondary"
           aria-label="Copy value"
@@ -236,7 +238,7 @@ export function SpanDetailPanel({
           </div>
           <Input
             className="w-full"
-            type="text"
+            type="search"
             placeholder="Search details"
             value={search}
             onChange={(e) => setSearch(e.currentTarget.value)}
@@ -346,7 +348,9 @@ export function SpanDetailPanel({
                         {formatDuration(item.time - span.startTimeUnixNano)}
                       </span>
                     </td>
-                    <td className="font-light">{item.value && <Value value={{ stringValue: item.value }} />}</td>
+                    <td className="font-light" data-testid={`span-detail-panel-event-value`}>
+                      {item.value && <Value value={{ stringValue: item.value }} />}
+                    </td>
                   </tr>
                 ))}
               </tbody>
