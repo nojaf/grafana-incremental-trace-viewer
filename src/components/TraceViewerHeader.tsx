@@ -1,6 +1,6 @@
 import React from 'react';
 import { TraceViewerHeaderProps } from '../types';
-import { IconButton } from '@grafana/ui';
+import { Button } from '@grafana/ui';
 // removed unused Help/Info imports after replacing with resize handle
 
 export const TraceViewerHeader = ({
@@ -94,7 +94,10 @@ export const TraceViewerHeader = ({
   return (
     <>
       <div className="flex-grow flex flex-row items-center border-b border-gray-300 dark:border-gray-600 relative">
-        <div className="font-bold flex items-center justify-between" style={{ width: `${leftColumnPercent}%` }}>
+        <div
+          className="font-bold flex items-center justify-between flex-wrap"
+          style={{ width: `${leftColumnPercent}%` }}
+        >
           <div className="px-3 py-1 text-xs/4 font-light">
             <div className="space-y-1">
               {/* First line: Span ID and time range */}
@@ -123,16 +126,22 @@ export const TraceViewerHeader = ({
           </div>
           {/* Collapse All Button */}
           <div className="px-3 py-1">
-            <IconButton
-              variant="secondary"
-              name="table-collapse-all"
+            <Button
               size="sm"
+              variant="secondary"
               data-testid="span-collapse-all-button"
               onClick={onCollapseAll}
               title="Collapse all expanded spans"
               disabled={!hasExpandedSpans}
               aria-label="Collapse all expanded spans"
-            />
+            >
+              <svg className="rotate-90" xmlns="http://www.w3.org/2000/svg" width={24} height={24} viewBox="0 0 24 24">
+                <path
+                  fill="currentColor"
+                  d="M13 20V4h2.03v16zm-3 0V4h2.03v16zM5 8l4.03 4L5 16v-3H2v-2h3zm15 8l-4-4l4-4v3h3v2h-3z"
+                ></path>
+              </svg>
+            </Button>
           </div>
         </div>
         <div className="font-bold px-4" style={{ width: `calc(${100 - leftColumnPercent}% - ${timelineOffset}px)` }}>
