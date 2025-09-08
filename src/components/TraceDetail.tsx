@@ -473,6 +473,7 @@ function TraceDetail({
                   return (
                     <div
                       key={virtualItem.key}
+                      data-testid={`span-virtual-item`}
                       className="absolute top-0 left-0 w-full border-b border-gray-300 dark:border-gray-700"
                       style={{
                         height: `${virtualItem.size}px`,

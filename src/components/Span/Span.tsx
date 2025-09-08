@@ -27,7 +27,7 @@ const Expand = ({ childStatus, action }: { childStatus: ChildStatus; action: () 
   switch (childStatus) {
     case ChildStatus.RemoteChildren:
     case ChildStatus.HideChildren:
-      return <Icon name="angle-right" onMouseDown={mouseDown} />;
+      return <Icon name="angle-right" onMouseDown={mouseDown} data-testid="span-collapse-expand-button" />;
     case ChildStatus.ShowChildren:
       return <Icon name="angle-down" onMouseDown={mouseDown} />;
     case ChildStatus.NoChildren:
@@ -76,7 +76,11 @@ export const Span = (props: SpanNodeProps) => {
           minWidth: 0,
         }} // Limitation in tailwind dynamic class construction: Check README.md for more details
       >
-        <div className="flex items-center gap-1 truncate" title={`${props.serviceName} - ${props.name}`}>
+        <div
+          className="flex items-center gap-1 truncate"
+          title={`${props.serviceName} - ${props.name}`}
+          data-testid={`span-list-item-${props.name}`}
+        >
           <Expand childStatus={props.childStatus} action={() => props.updateChildStatus(props)}></Expand>
 
           <strong
