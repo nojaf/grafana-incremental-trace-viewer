@@ -69,7 +69,7 @@ function ValueWrapper({
       </td>
       <td>
         <IconButton
-          data-testid="span-detail-panel-close-button"
+          data-testid="span-detail-panel-copy-button"
           name="copy"
           variant="secondary"
           aria-label="Copy value"
