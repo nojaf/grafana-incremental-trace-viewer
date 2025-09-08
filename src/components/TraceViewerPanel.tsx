@@ -73,10 +73,16 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
       <>
         <div className="flex flex-col items-center justify-center h-full p-4 text-center">
           <Icon name="calendar-slash" size="xxxl" className="text-gray-400 dark:text-zinc-600 mb-5" />
-          <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+          <h3
+            className="text-lg font-semibold mb-2 text-gray-900 dark:text-white"
+            data-testid="no-trace-data-available"
+          >
             No trace data available for this query
           </h3>
-          <p className="text-md text-gray-600 dark:text-zinc-400 mt-1">
+          <p
+            className="text-md text-gray-600 dark:text-zinc-400 mt-1"
+            data-testid="no-trace-data-available-description"
+          >
             Try adjusting your query or time range to see traces.{' '}
             <TextLink
               onClick={() => {

@@ -107,6 +107,7 @@ export const TraceViewerHeader = ({
                   className="text-black dark:text-white font-semibold cursor-pointer hover:text-gray-600 dark:hover:text-gray-300"
                   onClick={copyTraceId}
                   title="Click to copy trace ID"
+                  data-testid="header-trace-id"
                 >
                   {traceId.slice(0, 8)}
                 </span>
@@ -117,10 +118,14 @@ export const TraceViewerHeader = ({
               {/* Second line: Start time and duration */}
               <div className="flex items-center space-x-1">
                 <span className="text-gray-500 dark:text-gray-400">Start:</span>
-                <span className="text-black dark:text-white">{formatStartTime(startTimeInMs)}</span>
+                <span className="text-black dark:text-white" data-testid="header-start-time">
+                  {formatStartTime(startTimeInMs)}
+                </span>
                 <span className="text-gray-500 dark:text-gray-400 mx-1">|</span>
                 <span className="text-gray-500 dark:text-gray-400">Duration:</span>
-                <span className="text-black dark:text-white">{formatDuration(durationInMs)}</span>
+                <span className="text-black dark:text-white" data-testid="header-duration">
+                  {formatDuration(durationInMs)}
+                </span>
               </div>
             </div>
           </div>
@@ -156,7 +161,9 @@ export const TraceViewerHeader = ({
               </div>
             ))}
             {/* Last value just before the line */}
-            <div className="absolute right-[4px] top-0 text-xs">{formatDuration(durationInMs)}</div>
+            <div className="absolute right-[4px] top-0 text-xs" data-testid="header-duration">
+              {formatDuration(durationInMs)}
+            </div>
           </div>
         </div>
         {/* Header vertical divider to resize columns */}

@@ -22,7 +22,7 @@ export default defineConfig<PluginOptions>({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
+  reporter: process.env.CI ? 'html' : 'list', // on local 'list' is easier to read and better for debugging
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
@@ -48,6 +48,7 @@ export default defineConfig<PluginOptions>({
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/admin.json',
         headless: true,
+        viewport: { width: 1920, height: 1080 },
       },
       dependencies: ['auth'],
     },
