@@ -17,12 +17,6 @@ jobs:
         with:
           fetch-depth: 0 # important, we need full history to tag properly
 
-      # See https://api.github.com/users/github-actions%5Bbot%5D
-      - name: Configure git identity
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
 
@@ -34,4 +28,36 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Being explicit here as we want to avoid any dry run
           CI: true
-        run: bun run ./scripts/release-detect.js
+        run: |
+          bun run ./scripts/release-detect.js
+          EXIT_CODE=$?
+          if [ $EXIT_CODE -eq 2 ]; then
+            echo "No new release needed - stopping workflow"
+            echo "RELEASE_NEEDED=false" >> $GITHUB_ENV
+            exit 0
+          elif [ $EXIT_CODE -eq 0 ]; then
+            echo "New release needed"
+            echo "RELEASE_NEEDED=true" >> $GITHUB_ENV
+            exit 0
+          else
+            echo "Error occurred during release detection"
+            exit $EXIT_CODE
+          fi
+
+      - name: Get package version
+        if: env.RELEASE_NEEDED == 'true'
+        id: get-version
+        run: |
+          VERSION=$(bunx changelog --latest-release)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Package version: $VERSION"
+
+      - name: Trigger release workflow
+        if: env.RELEASE_NEEDED == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.get-version.outputs.version }}"
+          echo "Triggering release workflow for version: $VERSION"
+          gh workflow run release.yml --ref main -f version="$VERSION"
+          echo "Release workflow triggered successfully"
