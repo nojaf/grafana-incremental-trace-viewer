@@ -172,7 +172,7 @@ async function getTagAttributes(
   const promises = groups.map(async (group) => {
     const q = `{ trace:id = "${traceId}" && span:id = "${spanId}" } | select(${group.join(', ')})`;
     const data = await search(fetchFn, q, start, end, 1);
-    return data.traces?.[0].spanSets?.[0].spans?.[0].attributes || [];
+    return data?.traces?.[0]?.spanSets?.[0]?.spans?.[0]?.attributes || [];
   });
 
   const results: KeyValue[][] = await Promise.all(promises);

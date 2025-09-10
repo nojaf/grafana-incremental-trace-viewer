@@ -13,7 +13,7 @@ async function getLastTrace() {
   const end = Math.floor(new Date().getTime() / 1000);
   // Minus one day
   const start = end - 24 * 60 * 60;
-  const q = '{}';
+  const q = '{} | select(span:parentID)';
   // Update spss if there are more spans.
   const data: SearchResponse = await fetchDirectly(
     '/api/search',
