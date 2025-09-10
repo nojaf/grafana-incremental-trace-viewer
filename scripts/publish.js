@@ -18,8 +18,8 @@ const notes = await $`bunx changelog --latest-release-full`
 
 const tag = `v${lastVersion}`;
 
-// Glob for all zip files
-const artifacts = Array.from(await glob('*.zip', { cwd: rootDir })).map((f) => join(rootDir, f));
+// Glob for all zip files using Bun's built-in glob
+const artifacts = Array.from(await Bun.glob('*.zip', { cwd: rootDir })).map((f) => join(rootDir, f));
 
 // write notes to a temp file
 const notesFile = join(tmpdir(), `release-notes-${lastVersion}.md`);
@@ -32,6 +32,6 @@ if (isDryRun) {
   console.log(notes);
 } else {
   console.log(`Creating GitHub release for ${tag}`);
-  await $`gh release create ${tag} ${artifacts} --title ${lastVersion} --notes-file ${notesFile}`.cwd(libraryDir);
+  await $`gh release create ${tag} ${artifacts} --title ${lastVersion} --notes-file ${notesFile}`.cwd(rootDir);
   console.log(`Release ${tag} created with ${artifacts.length} artifacts`);
 }
