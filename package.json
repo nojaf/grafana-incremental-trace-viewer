@@ -1,6 +1,6 @@
 {
   "name": "grafana-incremental-trace-viewer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
     "build:with-child-count": "SUPPORTS_CHILD_COUNT=1 webpack -c ./.config/webpack/webpack.config.ts --env production",
