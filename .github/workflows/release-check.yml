@@ -17,6 +17,12 @@ jobs:
         with:
           fetch-depth: 0 # important, we need full history to tag properly
 
+      # See https://api.github.com/users/github-actions%5Bbot%5D
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
 
