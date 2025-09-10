@@ -1,6 +1,6 @@
 {
   "name": "grafana-incremental-trace-viewer",
-  "version": "0.2.0",
+  "version": "0.1.0",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
     "build:with-child-count": "SUPPORTS_CHILD_COUNT=1 webpack -c ./.config/webpack/webpack.config.ts --env production",
@@ -13,7 +13,7 @@
     "e2e": "playwright test",
     "server": "docker compose up --build",
     "server:local": "docker compose -f ./local-tempo-docker-compose.yml up --build",
-    "sign": "bunx --yes @grafana/sign-plugin@latest",
+    "sign": "bunx @grafana/sign-plugin@latest --rootUrls http://localhost:3000",
     "fmt": "prettier --write --list-different .",
     "fmt:check": "prettier --check .",
     "package": "bun run scripts/package-plugin.js"
@@ -58,13 +58,14 @@
     "imports-loader": "^5.0.0",
     "jest": "^29.5.0",
     "jest-environment-jsdom": "^29.5.0",
+    "keep-a-changelog": "^2.7.0",
     "postcss": "^8.5.6",
     "postcss-loader": "^8.1.1",
-    "prettier": "^2.8.7",
+    "prettier": "^3.6.2",
     "replace-in-file-webpack-plugin": "^1.0.6",
     "sass": "1.63.2",
     "sass-loader": "13.3.1",
-    "semver": "^7.6.3",
+    "semver": "^7.7.2",
     "style-loader": "3.3.3",
     "swc-loader": "^0.2.3",
     "tailwindcss": "^4.1.10",

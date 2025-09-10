@@ -98,6 +98,32 @@ SUPPORTS_CHILD_COUNT=0
    bun run lint:fix
    ```
 
+## Release Flow
+
+The [CHANGELOG.md](./CHANGELOG.md) is considered the source of truth.  
+New changes to this project should be reflected in this file, preferably when creating PRs.  
+Use the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
+
+### New Release
+
+If there is no pending release, add a new section:
+
+## [Unreleased]
+
+When you are ready to release, change the `## [Unreleased]` header into the next version, for example:
+
+## [1.1.1] - 2023-03-05
+
+Make sure to also bump the version in [package.json](./package.json), and commit these changes in a PR to the main branch.
+
+On the main branch, [scripts/check-version.js](./scripts/check-version.js) will run and create a new tag if a release is found in the changelog that does not yet exist as a GitHub release.
+
+## GitHub Release
+
+If [scripts/check-version.js](./scripts/check-version.js) creates a new tag, it will trigger the [release.yml](./.github/workflows/release.yml) job.  
+This workflow builds two versions of the plugin: a signed and an unsigned one.  
+It then creates a new GitHub release with both archives attached as artifacts.
+
 # Distributing your plugin
 
 When distributing a Grafana plugin either within the community or privately the plugin must be signed so the Grafana application can verify its authenticity. This can be done with the `@grafana/sign-plugin` package.
@@ -215,7 +241,6 @@ In production at G-Research, we target a Tempo-compatible API endpoint. The API 
 Minor differences:
 
 - The `search` endpoint returns all span attributes, even when they were not requested in traceQL. When opening span details the client performs two requests to obtain all span attributes:
-
   1. Retrieve all tags via `/search/tags`.
   2. Query the span and use the tags in a `select(...)`.
      The Grafana Tempo API only returns attributes which are part of the `| select(...)` query.
