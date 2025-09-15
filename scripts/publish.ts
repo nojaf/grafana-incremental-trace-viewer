@@ -1,4 +1,4 @@
-import { $ } from 'bun';
+import { $, Glob } from 'bun';
 import { tmpdir } from 'os';
 import { join } from 'path';
 
@@ -19,7 +19,8 @@ const notes = await $`bunx changelog --latest-release-full`
 const tag = `v${lastVersion}`;
 
 // Glob for all zip files using Bun's built-in glob
-const artifacts = Array.from(await Bun.glob('*.zip', { cwd: rootDir })).map((f) => join(rootDir, f));
+const glob = new Glob('*.zip');
+const artifacts = await Array.fromAsync(glob.scan(rootDir)).then((zips) => zips.map((f) => join(rootDir, f)));
 
 // write notes to a temp file
 const notesFile = join(tmpdir(), `release-notes-${lastVersion}.md`);

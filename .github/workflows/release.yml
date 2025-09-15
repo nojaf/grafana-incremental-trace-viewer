@@ -49,4 +49,4 @@ jobs:
       - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: bun ./scripts/publish.js
+        run: bun ./scripts/publish.ts
