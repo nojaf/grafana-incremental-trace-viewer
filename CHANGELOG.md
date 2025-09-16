@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.1.3] - 2025-09-16
+
+- Build release plugin with SUPPORTS_CHILD_COUNT=1
+
 ## [0.1.2] - 2025-09-10
 
 ### Changed
