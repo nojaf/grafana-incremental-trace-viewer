@@ -1,7 +1,5 @@
 import { $ } from 'bun';
-import { env } from 'process';
 import semver from 'semver';
-import { parseArgs } from 'util';
 import packageJson from '../package.json';
 
 // This script is meant to run on the main branch to detect if there is a new release needed.
@@ -12,31 +10,11 @@ import packageJson from '../package.json';
 // sanity check, should already be covered by the PR checks.
 import './check-version.js';
 
-const { values } = parseArgs({
-  args: Bun.argv,
-  options: {
-    force: { type: 'boolean', multiple: false, short: 'f', default: false },
-  },
-  strict: true,
-  allowPositionals: true,
-});
-
-const isCI = env.CI === 'true';
-const force = values['force'];
-const dryRun = !isCI && !force;
-if (dryRun) {
-  console.log('Dry run is enabled');
-}
-
 const githubReleases = await $`gh release list --json name,tagName,createdAt`.json();
 if (githubReleases.length === 0) {
   console.log(`No GitHub releases were found.`);
   // New release needed - exit with code 0 (success) to indicate release should be created
-  if (dryRun) {
-    console.log(`DRY RUN: new release needed for version ${packageJson.version}`);
-  } else {
-    console.log(`New release needed for version ${packageJson.version}`);
-  }
+  console.log(`New release needed for version ${packageJson.version}`);
   process.exit(0);
 } else {
   // check if the latest release is lower than the package.json version
@@ -48,11 +26,7 @@ if (githubReleases.length === 0) {
     console.log(
       `The version in package.json ${packageJson.version} is greater than the latest release ${latestReleaseVersion}`
     );
-    if (dryRun) {
-      console.log(`DRY RUN: new release needed for version ${packageJson.version}`);
-    } else {
-      console.log(`New release needed for version ${packageJson.version}`);
-    }
+    console.log(`New release needed for version ${packageJson.version}`);
     process.exit(0);
   } else {
     console.log(`No new release needed. Latest GitHub release is ${latestReleaseVersion}`);

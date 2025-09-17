@@ -30,7 +30,7 @@ jobs:
           # Being explicit here as we want to avoid any dry run
           CI: true
         run: |
-          bun run ./scripts/release-detect.js
+          bun run ./scripts/release-detect.ts
           EXIT_CODE=$?
           if [ $EXIT_CODE -eq 2 ]; then
             echo "No new release needed - stopping workflow"
