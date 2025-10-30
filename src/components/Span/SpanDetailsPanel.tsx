@@ -221,6 +221,24 @@ export function SpanDetailPanel({
     return { spanAttributes, events, resourceAttributes };
   }, [result, debouncedSearch]);
 
+  // Derive exception details from the full (unfiltered) span attributes to always show when present
+  const exception = React.useMemo(() => {
+    if (!result.isSuccess) {
+      return null as null | { code: string; message?: string };
+    }
+    const { spanAttributes } = splitAttributesAndEvents(result.data);
+    const codeAttr = spanAttributes.find((kv) => kv.key === 'status.code');
+    const messageAttr = spanAttributes.find((kv) => kv.key === 'status.message');
+
+    const codeVal = codeAttr?.value?.stringValue;
+    const messageVal = messageAttr?.value?.stringValue;
+
+    if (codeVal === 'Error') {
+      return { code: codeVal, message: messageVal };
+    }
+    return null;
+  }, [result]);
+
   return (
     <div data-testid="span-detail-panel" className="z-10 overflow-hidden text-sm">
       <div className="p-2">
@@ -271,6 +289,24 @@ export function SpanDetailPanel({
           </tbody>
         </table>
       </div>
+      {exception && (
+        <div
+          data-testid="span-detail-panel-exception"
+          className="mx-4 my-4 rounded border border-red-500 bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-300"
+        >
+          <div className="px-4 py-2 uppercase text-lg font-light">Exception</div>
+          <div className="px-4 pb-4">
+            <div className="w-full text-[0.9rem]" data-testid="span-detail-panel-exception-message">
+              {(() => {
+                const message = (exception.message ?? '').trim() || 'An error occurred';
+                return (
+                  <ValueWrapper value={message} color="text-red-700 dark:text-red-400" displayValue={`"${message}"`} />
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+      )}
       {spanAttributes.length > 0 && (
         <Accordion
           title="Additional Span Data"

@@ -10,7 +10,7 @@ async function getLastTraceId() {
   return data.traces[0].traceID;
 }
 
-async function gotoTraceViewerDashboard(gotoDashboardPage, traceId?: string) {
+async function gotoTraceViewerDashboard(gotoDashboardPage, page: any, traceId?: string) {
   const traceIdToUse = traceId || (await getLastTraceId());
   await gotoDashboardPage({
     uid: 'gr-trace-viewer-dashboard',
@@ -18,6 +18,18 @@ async function gotoTraceViewerDashboard(gotoDashboardPage, traceId?: string) {
       'var-traceId': traceIdToUse,
     }),
   });
+
+  const url = new URL(page.url());
+  if (!url.searchParams.get('var-traceId')) {
+    url.searchParams.set('var-traceId', traceIdToUse);
+    await page.goto(url.toString());
+  }
+
+  const varInput = page.locator('input[name="var-traceId"]');
+  if (await varInput.count()) {
+    await varInput.fill(traceIdToUse);
+    await varInput.press('Enter');
+  }
 }
 
 async function waitForDashboardLoad(page: any, timeout = 10000) {
@@ -31,7 +43,7 @@ async function waitForDashboardLoad(page: any, timeout = 10000) {
 
 test.describe('Span Overview Display', () => {
   test.beforeEach(async ({ page, gotoDashboardPage }) => {
-    await gotoTraceViewerDashboard(gotoDashboardPage);
+    await gotoTraceViewerDashboard(gotoDashboardPage, page);
     await waitForDashboardLoad(page);
   });
 
@@ -45,13 +57,13 @@ test.describe('Span Overview Display', () => {
     const spanElements = page.getByTestId('span-row');
     await expect(spanElements.first()).toBeVisible();
     const spanCount = await spanElements.count();
-    expect(spanCount).toBe(4);
+    expect(spanCount).toBe(5);
   });
 
   test('should display span structure correctly', async ({ page }) => {
     const spanRows = page.getByTestId('span-row');
     const rowCount = await spanRows.count();
-    expect(rowCount).toBe(4);
+    expect(rowCount).toBe(5);
 
     const firstSpanRow = spanRows.first();
     await expect(firstSpanRow).toBeVisible();
@@ -66,7 +78,7 @@ test.describe('Span Overview Display', () => {
 
 test.describe('Header Information', () => {
   test.beforeEach(async ({ page, gotoDashboardPage }) => {
-    await gotoTraceViewerDashboard(gotoDashboardPage);
+    await gotoTraceViewerDashboard(gotoDashboardPage, page);
     await waitForDashboardLoad(page);
   });
 
@@ -88,7 +100,7 @@ test.describe('Header Information', () => {
 
 test.describe('Data Consistency', () => {
   test.beforeEach(async ({ page, gotoDashboardPage }) => {
-    await gotoTraceViewerDashboard(gotoDashboardPage);
+    await gotoTraceViewerDashboard(gotoDashboardPage, page);
     await waitForDashboardLoad(page);
   });
 

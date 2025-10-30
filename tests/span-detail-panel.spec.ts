@@ -1,30 +1,9 @@
 import { test, expect } from '@grafana/plugin-e2e';
 import { Page } from '@playwright/test';
-
-async function getLastTraceId() {
-  // Current time in seconds
-  const end = Math.floor(new Date().getTime() / 1000);
-  // Minus one day
-  const start = end - 24 * 60 * 60;
-  const q = '{}';
-  const url = `http://localhost:3200/api/search?q=${encodeURIComponent(q)}&start=${start}&end=${end}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  return data.traces[0].traceID;
-}
-
-async function gotoTraceViewerDashboard(gotoDashboardPage) {
-  const traceId = await getLastTraceId();
-  await gotoDashboardPage({
-    uid: 'gr-trace-viewer-dashboard',
-    queryParams: new URLSearchParams({
-      'var-traceId': traceId,
-    }),
-  });
-}
+import { gotoTraceViewerDashboard } from './test-utils';
 
 async function openSpanDetailPanel(gotoDashboardPage, page: Page) {
-  await gotoTraceViewerDashboard(gotoDashboardPage);
+  await gotoTraceViewerDashboard(gotoDashboardPage, page);
 
   const rootSpanDuration = page.getByTestId('span-duration-MissionControl');
   await rootSpanDuration.click();
@@ -169,4 +148,21 @@ test('button click copies text to clipboard', async ({ page, gotoDashboardPage }
   });
 
   expect(clipboardText).toBe('MissionControl');
+});
+
+test('shows Exception section when span has status.code Error', async ({ page, gotoDashboardPage }) => {
+  await gotoTraceViewerDashboard(gotoDashboardPage, page);
+
+  const failureSpan = page.getByTestId('span-duration-SubsystemFailure');
+  await failureSpan.click();
+
+  const spanDetailPanel = page.getByTestId('span-detail-panel');
+  await expect(spanDetailPanel).toBeVisible();
+
+  const exceptionSection = spanDetailPanel.getByTestId('span-detail-panel-exception');
+  await expect(exceptionSection).toBeVisible();
+
+  const message = spanDetailPanel.getByTestId('span-detail-panel-exception-message');
+  await expect(message).toBeVisible();
+  await expect(message).toContainText('"Something went wrong"');
 });

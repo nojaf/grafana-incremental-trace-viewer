@@ -117,6 +117,13 @@ async function main() {
 
   const missionControlCtx = trace.setSpan(otContext.active(), missionControlSpan);
 
+  // Explicit failure child span under MissionControl to exercise Exception UI
+  const subsystemFailureSpan = missionControlTracer.startSpan('SubsystemFailure', undefined, missionControlCtx);
+  subsystemFailureSpan.setAttribute('status.code', 'Error');
+  subsystemFailureSpan.setAttribute('status.message', 'Something went wrong');
+  await sleep(15);
+  subsystemFailureSpan.end();
+
   // Pre-launch parallel operations (these complete early)
   const weatherCheckSpan = missionControlTracer.startSpan('WeatherVerification', undefined, missionControlCtx);
   weatherCheckSpan.setAttribute('wind.speed', '8 knots');

@@ -1,24 +1,5 @@
 import { test, expect } from '@grafana/plugin-e2e';
-
-async function getLastTraceId() {
-  const end = Math.floor(new Date().getTime() / 1000);
-  const start = end - 24 * 60 * 60;
-  const q = '{}';
-  const url = `http://localhost:3200/api/search?q=${encodeURIComponent(q)}&start=${start}&end=${end}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  return data.traces[0].traceID;
-}
-
-async function gotoTraceViewerDashboard(gotoDashboardPage, traceId?: string) {
-  const traceIdToUse = traceId || (await getLastTraceId());
-  await gotoDashboardPage({
-    uid: 'gr-trace-viewer-dashboard',
-    queryParams: new URLSearchParams({
-      'var-traceId': traceIdToUse,
-    }),
-  });
-}
+import { gotoTraceViewerDashboard } from './test-utils';
 
 async function waitForDashboardLoad(page: any, timeout = 10000) {
   try {
@@ -31,16 +12,16 @@ async function waitForDashboardLoad(page: any, timeout = 10000) {
 
 test.describe('Span Expansion Tests', () => {
   test.beforeEach(async ({ page, gotoDashboardPage }) => {
-    await gotoTraceViewerDashboard(gotoDashboardPage);
+    await gotoTraceViewerDashboard(gotoDashboardPage, page);
     await waitForDashboardLoad(page);
   });
 
   test('should expand first child node and verify RocketLaunchSystem loads', async ({ page }) => {
     await expect(page.getByTestId('span-virtual-item').first()).toBeVisible();
 
-    // Verify initial state - should have root + 3 children (4 total)
+    // Verify initial state - should have root + 4 children (5 total)
     let virtualSpanCount = await page.getByTestId('span-virtual-item').count();
-    expect(virtualSpanCount).toBe(4);
+    expect(virtualSpanCount).toBe(5);
 
     // Find and expand the CountdownSequence span (first child)
     const countdownSequenceItem = page.getByTestId('span-list-item-CountdownSequence');
@@ -61,7 +42,7 @@ test.describe('Span Expansion Tests', () => {
 
     // Verify the count increased by 1 (RocketLaunch was added)
     virtualSpanCount = await page.getByTestId('span-virtual-item').count();
-    expect(virtualSpanCount).toBe(5);
+    expect(virtualSpanCount).toBe(6);
 
     // Verify RocketLaunchSystem is not yet visible (it's a child of RocketLaunch)
     const rocketLaunchSystemItem = page.getByTestId('span-list-item-EngineSystem');
@@ -132,7 +113,7 @@ test.describe('Span Expansion Tests', () => {
 
     // Verify the count increased by 5 (all RocketLaunch children)
     const virtualSpanCount = await page.getByTestId('span-virtual-item').count();
-    expect(virtualSpanCount).toBe(10); // 4 initial + 1 (RocketLaunch) + 5 (RocketLaunch children)
+    expect(virtualSpanCount).toBe(11); // 5 initial + 1 (RocketLaunch) + 5 (RocketLaunch children)
 
     // Verify that the displayed child count (5) matches the number of loaded children
     expect(expectedRocketChildCount).toBe('5');
@@ -184,7 +165,7 @@ test.describe('Span Expansion Tests', () => {
 
     // Verify final count
     const finalVirtualSpanCount = await page.getByTestId('span-virtual-item').count();
-    expect(finalVirtualSpanCount).toBe(10); // 4 initial + 1 (RocketLaunch) + 5 (RocketLaunch children)
+    expect(finalVirtualSpanCount).toBe(11); // 5 initial + 1 (RocketLaunch) + 5 (RocketLaunch children)
 
     // Verify all child counts are correct
     expect(displayedCountdownCount).toBe('1'); // CountdownSequence has 1 child

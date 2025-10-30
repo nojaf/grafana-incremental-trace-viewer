@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+
+- Show clear exception message in span details. https://github.com/G-Research/grafana-incremental-trace-viewer/pull/126
+
 ## [0.1.4] - 2025-09-17
 
 ### Fixed
