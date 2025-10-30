@@ -1,24 +1,5 @@
 import { test, expect } from '@grafana/plugin-e2e';
-
-async function getLastTraceId() {
-  const end = Math.floor(new Date().getTime() / 1000);
-  const start = end - 24 * 60 * 60;
-  const q = '{}';
-  const url = `http://localhost:3200/api/search?q=${encodeURIComponent(q)}&start=${start}&end=${end}`;
-  const response = await fetch(url);
-  const data = await response.json();
-  return data.traces[0].traceID;
-}
-
-async function gotoTraceViewerDashboard(gotoDashboardPage, traceId?: string) {
-  const traceIdToUse = traceId || (await getLastTraceId());
-  await gotoDashboardPage({
-    uid: 'gr-trace-viewer-dashboard',
-    queryParams: new URLSearchParams({
-      'var-traceId': traceIdToUse,
-    }),
-  });
-}
+import { gotoTraceViewerDashboard } from './test-utils';
 
 async function waitForDashboardLoad(page: any, timeout = 10000) {
   try {
@@ -31,7 +12,7 @@ async function waitForDashboardLoad(page: any, timeout = 10000) {
 
 test.describe('Span Expansion Tests', () => {
   test.beforeEach(async ({ page, gotoDashboardPage }) => {
-    await gotoTraceViewerDashboard(gotoDashboardPage);
+    await gotoTraceViewerDashboard(gotoDashboardPage, page);
     await waitForDashboardLoad(page);
   });
 

@@ -1,50 +1,9 @@
 import { test, expect } from '@grafana/plugin-e2e';
 import { Page } from '@playwright/test';
-
-async function getLastTraceId() {
-  // Current time in seconds - restrict to last 24h
-  const end = Math.floor(new Date().getTime() / 1000);
-  const start = end - 24 * 60 * 60;
-  const q = '{}';
-  const url = (startOverride, endOverride) =>
-    `http://localhost:3200/api/search?q=${encodeURIComponent(q)}&start=${startOverride}&end=${endOverride}`;
-
-  // Retry a few times in case seeding/export flush is still in progress
-  const maxAttempts = 10;
-  const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    const response = await fetch(url(start, end));
-    if (!response.ok) {
-      await delay(500);
-      continue;
-    }
-    const data = await response.json();
-    const traceId = data?.traces?.[0]?.traceID;
-    if (typeof traceId === 'string' && traceId.length > 0) {
-      return traceId;
-    }
-    await delay(500);
-  }
-  throw new Error('No traces found in the last 24h; did you run bun run scripts/e2e-tempo-trace.js?');
-}
-
-async function gotoTraceViewerDashboard(gotoDashboardPage) {
-  const traceId = await getLastTraceId();
-  await gotoDashboardPage({
-    uid: 'gr-trace-viewer-dashboard',
-    timeRange: {
-      from: 'now-24h',
-      to: 'now',
-      zone: 'browser',
-    },
-    queryParams: new URLSearchParams({
-      'var-traceId': traceId,
-    }),
-  });
-}
+import { gotoTraceViewerDashboard } from './test-utils';
 
 async function openSpanDetailPanel(gotoDashboardPage, page: Page) {
-  await gotoTraceViewerDashboard(gotoDashboardPage);
+  await gotoTraceViewerDashboard(gotoDashboardPage, page);
 
   const rootSpanDuration = page.getByTestId('span-duration-MissionControl');
   await rootSpanDuration.click();
@@ -192,7 +151,7 @@ test('button click copies text to clipboard', async ({ page, gotoDashboardPage }
 });
 
 test('shows Exception section when span has status.code Error', async ({ page, gotoDashboardPage }) => {
-  await gotoTraceViewerDashboard(gotoDashboardPage);
+  await gotoTraceViewerDashboard(gotoDashboardPage, page);
 
   const failureSpan = page.getByTestId('span-duration-SubsystemFailure');
   await failureSpan.click();
