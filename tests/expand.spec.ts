@@ -38,9 +38,9 @@ test.describe('Span Expansion Tests', () => {
   test('should expand first child node and verify RocketLaunchSystem loads', async ({ page }) => {
     await expect(page.getByTestId('span-virtual-item').first()).toBeVisible();
 
-    // Verify initial state - should have root + 3 children (4 total)
+    // Verify initial state - should have root + 4 children (5 total)
     let virtualSpanCount = await page.getByTestId('span-virtual-item').count();
-    expect(virtualSpanCount).toBe(4);
+    expect(virtualSpanCount).toBe(5);
 
     // Find and expand the CountdownSequence span (first child)
     const countdownSequenceItem = page.getByTestId('span-list-item-CountdownSequence');
@@ -61,7 +61,7 @@ test.describe('Span Expansion Tests', () => {
 
     // Verify the count increased by 1 (RocketLaunch was added)
     virtualSpanCount = await page.getByTestId('span-virtual-item').count();
-    expect(virtualSpanCount).toBe(5);
+    expect(virtualSpanCount).toBe(6);
 
     // Verify RocketLaunchSystem is not yet visible (it's a child of RocketLaunch)
     const rocketLaunchSystemItem = page.getByTestId('span-list-item-EngineSystem');
@@ -132,7 +132,7 @@ test.describe('Span Expansion Tests', () => {
 
     // Verify the count increased by 5 (all RocketLaunch children)
     const virtualSpanCount = await page.getByTestId('span-virtual-item').count();
-    expect(virtualSpanCount).toBe(10); // 4 initial + 1 (RocketLaunch) + 5 (RocketLaunch children)
+    expect(virtualSpanCount).toBe(11); // 5 initial + 1 (RocketLaunch) + 5 (RocketLaunch children)
 
     // Verify that the displayed child count (5) matches the number of loaded children
     expect(expectedRocketChildCount).toBe('5');
@@ -184,7 +184,7 @@ test.describe('Span Expansion Tests', () => {
 
     // Verify final count
     const finalVirtualSpanCount = await page.getByTestId('span-virtual-item').count();
-    expect(finalVirtualSpanCount).toBe(10); // 4 initial + 1 (RocketLaunch) + 5 (RocketLaunch children)
+    expect(finalVirtualSpanCount).toBe(11); // 5 initial + 1 (RocketLaunch) + 5 (RocketLaunch children)
 
     // Verify all child counts are correct
     expect(displayedCountdownCount).toBe('1'); // CountdownSequence has 1 child

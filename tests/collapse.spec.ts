@@ -28,9 +28,9 @@ test('should collapse all spans', async ({ page, gotoDashboardPage }) => {
   // Wait for the virtual span items to be visible before checking count
   await expect(page.getByTestId('span-virtual-item').first()).toBeVisible();
 
-  // root + 3 children
+  // root + 4 children
   let virtualSpanCount = await page.getByTestId('span-virtual-item').count();
-  expect(virtualSpanCount).toBe(4);
+  expect(virtualSpanCount).toBe(5);
 
   const countDownSequenceItem = page.getByTestId('span-list-item-CountdownSequence');
   await expect(countDownSequenceItem).toBeVisible();
@@ -42,7 +42,7 @@ test('should collapse all spans', async ({ page, gotoDashboardPage }) => {
   await expect(page.getByTestId('span-list-item-RocketLaunch')).toBeVisible();
 
   virtualSpanCount = await page.getByTestId('span-virtual-item').count();
-  expect(virtualSpanCount).toBe(5);
+  expect(virtualSpanCount).toBe(6);
 
   // This should have opened the children of the CountdownSequence span.
   const rocketLaunchItem = page.getByTestId('span-list-item-RocketLaunch');
@@ -55,7 +55,7 @@ test('should collapse all spans', async ({ page, gotoDashboardPage }) => {
   await expect(page.getByTestId('span-list-item-EngineSystem')).toBeVisible();
 
   virtualSpanCount = await page.getByTestId('span-virtual-item').count();
-  expect(virtualSpanCount).toBe(10);
+  expect(virtualSpanCount).toBe(11);
 
   // Do actual collapse
   const collapseAllButton = page.getByTestId('span-collapse-all-button');

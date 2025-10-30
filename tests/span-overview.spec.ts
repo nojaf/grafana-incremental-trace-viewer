@@ -45,13 +45,13 @@ test.describe('Span Overview Display', () => {
     const spanElements = page.getByTestId('span-row');
     await expect(spanElements.first()).toBeVisible();
     const spanCount = await spanElements.count();
-    expect(spanCount).toBe(4);
+    expect(spanCount).toBe(5);
   });
 
   test('should display span structure correctly', async ({ page }) => {
     const spanRows = page.getByTestId('span-row');
     const rowCount = await spanRows.count();
-    expect(rowCount).toBe(4);
+    expect(rowCount).toBe(5);
 
     const firstSpanRow = spanRows.first();
     await expect(firstSpanRow).toBeVisible();
