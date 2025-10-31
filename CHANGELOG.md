@@ -1,10 +1,11 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.5] - 2025-10-31
 
 ### Added
 
 - Show clear exception message in span details. https://github.com/G-Research/grafana-incremental-trace-viewer/pull/126
+- Show error icon in span in a case of exception. https://github.com/G-Research/grafana-incremental-trace-viewer/pull/125
 
 ## [0.1.4] - 2025-09-17
 
