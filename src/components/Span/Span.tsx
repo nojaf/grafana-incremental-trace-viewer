@@ -62,6 +62,20 @@ export const Span = (props: SpanNodeProps) => {
     </div>
   );
 
+  // Derive exception from attributes (same logic as SpanDetailsPanel)
+  const exception = React.useMemo(() => {
+    const codeAttr = props.attributes.find((kv) => kv.key === 'status.code');
+    const messageAttr = props.attributes.find((kv) => kv.key === 'status.message');
+    const codeVal = (codeAttr?.value as any)?.stringValue;
+    const messageVal = (messageAttr?.value as any)?.stringValue;
+
+    if (codeVal === 'Error') {
+      return { code: codeVal, message: messageVal as string | undefined };
+    }
+
+    return null;
+  }, [props.attributes]);
+
   return (
     <div
       data-testid="span-row"
@@ -91,6 +105,17 @@ export const Span = (props: SpanNodeProps) => {
           >
             {props.childCount || 0}
           </strong>
+          {exception && (
+            <Tooltip content={exception.message || 'Error'} placement="top">
+              <Icon
+                name="exclamation-circle"
+                style={{ color: 'red' }}
+                className="mr-1"
+                size="sm"
+                data-testid="span-error-icon"
+              />
+            </Tooltip>
+          )}
           {props.warning !== null && (
             <IconButton name="exclamation-circle" variant="destructive" tooltip={props.warning} size="sm" />
           )}
@@ -119,7 +144,12 @@ export const Span = (props: SpanNodeProps) => {
                 className="absolute z-2000 h-full w-[1px] bg-neutral-950 flex items-center justify-center"
                 style={{ left: `${left}%` }}
               >
-                <Tooltip content={e.value} placement="top">
+                <Tooltip
+                  content={
+                    (typeof (e as any).value === 'string' ? (e as any).value : (e as any).value?.stringValue) || ''
+                  }
+                  placement="top"
+                >
                   <Icon
                     name="circle-mono"
                     size="xs"
