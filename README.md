@@ -33,14 +33,16 @@ The plugin supports runtime configuration through panel options. To configure th
 
 ### Development Default
 
-For local development, you can set the default value via environment variable:
+By default, child count support is **enabled** (for G-Research custom Tempo API). For local development with standard Grafana Tempo API, you can disable it:
 
 ```bash
-# Enable by default for local dev
-SUPPORTS_CHILD_COUNT=1 bun run dev
+# Default: child count enabled (for G-Research custom Tempo API)
+bun run dev
 
-# Or disable by default (default behavior)
+# Disable for standard Grafana Tempo API
 SUPPORTS_CHILD_COUNT=0 bun run dev
+# Or use the convenience script:
+bun run dev:without-child-count
 ```
 
 This sets the default value for new panels, but you can still override it per panel in the UI.
@@ -290,10 +292,10 @@ Here we shall target the Grafana Tempo API as mentioned in [./docker-compose.yam
 Run
 
 ```shell
-bun run build
+bun run build:without-child-count
 ```
 
-to build the plugin. When creating or editing a panel on a dashboard, make sure "Enable G-Research Tempo API support" is disabled in the panel options.
+to build the plugin without child count support (for standard Grafana Tempo API). When creating or editing a panel on a dashboard, make sure "Enable G-Research Tempo API support" is disabled in the panel options.
 
 Next, we need to provision sample data to our Tempo store.
 Run
@@ -330,13 +332,13 @@ In production, this would be the .NET side of things, for our local setup, we ca
 bun run tests/test-api.ts
 ```
 
-Next, build our plugin:
+Next, build our plugin (default has child count enabled):
 
 ```shell
 bun run build
 ```
 
-When creating or editing a panel on a dashboard, make sure "Enable G-Research Tempo API support" is enabled in the panel options.
+The default panel option will have "Enable G-Research Tempo API support" enabled, which is correct for this setup.
 
 Afterwards, you should be able to run the tests using:
 
