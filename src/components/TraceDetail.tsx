@@ -4,7 +4,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { testIds } from './testIds';
 import { Span as SpanComponent, SpanDetailPanel } from './Span';
 import { mkUnixEpochFromNanoSeconds, mkUnixEpochFromMiliseconds, formatDuration } from '../utils/utils.timeline';
-import { FetchFunction, search, SearchResponse, Span, supportsChildCount } from '../utils/utils.api';
+import { FetchFunction, search, SearchResponse, Span } from '../utils/utils.api';
 import type { QueryInfo as TraceDetailProps } from './TraceViewerPanel';
 import { SpanOverlayDrawer } from './Span/SpanOverlayDrawer';
 import { ChildStatus, SpanInfo } from 'types';
@@ -140,14 +140,18 @@ async function extractSpans(
   return spans;
 }
 
-const pipeSelect = `| select (span:name, resource.service.name${supportsChildCount ? ', childCount' : ''})`;
+function getPipeSelect(supportsChildCount: boolean): string {
+  return `| select (span:name, resource.service.name${supportsChildCount ? ', childCount' : ''})`;
+}
 
 async function loadMoreSpans(
   fetchFn: FetchFunction<SearchResponse>,
   traceId: string,
   idToLevelMap: Map<string, number>,
-  span: SpanInfo
+  span: SpanInfo,
+  supportsChildCount: boolean
 ): Promise<SpanInfo[]> {
+  const pipeSelect = getPipeSelect(supportsChildCount);
   const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } ${pipeSelect}`;
   const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
   // As a precaution, we add 1 second to the end time.
@@ -166,7 +170,8 @@ function TraceDetail({
   panelWidth,
   panelHeight,
   timeRange,
-}: TraceDetailProps & { timeRange: TimeRange }): React.JSX.Element {
+  supportsChildCount,
+}: TraceDetailProps & { timeRange: TimeRange; supportsChildCount: boolean }): React.JSX.Element {
   // Should we assert for traceId and datasourceId?
   if (!traceId || !datasourceUid) {
     throw new Error('traceId and datasourceId are required');
@@ -212,6 +217,7 @@ function TraceDetail({
         setLoadingMessage('Loading root nodes of trace');
         const start = mkUnixEpochFromMiliseconds(startTimeInMs);
         const end = mkUnixEpochFromMiliseconds(startTimeInMs + durationInMs);
+        const pipeSelect = getPipeSelect(supportsChildCount);
         const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } ${pipeSelect}`;
         const data = await search(fetchFn, q, start, end);
         // We pass in hasMore: false because we are fetching the first round of children later.
@@ -233,7 +239,7 @@ function TraceDetail({
           }
           allSpans.push(span);
           if (!hasNoChildren) {
-            const moreSpans = await loadMoreSpans(fetchFn, traceId, idToLevelMap.current, span);
+            const moreSpans = await loadMoreSpans(fetchFn, traceId, idToLevelMap.current, span, supportsChildCount);
             allSpans.push(...moreSpans);
           }
         }
@@ -328,7 +334,7 @@ function TraceDetail({
     });
 
     // Load the children
-    const spans = await loadMoreSpans(fetchFn, traceId, idToLevelMap.current, span);
+    const spans = await loadMoreSpans(fetchFn, traceId, idToLevelMap.current, span, supportsChildCount);
 
     // Update the parent span to show children
     queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
@@ -524,6 +530,7 @@ function TraceDetail({
               setSelectedSpanElementYOffset(null);
             }}
             fetchFn={fetchFn}
+            supportsChildCount={supportsChildCount}
           />
         )}
       </SpanOverlayDrawer>

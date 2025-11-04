@@ -19,17 +19,31 @@ For detailed usage instructions and troubleshooting, see [HELP.md](HELP.md).
 
 App plugins can let you create a custom out-of-the-box monitoring experience by custom pages, nested data sources and panel plugins.
 
-## Build-time Configuration
+## Panel Configuration
 
-The plugin supports build-time configuration through environment variables. Create a `.env` file in the root directory and set the following variables:
+The plugin supports runtime configuration through panel options. To configure the setting:
 
-- `SUPPORTS_CHILD_COUNT`: Set to `'1'` to enable child count support, `'0'` to disable it. This affects whether the plugin will use `childCount` attributes from the backend. Default is `'false'`.
+1. Create or edit a panel using this plugin on a dashboard
+2. In the panel edit mode, look for the "Enable G-Research Tempo API support" option in the panel options panel (right sidebar)
+3. Toggle the setting as needed
 
-Example `.env` file:
+**Setting**: Enable G-Research Tempo API support
+
+- A boolean setting that controls whether the plugin uses child count support for G-Research custom Tempo API. When enabled, the plugin will use `childCount` attributes from the backend. When disabled, it works with the standard Grafana Tempo API.
+
+### Development Default
+
+For local development, you can set the default value via environment variable:
 
 ```bash
-SUPPORTS_CHILD_COUNT=0
+# Enable by default for local dev
+SUPPORTS_CHILD_COUNT=1 bun run dev
+
+# Or disable by default (default behavior)
+SUPPORTS_CHILD_COUNT=0 bun run dev
 ```
+
+This sets the default value for new panels, but you can still override it per panel in the UI.
 
 ## Get started
 
@@ -51,12 +65,6 @@ SUPPORTS_CHILD_COUNT=0
 
    ```bash
    bun run build
-   ```
-
-   To build with child count support enabled:
-
-   ```bash
-   bun run build:with-child-count
    ```
 
 4. Run the tests (using Jest)
@@ -256,13 +264,12 @@ Minor differences:
 
 ## API discrepancies
 
-To differentiate between the Grafana Tempo API and the G-Research–flavoured Tempo API, the plugin checks the `SUPPORTS_CHILD_COUNT` environment variable.
-Building with `SUPPORTS_CHILD_COUNT=1` results in the runtime behavior described above.
+To differentiate between the Grafana Tempo API and the G-Research–flavoured Tempo API, the plugin uses a panel setting called "Enable G-Research Tempo API support". When enabled, the plugin will use the G-Research custom API features like child count support. When disabled, it works with the standard Grafana Tempo API.
 
 ## Testing
 
 We run end-to-end using Playwright and `@grafana/plugin-e2e`.
-There are two ways to run the tests, there is setup for when `SUPPORTS_CHILD_COUNT=0` or `SUPPORTS_CHILD_COUNT=1`.
+There are two ways to run the tests, depending on which API you want to test against (standard Grafana Tempo API or G-Research custom API).
 In both cases, we rely on a provisioned Docker compose setup.
 
 **Playwright requires Chromium as a dependency**
@@ -275,7 +282,7 @@ _Why is this not part of our package.json?_
 
 Chromium cannot be installed in our production environment, so we do not include it as a required dependency in package.json.
 
-### SUPPORTS_CHILD_COUNT = 0
+### Standard Grafana Tempo API
 
 Run `bun run server` to start the regular developer setup.  
 Here we shall target the Grafana Tempo API as mentioned in [./docker-compose.yaml].
@@ -286,7 +293,7 @@ Run
 bun run build
 ```
 
-to build a bundle without `SUPPORTS_CHILD_COUNT`.
+to build the plugin. When creating or editing a panel on a dashboard, make sure "Enable G-Research Tempo API support" is disabled in the panel options.
 
 Next, we need to provision sample data to our Tempo store.
 Run
@@ -303,7 +310,7 @@ Afterwards all pieces are in place to run the e2e tests:
 bun run e2e
 ```
 
-### SUPPORTS_CHILD_COUNT = 1
+### G-Research Custom Tempo API
 
 To simulate the production API, we have constructed a different Docker setup in [local-tempo-docker-compose.yml](./local-tempo-docker-compose.yml).
 There we also have a `Tempo` service, so from Grafana's point of view nothing will have changed.
@@ -323,11 +330,13 @@ In production, this would be the .NET side of things, for our local setup, we ca
 bun run tests/test-api.ts
 ```
 
-Next, build our plugin using `SUPPORTS_CHILD_COUNT=1` via
+Next, build our plugin:
 
 ```shell
-bun run build:with-child-count
+bun run build
 ```
+
+When creating or editing a panel on a dashboard, make sure "Enable G-Research Tempo API support" is enabled in the panel options.
 
 Afterwards, you should be able to run the tests using:
 
@@ -338,7 +347,7 @@ bun run e2e
 ### Updating the test Trace
 
 In `scripts/e2e-tempo-trace.js`, we have a test scenario.
-To ensure we use the same data during `SUPPORTS_CHILD_COUNT=1`.
+To ensure we use the same data when testing with G-Research custom Tempo API.
 You can extract the last trace to [tests/test-trace.json](./tests/test-trace.json) via
 
 ```shell

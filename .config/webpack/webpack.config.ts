@@ -193,7 +193,7 @@ const config = async (env: Env): Promise<Configuration> => {
     plugins: [
       new BuildModeWebpackPlugin(),
       virtualPublicPath,
-      // Define environment variables for build-time configuration
+      // Define environment variable for setting default panel option value (development only)
       new webpack.DefinePlugin({
         'process.env.SUPPORTS_CHILD_COUNT': JSON.stringify(process.env.SUPPORTS_CHILD_COUNT === '1'),
       }),

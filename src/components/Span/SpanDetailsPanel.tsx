@@ -5,14 +5,7 @@ import { IconButton, Input } from '@grafana/ui';
 import type { SpanInfo } from '../../types';
 import { formatUnixNanoToDateTime, formatDuration } from 'utils/utils.timeline';
 import { useQuery } from '@tanstack/react-query';
-import {
-  KeyValue,
-  AnyValue,
-  FetchFunction,
-  TagAttributes,
-  getTagAttributesForSpan,
-  supportsChildCount,
-} from 'utils/utils.api';
+import { KeyValue, AnyValue, FetchFunction, TagAttributes, getTagAttributesForSpan } from 'utils/utils.api';
 import { Accordion } from './Accordion';
 
 function collectTagAttributes(result: KeyValue[]): TagAttributes {
@@ -143,10 +136,12 @@ export function SpanDetailPanel({
   span,
   onClose,
   fetchFn,
+  supportsChildCount,
 }: {
   span: SpanInfo;
   onClose: () => void;
   fetchFn: FetchFunction<any>;
+  supportsChildCount: boolean;
 }) {
   const [expandedSections, setExpandedSections] = useState({
     additionalData: false,
