@@ -15,23 +15,10 @@ export class BuildModeWebpackPlugin {
           for (const asset of assets) {
             if (asset.name.endsWith('plugin.json')) {
               const pluginJsonString = asset.source.source().toString();
-              const pluginJson = JSON.parse(pluginJsonString);
-              const supportsChildCount = process.env.SUPPORTS_CHILD_COUNT === '1';
-
-              // Append build mode info to description
-              const buildModeInfo = supportsChildCount
-                ? ' [Built with G-Research Tempo API support]'
-                : ' [Built with standard Grafana Tempo API]';
-
               const pluginJsonWithBuildMode = JSON.stringify(
                 {
-                  ...pluginJson,
+                  ...JSON.parse(pluginJsonString),
                   buildMode: compilation.options.mode,
-                  supportsChildCount: supportsChildCount,
-                  info: {
-                    ...pluginJson.info,
-                    description: pluginJson.info.description + buildModeInfo,
-                  },
                 },
                 null,
                 4
