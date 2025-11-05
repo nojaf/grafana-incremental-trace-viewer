@@ -254,6 +254,9 @@ Minor differences:
 
 - Resource attributes that come from the server are prefixed with `resource.`. Since we have all attributes available, we need a way to tell which ones belong to the resource and which belong to the span. Tempo is a bit odd: if you request `select(resource.serviceAttributeName)`, it will appear on the span as `serviceAttributeName`, but because you requested it in the select you can trace it back to a resource attribute. In production, however, we receive all values without requesting them, so the `resource.` prefix is necessary to identify which attributes are resource attributes.
 
+PS: The production API needs to run on the `0.0.0.0` interface before `http://host.docker.internal:5259/tempo` can work in the `bun run server:local` setup.
+Check if "applicationUrl" in `launchSettings.json` has this.
+
 ## API discrepancies
 
 To differentiate between the Grafana Tempo API and the G-Research–flavoured Tempo API, the plugin checks the `SUPPORTS_CHILD_COUNT` environment variable.

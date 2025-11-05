@@ -1,10 +1,11 @@
 Bun.serve({
   port: 3200,
   hostname: '0.0.0.0',
+  idleTimeout: 255,
   async fetch(req) {
     const url = new URL(req.url);
     const targetPath = url.pathname;
-    let targetUrl = `http://host.docker.internal:5359/tempo${targetPath}`;
+    let targetUrl = `http://host.docker.internal:5259/tempo${targetPath}`;
     if (url.searchParams.size > 0) {
       targetUrl += `?${url.searchParams.toString()}`;
     }
