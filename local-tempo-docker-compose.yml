@@ -12,7 +12,7 @@ services:
     volumes:
       - ./scripts/proxy.js:/app/proxy.js
     working_dir: /app
-    command: bun run proxy.js
+    command: bun run --watch proxy.js
     ports:
       - '3200:3200'
     extra_hosts:
