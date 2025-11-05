@@ -196,7 +196,7 @@ const config = async (env: Env): Promise<Configuration> => {
       // Define environment variable for setting default panel option value
       // Default is true (child count enabled). Set SUPPORTS_CHILD_COUNT=0 to disable.
       new webpack.DefinePlugin({
-        'process.env.SUPPORTS_CHILD_COUNT': JSON.stringify(process.env.SUPPORTS_CHILD_COUNT !== '0'),
+        'process.env.SUPPORTS_CHILD_COUNT': process.env.SUPPORTS_CHILD_COUNT !== '0',
       }),
       // Insert create plugin version information into the bundle
       new webpack.BannerPlugin({
