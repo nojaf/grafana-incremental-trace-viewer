@@ -15,7 +15,7 @@ function filterSpansInPlace(filter, response: SearchResponse) {
 }
 
 Bun.serve({
-  port: 5359,
+  port: 5259,
   hostname: '0.0.0.0',
   routes: {
     '/tempo/api/echo': new Response('echo', { headers: { 'Content-Type': 'text/plain' } }),
