@@ -33,7 +33,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build plugin
-        run: bun run build:with-child-count
+        run: bun run build
 
       - name: Package unsigned plugin
         run: bun ./scripts/package-plugin.js

@@ -41,3 +41,7 @@ export type TraceViewerHeaderProps = {
   // It is used to shrink the timeline to make room for the top-level span duration.
   timelineOffset: number;
 };
+
+export type PanelOptions = {
+  supportsChildCount: boolean;
+};

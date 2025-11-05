@@ -4,10 +4,11 @@ import { Icon, TextLink } from '@grafana/ui';
 import TraceDetail from './TraceDetail';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelpModal } from './HelpModal';
+import { PanelOptions } from '../types';
 
 const queryClient = new QueryClient();
 
-interface Props extends PanelProps<{}> {}
+interface Props extends PanelProps<PanelOptions> {}
 
 export type QueryInfo = {
   datasourceUid: string;
@@ -152,6 +153,7 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
         // Grafana adds padding-block of 8px
         panelHeight={height + 16}
         timeRange={timeRange}
+        supportsChildCount={options.supportsChildCount ?? false}
       />
     </QueryClientProvider>
   );

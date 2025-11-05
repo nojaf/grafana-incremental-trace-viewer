@@ -134,8 +134,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build plugin
-        run: bun run build
+      - name: Build plugin (without child count for standard Tempo tests)
+        run: bun run build:without-child-count
 
       - name: Start Grafana
         run: |
@@ -171,8 +171,8 @@ jobs:
       - name: Stop grafana docker (after regular tests)
         run: docker compose down
 
-      - name: Build with child count support
-        run: bun run build:with-child-count
+      - name: Build plugin (with child count, default)
+        run: bun run build
 
       - name: Start Grafana (for child count tests)
         run: |

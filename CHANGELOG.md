@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0] - 2025-11-04
+
+### Changed
+
+- Converted `SUPPORTS_CHILD_COUNT` from build-time environment variable to runtime panel option. The plugin now uses a panel setting "Enable G-Research Tempo API support" that can be configured per panel when editing a dashboard. This allows a single build to work with both standard Grafana Tempo API and G-Research custom Tempo API.
+- Removed `build:with-child-count` script. Use `bun run build` for all builds.
+- Updated release workflow to use standard build process.
+
+### Added
+
+- Panel option "Enable G-Research Tempo API support" for runtime configuration of child count support.
+- Support for setting default panel option value via `SUPPORTS_CHILD_COUNT` environment variable for local development (e.g., `SUPPORTS_CHILD_COUNT=1 bun run dev`).
+
 ## [0.1.5] - 2025-10-31
 
 ### Added
