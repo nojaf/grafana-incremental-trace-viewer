@@ -12,6 +12,7 @@ import TraceViewerHeader from './TraceViewerHeader';
 import { TimeRange } from '@grafana/data';
 import { LoadingBar } from '@grafana/ui';
 import { lastValueFrom } from 'rxjs';
+import { map } from 'rxjs/operators';
 import { getBackendSrv } from '@grafana/runtime';
 
 export function searchWithDatasourceUid<TResponse>(datasourceUid: string): FetchFunction<TResponse> {
@@ -20,7 +21,16 @@ export function searchWithDatasourceUid<TResponse>(datasourceUid: string): Fetch
       url: `/api/datasources/proxy/uid/${datasourceUid}${apiRoute}?${queryString}`,
       method: 'GET',
     });
-    const response = await lastValueFrom(responses);
+    const response = await lastValueFrom(
+      responses.pipe(
+        map((res) => {
+          if (res.status >= 500) {
+            throw new Error(`HTTP error! Status: ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`);
+          }
+          return res;
+        })
+      )
+    );
     return response.data;
   };
 }
@@ -212,6 +222,7 @@ function TraceDetail({
   const result = useQuery<SpanInfo[]>(
     {
       queryKey,
+      throwOnError: true,
       staleTime: 5000,
       queryFn: async () => {
         setLoadingMessage('Loading root nodes of trace');

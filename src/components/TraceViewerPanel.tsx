@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { PanelData, PanelProps } from '@grafana/data';
-import { Icon, TextLink } from '@grafana/ui';
+import { ErrorBoundary, ErrorWithStack, Icon, TextLink } from '@grafana/ui';
 import TraceDetail from './TraceDetail';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HelpModal } from './HelpModal';
@@ -145,16 +145,26 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
   }
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TraceDetail
-        key={queries[0].traceId}
-        {...queries[0]}
-        panelWidth={width}
-        // Grafana adds padding-block of 8px
-        panelHeight={height + 16}
-        timeRange={timeRange}
-        supportsChildCount={options.supportsChildCount ?? false}
+    <ErrorBoundary>
+      {({ error, errorInfo }) => {
+        return error ? (
+          <div className="h-full overflow-y-scroll">
+            <ErrorWithStack error={error} title={'Unexpected error'} errorInfo={errorInfo} />
+          </div>
+        ) : (
+          <QueryClientProvider client={queryClient}>
+            <TraceDetail
+              key={queries[0].traceId}
+              {...queries[0]}
+              panelWidth={width}
+              // Grafana adds padding-block of 8px
+              panelHeight={height + 16}
+              timeRange={timeRange}
+              supportsChildCount={options.supportsChildCount ?? false}
       />
-    </QueryClientProvider>
+          </QueryClientProvider>
+        );
+      }}
+    </ErrorBoundary>
   );
 };

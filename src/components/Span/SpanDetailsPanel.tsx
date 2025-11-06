@@ -161,6 +161,7 @@ export function SpanDetailPanel({
 
   const result = useQuery<TagAttributes>({
     queryKey: ['trace', span.traceId, 'span', span.spanId, 'details'],
+    throwOnError: true,
     queryFn: async () => {
       if (supportsChildCount) {
         return collectTagAttributes(span.attributes);
