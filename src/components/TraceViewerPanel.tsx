@@ -161,7 +161,7 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
               panelHeight={height + 16}
               timeRange={timeRange}
               supportsChildCount={options.supportsChildCount ?? false}
-      />
+            />
           </QueryClientProvider>
         );
       }}

@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.3.0] - 2025-11-06
+
+### Added
+
+- Error boundary for any unexpected API errors. https://github.com/G-Research/grafana-incremental-trace-viewer/pull/130
+
 ## [0.2.0] - 2025-11-04
 
 ### Changed
@@ -10,7 +16,7 @@
 
 ### Added
 
-- Panel option "Enable G-Research Tempo API support" for runtime configuration of child count support.
+- Panel option "Enable G-Research Tempo API support" for runtime configuration of child count support. https://github.com/G-Research/grafana-incremental-trace-viewer/pull/128
 - Support for setting default panel option value via `SUPPORTS_CHILD_COUNT` environment variable for local development (e.g., `SUPPORTS_CHILD_COUNT=1 bun run dev`).
 
 ## [0.1.5] - 2025-10-31
