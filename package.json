@@ -1,6 +1,6 @@
 {
   "name": "grafana-incremental-trace-viewer",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "scripts": {
     "build": "webpack -c ./.config/webpack/webpack.config.ts --env production",
     "build:without-child-count": "SUPPORTS_CHILD_COUNT=0 webpack -c ./.config/webpack/webpack.config.ts --env production",
@@ -24,7 +24,7 @@
   "devDependencies": {
     "@grafana/eslint-config": "^8.0.0",
     "@grafana/plugin-e2e": "^2.0.4",
-    "@grafana/tsconfig": "^2.0.0",
+    "@grafana/tsconfig": "2.0.0",
     "@opentelemetry/api": "^1.9.0",
     "@opentelemetry/exporter-trace-otlp-grpc": "^0.202.0",
     "@opentelemetry/resources": "^2.0.1",
@@ -84,10 +84,10 @@
   },
   "dependencies": {
     "@emotion/css": "11.10.6",
-    "@grafana/data": "^12.0.1",
-    "@grafana/runtime": "^12.0.1",
-    "@grafana/schema": "^12.0.1",
-    "@grafana/ui": "^12.0.1",
+    "@grafana/data": "^11.6.14",
+    "@grafana/runtime": "^11.6.14",
+    "@grafana/schema": "^11.6.14",
+    "@grafana/ui": "^11.6.14",
     "@tailwindcss/postcss": "^4.1.10",
     "@tanstack/react-query": "^5.80.5",
     "@tanstack/react-virtual": "^3.13.10",
