@@ -1,5 +1,12 @@
 # Changelog
 
+
+## [0.3.0] - 2026-06-02
+
+### Changed
+
+- Lowered the minimum supported Grafana version to 11. The `@grafana/*` packages are now built against `11.6.14` and `grafanaDependency` is set to `>=11.0.0`. The plugin continues to work on Grafana 11 and higher.
+
 ## [0.2.0] - 2025-11-04
 
 ### Changed

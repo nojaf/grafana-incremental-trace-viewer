@@ -7,7 +7,7 @@ services:
       - tempo
 
   tempo:
-    image: grafana/tempo:latest # Or a specific version e.g., grafana/tempo:2.4.1
+    image: grafana/tempo:2.10.5 # Pinned: tempo 3.x removed the top-level `ingester`/`compactor` config keys used in tempo-config.yaml
     container_name: tempo
     command: ['-config.file=/etc/tempo/tempo-config.yaml']
     volumes:
