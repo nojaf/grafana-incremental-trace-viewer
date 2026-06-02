@@ -107,7 +107,7 @@ jobs:
 
       - name: Resolve Grafana E2E versions
         id: resolve-versions
-        uses: grafana/plugin-actions/e2e-version@main # zizmor: ignore[unpinned-uses] provided by grafana
+        uses: grafana/plugin-actions/e2e-version@e2e-version/v2 # zizmor: ignore[unpinned-uses] provided by grafana — pinned off @main: its HEAD bundle is broken by the 2026-05-27 dep bump (#228); v2 tracks the latest stable release and still resolves latest Grafana at runtime
 
   playwright-tests:
     needs: [resolve-versions]
