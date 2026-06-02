@@ -84,13 +84,13 @@ async function addAttributesToSpan(trace: Trace, span: Span) {
     });
   }
 
-  // Add childCount
+  // Add span:childCount (the TraceQL intrinsic key returned by Tempo >= 2.10 / the G-Research API)
   const childCount = trace.spanSets?.[0].spans?.filter(
     (s) => s.attributes?.find((attr) => attr.key === 'span:parentID')?.value?.stringValue === span.spanID
   ).length;
   if (childCount !== undefined) {
     span.attributes?.push({
-      key: 'childCount',
+      key: 'span:childCount',
       value: {
         intValue: childCount.toString(),
       },

@@ -3,17 +3,8 @@ import { TraceViewerPanel } from './components/TraceViewerPanel';
 import './styles/tailwind.css';
 import { PanelOptions } from './types';
 
-// Allow setting default value via environment variable for local development
-// Default is true (child count enabled). Set SUPPORTS_CHILD_COUNT=0 to disable.
-// Usage: SUPPORTS_CHILD_COUNT=0 bun run dev
-// Note: webpack DefinePlugin replaces process.env.SUPPORTS_CHILD_COUNT with a boolean literal (true or false)
-const defaultSupportsChildCount = process.env.SUPPORTS_CHILD_COUNT as unknown as boolean;
-
-export const plugin = new PanelPlugin<PanelOptions>(TraceViewerPanel).setPanelOptions((builder) => {
-  return builder.addBooleanSwitch({
-    path: 'supportsChildCount',
-    name: 'Enable G-Research Tempo API support',
-    description: 'Enable child count support for G-Research custom Tempo API. Disable for standard Grafana Tempo API.',
-    defaultValue: defaultSupportsChildCount, // Default is true (child count enabled)
-  });
-});
+// The plugin works against both standard Grafana Tempo (>= 2.10, vParquet5) and the
+// G-Research custom Tempo API without any user-facing configuration: child counts are
+// requested inline via the `span:childCount` intrinsic and the backend's attribute shape
+// is detected at runtime. Hence there are no panel options to register.
+export const plugin = new PanelPlugin<PanelOptions>(TraceViewerPanel);

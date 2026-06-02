@@ -19,33 +19,14 @@ For detailed usage instructions and troubleshooting, see [HELP.md](HELP.md).
 
 App plugins can let you create a custom out-of-the-box monitoring experience by custom pages, nested data sources and panel plugins.
 
-## Panel Configuration
+## Backend requirements
 
-The plugin supports runtime configuration through panel options. To configure the setting:
+The plugin works against both standard Grafana Tempo and the G-Research custom Tempo API with a **single build and no panel configuration**:
 
-1. Create or edit a panel using this plugin on a dashboard
-2. In the panel edit mode, look for the "Enable G-Research Tempo API support" option in the panel options panel (right sidebar)
-3. Toggle the setting as needed
+- **Child count** is requested inline via the `span:childCount` TraceQL intrinsic ([grafana/tempo#5311](https://github.com/grafana/tempo/issues/5311#issuecomment-3119494111)). This requires **Grafana Tempo >= 2.10 written in the vParquet5 block encoding** (vParquet5 is opt-in in Tempo 2.10.x; the default vParquet4 does not expose `span:childCount`). The G-Research custom Tempo API returns the same `span:childCount` value.
+- **Span attributes** for the detail panel are resolved automatically: the plugin detects at runtime whether the backend returns every attribute inline (G-Research custom API) or only the attributes named in `select(...)` (standard Tempo), and fetches the remainder via `/search/tags` only when needed.
 
-**Setting**: Enable G-Research Tempo API support
-
-- A boolean setting that controls whether the plugin uses child count support for G-Research custom Tempo API. When enabled, the plugin will use `childCount` attributes from the backend. When disabled, it works with the standard Grafana Tempo API.
-
-### Development Default
-
-By default, child count support is **enabled** (for G-Research custom Tempo API). For local development with standard Grafana Tempo API, you can disable it:
-
-```bash
-# Default: child count enabled (for G-Research custom Tempo API)
-bun run dev
-
-# Disable for standard Grafana Tempo API
-SUPPORTS_CHILD_COUNT=0 bun run dev
-# Or use the convenience script:
-bun run dev:without-child-count
-```
-
-This sets the default value for new panels, but you can still override it per panel in the UI.
+There are no panel options to configure — just add the panel and point it at a Tempo-compatible data source.
 
 ## Get started
 
@@ -250,13 +231,10 @@ In production at G-Research, we target a Tempo-compatible API endpoint. The API 
 
 Minor differences:
 
-- The `search` endpoint returns all span attributes, even when they were not requested in traceQL. When opening span details the client performs two requests to obtain all span attributes:
+- The `search` endpoint returns all span attributes, even when they were not requested in traceQL. The Grafana Tempo API only returns attributes which are part of the `| select(...)` query, so for standard Tempo the client performs two extra requests to obtain all span attributes when opening span details:
   1. Retrieve all tags via `/search/tags`.
   2. Query the span and use the tags in a `select(...)`.
-     The Grafana Tempo API only returns attributes which are part of the `| select(...)` query.
-     In production, the server already has these attributes and we do not fetch them again.
-
-- `childCount` is part of the traceQL spec but is not implemented by Grafana Tempo. ([comment](https://github.com/grafana/tempo/issues/5311#issuecomment-3119494111)) This field is supported by the production API.
+     The plugin detects which behaviour applies at runtime: if the initial search already returned attributes beyond the selected/structural ones, it reads them inline and skips the two extra requests.
 
 - In traceQL, `nestedSetParent = -1` is an undocumented feature (but part of the spec) used to find root nodes.
   Ideally, each trace has a single root node; however, when a trace is still in progress, that root node might not yet exist (see partial application spans).
@@ -269,13 +247,13 @@ Check if "applicationUrl" in `launchSettings.json` has this.
 
 ## API discrepancies
 
-To differentiate between the Grafana Tempo API and the G-Research–flavoured Tempo API, the plugin uses a panel setting called "Enable G-Research Tempo API support". When enabled, the plugin will use the G-Research custom API features like child count support. When disabled, it works with the standard Grafana Tempo API.
+The plugin targets both the standard Grafana Tempo API and the G-Research–flavoured Tempo API from a single build. It uses the same query form for both (`select(span:name, resource.service.name, span:childCount)`) and detects the backend's behaviour at runtime — there is no panel setting to toggle. Standard Tempo must be **>= 2.10 on vParquet5** for `span:childCount` to be available.
 
 ## Testing
 
 We run end-to-end using Playwright and `@grafana/plugin-e2e`.
 There are two ways to run the tests, depending on which API you want to test against (standard Grafana Tempo API or G-Research custom API).
-In both cases, we rely on a provisioned Docker compose setup.
+The same plugin build is used for both; we rely on a provisioned Docker compose setup in each case.
 
 **Playwright requires Chromium as a dependency**
 
@@ -290,15 +268,15 @@ Chromium cannot be installed in our production environment, so we do not include
 ### Standard Grafana Tempo API
 
 Run `bun run server` to start the regular developer setup.  
-Here we shall target the Grafana Tempo API as mentioned in [./docker-compose.yaml].
+Here we shall target the Grafana Tempo API as mentioned in [./docker-compose.yaml]. The Tempo service is pinned to a version (>= 2.10) and `tempo-config.yaml` is configured for the **vParquet5** block encoding, which is required for the `span:childCount` intrinsic.
 
 Run
 
 ```shell
-bun run build:without-child-count
+bun run build
 ```
 
-to build the plugin without child count support (for standard Grafana Tempo API). When creating or editing a panel on a dashboard, make sure "Enable G-Research Tempo API support" is disabled in the panel options.
+to build the plugin. No per-panel configuration is needed — the plugin detects child-count and attribute support at runtime.
 
 Next, we need to provision sample data to our Tempo store.
 Run
@@ -335,13 +313,11 @@ In production, this would be the .NET side of things, for our local setup, we ca
 bun run tests/test-api.ts
 ```
 
-Next, build our plugin (default has child count enabled):
+Next, build our plugin (the same build works for this setup):
 
 ```shell
 bun run build
 ```
-
-The default panel option will have "Enable G-Research Tempo API support" enabled, which is correct for this setup.
 
 Afterwards, you should be able to run the tests using:
 
