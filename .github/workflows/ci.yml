@@ -98,7 +98,7 @@ jobs:
     timeout-minutes: 3
     if: ${{ github.event_name == 'pull_request' || github.event_name == 'push' }}
     outputs:
-      matrix: ${{ steps.resolve-versions.outputs.matrix }}
+      matrix: ${{ steps.filter-versions.outputs.matrix }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -108,6 +108,21 @@ jobs:
       - name: Resolve Grafana E2E versions
         id: resolve-versions
         uses: grafana/plugin-actions/e2e-version@e2e-version/v2 # zizmor: ignore[unpinned-uses] provided by grafana — pinned off @main: its HEAD bundle is broken by the 2026-05-27 dep bump (#228); v2 tracks the latest stable release and still resolves latest Grafana at runtime
+
+      # Grafana 13.0.2 (enterprise) ships a stray portal overlay (#grafana-portal-container)
+      # that intercepts pointer events, so every click-based e2e test times out. 13.0.1 and
+      # nightly are unaffected, so this is a Grafana regression, not a plugin issue. We skip
+      # only that exact patch; this is self-healing — once 13.0.3 is the latest 13.0.x patch,
+      # 13.0.2 no longer appears and this filter becomes a no-op. Does not touch plugin.json's
+      # grafanaDependency (>=11.0.0), since the plugin itself runs fine on 13.0.2.
+      - name: Drop known-broken Grafana patches from the e2e matrix
+        id: filter-versions
+        env:
+          MATRIX: ${{ steps.resolve-versions.outputs.matrix }}
+        run: |
+          filtered=$(echo "$MATRIX" | jq -c '[.[] | select(.version != "13.0.2")]')
+          echo "Filtered e2e matrix: $filtered"
+          echo "matrix=$filtered" >> "$GITHUB_OUTPUT"
 
   playwright-tests:
     needs: [resolve-versions]
