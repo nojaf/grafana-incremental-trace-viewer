@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.4.0] - 2026-06-02
+
+### Changed
+
+- Migrated child-count retrieval to Tempo's `span:childCount` TraceQL intrinsic. The plugin now always requests `| select(span:name, resource.service.name, span:childCount)` and reads the count inline. This **requires Grafana Tempo >= 2.10 with the vParquet5 block encoding** (or the G-Research custom Tempo API, which also returns `span:childCount`). The previous bare `childCount` select is now a syntax error on Tempo >= 2.10, so this also fixes that breakage.
+- Removed the per-span `count()` fallback query for child counts. Because counts are now returned inline, the previous N+1 fan-out is gone.
+- The span detail panel now detects at runtime whether the backend returns all attributes inline (G-Research custom API) versus only the selected ones (standard Tempo), instead of relying on a panel option.
+
+### Removed
+
+- Removed the "Enable G-Research Tempo API support" panel option (`supportsChildCount`). Both backends are now handled by a single build with runtime feature detection, so no per-panel configuration is required.
+- Removed the `build:without-child-count` and `dev:without-child-count` scripts and the `SUPPORTS_CHILD_COUNT` build-time environment variable. Use `bun run build` / `bun run dev` for all builds.
+
 ## [0.3.0] - 2026-06-02
 
 ### Changed

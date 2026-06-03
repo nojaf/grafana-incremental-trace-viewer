@@ -28,6 +28,10 @@ storage:
     backend: local
     local:
       path: /tmp/tempo/blocks
+    wal:
+      version: vParquet5
+    block:
+      version: vParquet5
 
 compactor:
   compaction:

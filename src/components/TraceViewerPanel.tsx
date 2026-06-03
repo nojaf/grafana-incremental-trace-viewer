@@ -56,7 +56,7 @@ function extractQueries(data: PanelData): QueryInfo[] {
   return queries;
 }
 
-export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id, timeRange }) => {
+export const TraceViewerPanel: React.FC<Props> = ({ data, width, height, fieldConfig, id, timeRange }) => {
   const [showHelpModal, setShowHelpModal] = React.useState(false);
   const [helpModalType, setHelpModalType] = React.useState<'panel-too-small' | 'no-data'>('panel-too-small');
 
@@ -153,7 +153,6 @@ export const TraceViewerPanel: React.FC<Props> = ({ options, data, width, height
         // Grafana adds padding-block of 8px
         panelHeight={height + 16}
         timeRange={timeRange}
-        supportsChildCount={options.supportsChildCount ?? false}
       />
     </QueryClientProvider>
   );

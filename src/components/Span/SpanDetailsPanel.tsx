@@ -136,12 +136,12 @@ export function SpanDetailPanel({
   span,
   onClose,
   fetchFn,
-  supportsChildCount,
+  attributesInline,
 }: {
   span: SpanInfo;
   onClose: () => void;
   fetchFn: FetchFunction<any>;
-  supportsChildCount: boolean;
+  attributesInline: boolean;
 }) {
   const [expandedSections, setExpandedSections] = useState({
     additionalData: false,
@@ -162,7 +162,10 @@ export function SpanDetailPanel({
   const result = useQuery<TagAttributes>({
     queryKey: ['trace', span.traceId, 'span', span.spanId, 'details'],
     queryFn: async () => {
-      if (supportsChildCount) {
+      // When the backend already returns every attribute inline (G-Research custom API), we
+      // can read them locally. Standard Tempo only returns the selected attributes, so we
+      // fetch the full set in a separate two-step request.
+      if (attributesInline) {
         return collectTagAttributes(span.attributes);
       }
 

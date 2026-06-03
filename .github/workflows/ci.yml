@@ -149,8 +149,8 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      - name: Build plugin (without child count for standard Tempo tests)
-        run: bun run build:without-child-count
+      - name: Build plugin
+        run: bun run build
 
       - name: Start Grafana
         run: |
@@ -186,26 +186,23 @@ jobs:
       - name: Stop grafana docker (after regular tests)
         run: docker compose down
 
-      - name: Build plugin (with child count, default)
-        run: bun run build
-
-      - name: Start Grafana (for child count tests)
+      - name: Start Grafana (for G-Research custom API tests)
         run: |
           docker compose -f ./local-tempo-docker-compose.yml pull
           ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false GRAFANA_VERSION=${{ matrix.GRAFANA_IMAGE.VERSION }} GRAFANA_IMAGE=${{ matrix.GRAFANA_IMAGE.NAME }} docker compose -f ./local-tempo-docker-compose.yml up --build -d
 
-      - name: Wait for grafana server (child count)
+      - name: Wait for grafana server (G-Research custom API)
         uses: grafana/plugin-actions/wait-for-grafana@main # zizmor: ignore[unpinned-uses] provided by grafana
         with:
           url: http://localhost:3000/login
 
-      - name: Start server with child count support
+      - name: Start G-Research custom API test server
         run: |
           bun run tests/test-api.ts &
           echo $! > /tmp/test-api.pid
           echo "Started test API server with PID: $(cat /tmp/test-api.pid)"
 
-      - name: Run Playwright tests (with child count)
+      - name: Run Playwright tests (G-Research custom API)
         id: run-tests-child-count
         run: bun run e2e
 
@@ -221,14 +218,14 @@ jobs:
             echo "No test API server PID file found"
           fi
 
-      - name: Upload e2e test summary (with child count)
+      - name: Upload e2e test summary (G-Research custom API)
         uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@main # zizmor: ignore[unpinned-uses] provided by grafana
         if: ${{ always() && !cancelled() }}
         with:
           upload-report: false
           github-token: ${{ secrets.GITHUB_TOKEN }}
           test-outcome: ${{ steps.run-tests-child-count.outcome }}
-          plugin-name: gresearch-grafanaincrementaltraceviewer-panel-0.2.0-with-child-count
+          plugin-name: gresearch-grafanaincrementaltraceviewer-panel-gresearch-custom-api
 
       - name: Docker logs
         if: ${{ always() && (steps.run-tests-regular.outcome == 'failure' || steps.run-tests-child-count.outcome == 'failure') }}

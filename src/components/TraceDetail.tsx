@@ -34,28 +34,31 @@ function getParentSpanId(span: Span): string | null {
   return parentSpanId || null;
 }
 
-async function fetchChildCountViaAPI(
-  fetchFn: FetchFunction<SearchResponse>,
-  traceId: string,
-  spanId: string,
-  startTimeUnixNano: number,
-  endTimeUnixNano: number
-): Promise<number | undefined> {
-  const q = `{ trace:id = "${traceId}" && span:parentID = "${spanId}" } | count() > 0`;
-  const start = mkUnixEpochFromNanoSeconds(startTimeUnixNano);
-  // As a precaution, we add 1 second to the end time.
-  // This is to avoid any rounding errors where the microseconds or nanoseconds are not included in the end time.
-  const end = mkUnixEpochFromNanoSeconds(endTimeUnixNano) + 1;
-  const data = await search(fetchFn, q, start, end, 1);
-  return data.traces?.[0]?.spanSets?.[0]?.matched;
+// Attribute keys that Tempo returns for our `select(...)` queries regardless of the
+// user's own attributes: the fields we explicitly select plus the structural intrinsics
+// Tempo includes automatically. We use these to detect whether a backend already returns
+// every attribute inline (G-Research custom API) or only the selected ones (standard Tempo).
+const STRUCTURAL_ATTRIBUTE_KEYS = new Set([
+  'span:name',
+  'name',
+  'service.name',
+  'resource.service.name',
+  'span:parentID',
+  'nestedSetParent',
+  'span:childCount',
+]);
+
+// Standard Grafana Tempo only returns the attributes listed in `select(...)`, so the span
+// detail panel must fetch the rest in a separate two-step request. The G-Research custom API
+// instead returns every attribute inline. We detect which one we are talking to by checking
+// whether the search response carries any attribute beyond the structural/selected set.
+function backendReturnsAttributesInline(spans: Span[]): boolean {
+  return spans.some((span) =>
+    (span.attributes || []).some((a) => a.key != null && !STRUCTURAL_ATTRIBUTE_KEYS.has(a.key))
+  );
 }
 
-async function extractSpans(
-  fetchFn: FetchFunction<SearchResponse>,
-  idToLevelMap: Map<string, number>,
-  traceId: string,
-  responseData: SearchResponse
-): Promise<SpanInfo[]> {
+function extractSpans(idToLevelMap: Map<string, number>, traceId: string, responseData: SearchResponse): SpanInfo[] {
   const trace = responseData.traces?.find((t) => t.traceID === traceId);
   if (!trace) {
     // The trace might not have results for the current query.
@@ -97,16 +100,11 @@ async function extractSpans(
     const startTimeUnixNano = parseInt(span.startTimeUnixNano || '0', 10);
     const durationNanos = parseInt(span.durationNanos || '0', 10);
     const endTimeUnixNano = startTimeUnixNano + durationNanos;
-    // This is a rather expensive call.
-    // We need to call this for every span.
-    // Assuming that the childCount is set by the backend.
-    // We can just use that value to determine if the span has more children.
-    let childCountRaw = span.attributes?.find((a) => a.key === 'childCount')?.value?.intValue;
-    let childCount = childCountRaw === undefined ? undefined : parseInt(childCountRaw as string, 10);
-    if (childCount === undefined) {
-      // If not, we need to fetch the children count via additional query.
-      childCount = await fetchChildCountViaAPI(fetchFn, traceId, span.spanID, startTimeUnixNano, endTimeUnixNano);
-    }
+    // The number of direct children is returned inline by the backend via the
+    // `span:childCount` TraceQL intrinsic (Tempo >= 2.10 on vParquet5, and the G-Research
+    // custom Tempo API).
+    const childCountRaw = span.attributes?.find((a) => a.key === 'span:childCount')?.value?.intValue;
+    const childCount = childCountRaw === undefined ? undefined : parseInt(childCountRaw as string, 10);
 
     const serviceName = span.attributes?.find((a) => a.key === 'service.name')?.value?.stringValue || undefined;
 
@@ -140,18 +138,16 @@ async function extractSpans(
   return spans;
 }
 
-function getPipeSelect(supportsChildCount: boolean): string {
-  return `| select (span:name, resource.service.name${supportsChildCount ? ', childCount' : ''})`;
-}
+// The child count is requested inline via the `span:childCount` TraceQL intrinsic, which
+// requires Tempo >= 2.10 written in vParquet5 (or the G-Research custom Tempo API).
+const pipeSelect = `| select (span:name, resource.service.name, span:childCount)`;
 
 async function loadMoreSpans(
   fetchFn: FetchFunction<SearchResponse>,
   traceId: string,
   idToLevelMap: Map<string, number>,
-  span: SpanInfo,
-  supportsChildCount: boolean
+  span: SpanInfo
 ): Promise<SpanInfo[]> {
-  const pipeSelect = getPipeSelect(supportsChildCount);
   const q = `{ trace:id = "${traceId}" && span:parentID = "${span.spanId}" } ${pipeSelect}`;
   const start = mkUnixEpochFromNanoSeconds(span.startTimeUnixNano);
   // As a precaution, we add 1 second to the end time.
@@ -159,7 +155,7 @@ async function loadMoreSpans(
   const end = mkUnixEpochFromNanoSeconds(span.endTimeUnixNano) + 1;
   // See https://github.com/grafana/tempo/issues/5435
   const data = await search(fetchFn, q, start, end, 4294967295);
-  return await extractSpans(fetchFn, idToLevelMap, traceId, data);
+  return extractSpans(idToLevelMap, traceId, data);
 }
 
 function TraceDetail({
@@ -170,8 +166,7 @@ function TraceDetail({
   panelWidth,
   panelHeight,
   timeRange,
-  supportsChildCount,
-}: TraceDetailProps & { timeRange: TimeRange; supportsChildCount: boolean }): React.JSX.Element {
+}: TraceDetailProps & { timeRange: TimeRange }): React.JSX.Element {
   // Should we assert for traceId and datasourceId?
   if (!traceId || !datasourceUid) {
     throw new Error('traceId and datasourceId are required');
@@ -189,6 +184,10 @@ function TraceDetail({
   const fetchFn = React.useMemo(() => searchWithDatasourceUid<SearchResponse>(datasourceUid), [datasourceUid]);
 
   const idToLevelMap = React.useRef(new Map<string, number>());
+  // Whether the backend returns every span attribute inline (G-Research custom API) or only
+  // the selected ones (standard Tempo). Detected from the first search response and used by
+  // the span detail panel to decide whether it must fetch attributes separately.
+  const attributesInlineRef = React.useRef(false);
   // Keep track of the open/collapsed items in a map
   // filter accordingly in the virtualizer
 
@@ -217,11 +216,15 @@ function TraceDetail({
         setLoadingMessage('Loading root nodes of trace');
         const start = mkUnixEpochFromMiliseconds(startTimeInMs);
         const end = mkUnixEpochFromMiliseconds(startTimeInMs + durationInMs);
-        const pipeSelect = getPipeSelect(supportsChildCount);
         const q = `{ trace:id = "${traceId}" && nestedSetParent = -1 } ${pipeSelect}`;
         const data = await search(fetchFn, q, start, end);
+        // Detect once whether this backend returns all attributes inline (used by the span
+        // detail panel). The root spans are representative of the backend's response shape.
+        const rootSpans =
+          data.traces?.find((t) => t.traceID === traceId)?.spanSets?.flatMap((s) => s.spans || []) || [];
+        attributesInlineRef.current = backendReturnsAttributesInline(rootSpans);
         // We pass in hasMore: false because we are fetching the first round of children later.
-        const spans: SpanInfo[] = await extractSpans(fetchFn, idToLevelMap.current, traceId, data);
+        const spans: SpanInfo[] = extractSpans(idToLevelMap.current, traceId, data);
 
         // We fetch the first round of children for each span.
         let isSingleRootSpan = spans.filter((s) => s.level === 0).length === 1;
@@ -239,7 +242,7 @@ function TraceDetail({
           }
           allSpans.push(span);
           if (!hasNoChildren) {
-            const moreSpans = await loadMoreSpans(fetchFn, traceId, idToLevelMap.current, span, supportsChildCount);
+            const moreSpans = await loadMoreSpans(fetchFn, traceId, idToLevelMap.current, span);
             allSpans.push(...moreSpans);
           }
         }
@@ -334,7 +337,7 @@ function TraceDetail({
     });
 
     // Load the children
-    const spans = await loadMoreSpans(fetchFn, traceId, idToLevelMap.current, span, supportsChildCount);
+    const spans = await loadMoreSpans(fetchFn, traceId, idToLevelMap.current, span);
 
     // Update the parent span to show children
     queryClient.setQueryData<SpanInfo[]>(queryKey, (oldData) => {
@@ -530,7 +533,7 @@ function TraceDetail({
               setSelectedSpanElementYOffset(null);
             }}
             fetchFn={fetchFn}
-            supportsChildCount={supportsChildCount}
+            attributesInline={attributesInlineRef.current}
           />
         )}
       </SpanOverlayDrawer>

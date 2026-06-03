@@ -42,6 +42,6 @@ export type TraceViewerHeaderProps = {
   timelineOffset: number;
 };
 
-export type PanelOptions = {
-  supportsChildCount: boolean;
-};
+// The plugin no longer exposes any panel options: child-count and inline-attribute support
+// are both detected at runtime instead of toggled by the user.
+export type PanelOptions = Record<string, never>;
