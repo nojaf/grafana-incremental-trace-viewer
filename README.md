@@ -73,7 +73,7 @@ There are no panel options to configure — just add the panel and point it at a
    bun run server
 
    # If you wish to start a certain Grafana version. If not specified will use latest by default
-   GRAFANA_VERSION=11.3.0 bun run server
+   GRAFANA_VERSION=11.6.14 bun run server
 
    # Starts the tests
    bun run e2e

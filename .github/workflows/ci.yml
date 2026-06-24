@@ -114,7 +114,7 @@ jobs:
       # nightly are unaffected, so this is a Grafana regression, not a plugin issue. We skip
       # only that exact patch; this is self-healing — once 13.0.3 is the latest 13.0.x patch,
       # 13.0.2 no longer appears and this filter becomes a no-op. Does not touch plugin.json's
-      # grafanaDependency (>=11.0.0), since the plugin itself runs fine on 13.0.2.
+      # grafanaDependency (>=11.6.14), since the plugin itself runs fine on 13.0.2.
       - name: Drop known-broken Grafana patches from the e2e matrix
         id: filter-versions
         env:
