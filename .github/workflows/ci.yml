@@ -107,7 +107,7 @@ jobs:
 
       - name: Resolve Grafana E2E versions
         id: resolve-versions
-        uses: grafana/plugin-actions/e2e-version@e2e-version/v2 # zizmor: ignore[unpinned-uses] provided by grafana — pinned off @main: its HEAD bundle is broken by the 2026-05-27 dep bump (#228); v2 tracks the latest stable release and still resolves latest Grafana at runtime
+        uses: grafana/plugin-actions/e2e-version@73cd57e848b81e75e3c17697e6701c9fa1404bcc # e2e-version/v2 (provided by grafana; main HEAD broken per #228)
 
       # Grafana 13.0.2 (enterprise) ships a stray portal overlay (#grafana-portal-container)
       # that intercepts pointer events, so every click-based e2e test times out. 13.0.1 and
@@ -158,7 +158,7 @@ jobs:
           ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false GRAFANA_VERSION=${{ matrix.GRAFANA_IMAGE.VERSION }} GRAFANA_IMAGE=${{ matrix.GRAFANA_IMAGE.NAME }} docker compose up -d
 
       - name: Wait for grafana server
-        uses: grafana/plugin-actions/wait-for-grafana@main # zizmor: ignore[unpinned-uses] provided by grafana
+        uses: grafana/plugin-actions/wait-for-grafana@304ed38a05911eda030608b10ff9ca59616e465c # main (provided by grafana)
         with:
           url: http://localhost:3000/login
 
@@ -176,7 +176,7 @@ jobs:
         run: bun run e2e
 
       - name: Upload e2e test summary (regular)
-        uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@main # zizmor: ignore[unpinned-uses] provided by grafana
+        uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@304ed38a05911eda030608b10ff9ca59616e465c # main (provided by grafana)
         if: ${{ always() && !cancelled() }}
         with:
           upload-report: false
@@ -192,7 +192,7 @@ jobs:
           ANONYMOUS_AUTH_ENABLED=false DEVELOPMENT=false GRAFANA_VERSION=${{ matrix.GRAFANA_IMAGE.VERSION }} GRAFANA_IMAGE=${{ matrix.GRAFANA_IMAGE.NAME }} docker compose -f ./local-tempo-docker-compose.yml up --build -d
 
       - name: Wait for grafana server (G-Research custom API)
-        uses: grafana/plugin-actions/wait-for-grafana@main # zizmor: ignore[unpinned-uses] provided by grafana
+        uses: grafana/plugin-actions/wait-for-grafana@304ed38a05911eda030608b10ff9ca59616e465c # main (provided by grafana)
         with:
           url: http://localhost:3000/login
 
@@ -219,7 +219,7 @@ jobs:
           fi
 
       - name: Upload e2e test summary (G-Research custom API)
-        uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@main # zizmor: ignore[unpinned-uses] provided by grafana
+        uses: grafana/plugin-actions/playwright-gh-pages/upload-report-artifacts@304ed38a05911eda030608b10ff9ca59616e465c # main (provided by grafana)
         if: ${{ always() && !cancelled() }}
         with:
           upload-report: false
@@ -237,7 +237,7 @@ jobs:
 
       # Uncomment this step to upload the server log to Github artifacts. Remember Github artifacts are public on the Internet if the repository is public.
       # - name: Upload server log
-      #   uses: actions/upload-artifact@v4
+      #   uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
       #   if: ${{ always() && (steps.run-tests-regular.outcome == 'failure' || steps.run-tests-child-count.outcome == 'failure') }}
       #   with:
       #     name: ${{ matrix.GRAFANA_IMAGE.NAME }}-v${{ matrix.GRAFANA_IMAGE.VERSION }}-${{github.run_id}}-server-log
@@ -256,10 +256,10 @@ jobs:
   #   needs: [playwright-tests]
   #   runs-on: ubuntu-latest
   #   steps:
-  #     - uses: actions/checkout@v4
+  #     - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
   #       with:
   #         persist-credentials: true
   #     - name: Publish report
-  #       uses: grafana/plugin-actions/playwright-gh-pages/deploy-report-pages@main
+  #       uses: grafana/plugin-actions/playwright-gh-pages/deploy-report-pages@304ed38a05911eda030608b10ff9ca59616e465c # main (provided by grafana)
   #       with:
   #         github-token: ${{ secrets.GITHUB_TOKEN }}
