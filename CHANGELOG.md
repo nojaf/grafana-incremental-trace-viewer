@@ -1,5 +1,15 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Fixed the panel failing to load on Grafana 13 / React 19 (`TypeError: Cannot read properties of undefined (reading 'ReactCurrentOwner')`). The bundled `react/jsx-runtime` (React 18) reached for internals that React 19 removed; it is now externalized so the plugin uses the host Grafana's shared `react/jsx-runtime`.
+
+### Changed
+
+- Raised the minimum supported Grafana version to **11.6.14** (`grafanaDependency` `>=11.6.14`). Grafana only exposes `react/jsx-runtime` as a shared SystemJS module from ~11.5 onward, so externalizing it requires this floor. Grafana 11.0–11.4 are no longer supported.
+
 ## [0.4.0] - 2026-06-02
 
 ### Changed
